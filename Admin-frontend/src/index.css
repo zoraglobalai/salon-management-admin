@@ -1,0 +1,177 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Theme Tokens (Gray + White Default) ──────────────────────── */
+:root {
+  --color-primary: #18181b;
+  --color-primary-hover: #27272a;
+  --color-primary-light: #f4f4f5;
+
+  --color-surface: #ffffff;
+  --color-surface-raised: #fafafa;
+
+  --color-background: #f8f8f9;
+
+  --color-text-primary: #18181b;
+  --color-text-secondary: #52525b;
+  --color-text-muted: #a1a1aa;
+
+  --color-border: #e4e4e7;
+  --color-border-strong: #d4d4d8;
+
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+  --color-info: #2563eb;
+
+  --sidebar-width: 256px;
+  --navbar-height: 60px;
+}
+
+/* ─── Base Styles ───────────────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─── Scrollbar Styling ──────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 99px;
+}
+
+/* ─── Component Layer ────────────────────────────────────────────── */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded font-medium transition-all duration-200 px-4 py-2 text-sm cursor-pointer;
+  }
+
+  .btn-primary {
+    @apply btn bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] active:scale-[0.98];
+  }
+
+  .btn-secondary {
+    @apply btn bg-white border border-[var(--color-border)] text-[var(--color-text-primary)] hover:bg-[var(--color-surface-raised)];
+  }
+
+  .btn-danger {
+    @apply btn bg-red-600 text-white hover:bg-red-700;
+  }
+
+  .btn-ghost {
+    @apply btn text-[var(--color-text-secondary)] hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)];
+  }
+
+  .card {
+    @apply bg-surface rounded-lg border border-[var(--color-border)] shadow-card;
+  }
+
+  .input {
+    @apply w-full rounded border border-[var(--color-border)] bg-white px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder-[var(--color-text-muted)] outline-none transition-all duration-200 focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-opacity-10;
+  }
+
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+
+  .badge-success {
+    @apply badge bg-green-50 text-green-700;
+  }
+
+  .badge-warning {
+    @apply badge bg-amber-50 text-amber-700;
+  }
+
+  .badge-danger {
+    @apply badge bg-red-50 text-red-700;
+  }
+
+  .badge-info {
+    @apply badge bg-blue-50 text-blue-700;
+  }
+
+  .badge-gray {
+    @apply badge bg-gray-100 text-gray-600;
+  }
+
+  .table-base {
+    @apply w-full text-left text-sm;
+  }
+
+  .table-base thead tr {
+    @apply border-b border-[var(--color-border)] bg-[var(--color-surface-raised)];
+  }
+
+  .table-base thead th {
+    @apply px-4 py-3 font-semibold text-[var(--color-text-secondary)] text-xs uppercase tracking-wider;
+  }
+
+  .table-base tbody td {
+    @apply px-4 py-3 border-b border-[var(--color-border)] text-[var(--color-text-primary)];
+  }
+
+  .table-base tbody tr:last-child td {
+    @apply border-b-0;
+  }
+
+  .table-base tbody tr {
+    @apply hover:bg-[var(--color-surface-raised)] transition-colors duration-150;
+  }
+
+  .sidebar-link {
+    @apply flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-[var(--color-text-secondary)] transition-all duration-150 hover:bg-[var(--color-primary-light)] hover:text-[var(--color-primary)];
+  }
+
+  .sidebar-link.active {
+    @apply bg-[var(--color-primary-light)] text-[var(--color-primary)] font-semibold;
+  }
+
+  .page-header {
+    @apply mb-6;
+  }
+
+  .page-title {
+    @apply text-xl font-bold text-[var(--color-text-primary)];
+  }
+
+  .page-subtitle {
+    @apply text-sm text-[var(--color-text-muted)] mt-0.5;
+  }
+
+  /* Animations */
+  .fade-in {
+    animation: fadeIn 0.2s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .slide-in {
+    animation: slideIn 0.25s ease-out;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-8px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+}
