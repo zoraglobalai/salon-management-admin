@@ -41,6 +41,12 @@ export type SaleRecord = {
 export async function createSale(user: AuthUserPayload, input: SaleInput) {
   if (!user.tenant_id) throw createError("Tenant not found.", 400);
 
+  // POS Access Check: Only managers or owners without managers can use POS
+  const canAccessPOS = user.type === "manager" || (user.type === "owner" && !user.has_manager);
+  if (!canAccessPOS) {
+    throw createError("POS access denied. An owner with an assigned manager cannot create sales.", 403);
+  }
+
   // 1. Resolve Location
   let locationId = user.branch_id;
   if (user.type === "owner") {
@@ -148,10 +154,35 @@ export async function createSale(user: AuthUserPayload, input: SaleInput) {
     // 6. Create Sale Record
     const saleResult = await db.query<{ id: string }>(
       `INSERT INTO sales 
-        (tenant_id, location_id, client_id, subtotal, discount, discount_type, total_amount, payment_method, paid_amount)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        (
+          tenant_id,
+          branch_id,
+          location_id,
+          client_id,
+          amount,
+          subtotal,
+          discount,
+          discount_type,
+          total_amount,
+          payment_method,
+          paid_amount,
+          sale_date
+        )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
        RETURNING id`,
-      [user.tenant_id, locationId, clientId, subtotal, input.discount, input.discountType, totalAmount, input.paymentMethod, input.paidAmount]
+      [
+        user.tenant_id,
+        locationId,
+        locationId,
+        clientId,
+        totalAmount,
+        subtotal,
+        input.discount,
+        input.discountType,
+        totalAmount,
+        input.paymentMethod,
+        input.paidAmount,
+      ]
     );
     const saleId = saleResult.rows[0].id;
 

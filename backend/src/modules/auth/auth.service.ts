@@ -73,6 +73,7 @@ export const loginService = async (
       branch_id: user.branchId,
       type: operatorType,
       mode,
+      has_manager: user.hasManager,
       full_name: user.name,
       tenant_name: user.tenant?.businessName,
       branch_name: user.branch?.name,
@@ -101,6 +102,7 @@ export const loginService = async (
       tenantId: user.tenantId,
       branchId: user.branchId,
       mode,
+      hasManager: user.hasManager,
       location: user.branch ? user.branch.name.split('-')[0].trim() : undefined,
       numberOfBranches: user.tenant?.numberOfBranches || 1,
       branches: user.tenant?.branches?.map(b => ({

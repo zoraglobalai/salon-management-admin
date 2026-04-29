@@ -211,6 +211,48 @@ const ensureSchemas = async () => {
     )
   `);
 
+  await query(`ALTER TABLE sales ADD COLUMN IF NOT EXISTS tenant_id UUID`);
+  await query(`ALTER TABLE sales ADD COLUMN IF NOT EXISTS location_id UUID`);
+  await query(`ALTER TABLE sales ADD COLUMN IF NOT EXISTS subtotal NUMERIC(12,2) NOT NULL DEFAULT 0`);
+  await query(`ALTER TABLE sales ADD COLUMN IF NOT EXISTS discount NUMERIC(12,2) NOT NULL DEFAULT 0`);
+  await query(`ALTER TABLE sales ADD COLUMN IF NOT EXISTS discount_type TEXT NOT NULL DEFAULT 'flat'`);
+  await query(`ALTER TABLE sales ADD COLUMN IF NOT EXISTS total_amount NUMERIC(12,2) NOT NULL DEFAULT 0`);
+  await query(`ALTER TABLE sales ADD COLUMN IF NOT EXISTS paid_amount NUMERIC(12,2) NOT NULL DEFAULT 0`);
+  await query(`ALTER TABLE sales ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
+
+  await query(`DO $$
+  BEGIN
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name='sales' AND column_name='branch_id'
+    ) THEN
+      UPDATE sales SET location_id = COALESCE(location_id, branch_id) WHERE location_id IS NULL;
+      ALTER TABLE sales ALTER COLUMN branch_id DROP NOT NULL;
+    END IF;
+
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name='sales' AND column_name='amount'
+    ) THEN
+      UPDATE sales
+      SET subtotal = COALESCE(NULLIF(subtotal, 0), amount),
+          total_amount = COALESCE(NULLIF(total_amount, 0), amount),
+          paid_amount = COALESCE(NULLIF(paid_amount, 0), amount)
+      WHERE amount IS NOT NULL;
+    END IF;
+
+    IF EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_name='sales' AND column_name='sale_date'
+    ) THEN
+      UPDATE sales
+      SET created_at = COALESCE(created_at, sale_date)
+      WHERE sale_date IS NOT NULL;
+    END IF;
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'Sales migration issue: %', SQLERRM;
+  END $$`);
+
   await query(`
     CREATE TABLE IF NOT EXISTS sale_services (
       id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -85,4 +85,7 @@ export class User {
 
   @Column({ type: 'timestamp', nullable: true })
   resetPasswordExpires!: Date | null;
+
+  @Column({ type: 'boolean', default: false })
+  hasManager!: boolean;
 }

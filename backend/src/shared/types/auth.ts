@@ -8,6 +8,7 @@ export type AuthUserPayload = {
   type: OperatorUserType;
   role?: BusinessRole;
   mode?: UserMode;
+  has_manager?: boolean;
   email: string;
   full_name: string;
   tenant_name?: string;

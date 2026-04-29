@@ -128,6 +128,10 @@ export const createOwnerManagerService = async (userId: string, input: CreateMan
 
   const savedManager = await userRepo().save(manager);
 
+  // Update owner's hasManager flag
+  owner.hasManager = true;
+  await userRepo().save(owner);
+
   return {
     id: savedManager.id,
     name: savedManager.name,
@@ -154,6 +158,20 @@ export const removeOwnerManagerService = async (userId: string, managerId: strin
   }
 
   await userRepo().remove(manager);
+
+  // Check if there are any remaining managers
+  const remainingManagers = await userRepo().count({
+    where: {
+      tenantId,
+      role: 'MANAGER' as User['role'],
+    },
+  });
+
+  // If no managers left, update owner's hasManager flag
+  if (remainingManagers === 0) {
+    owner.hasManager = false;
+    await userRepo().save(owner);
+  }
 };
 
 export const resetOwnerManagerPasswordService = async (ownerId: string, managerId: string, newPassword: string) => {
