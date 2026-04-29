@@ -9,8 +9,9 @@ import {
 import { Tenant } from './Tenant';
 
 export enum SubscriptionPlan {
-  BASIC = 'BASIC',
+  STANDARD = 'STANDARD',
   PRO = 'PRO',
+  CUSTOM = 'CUSTOM',
 }
 
 export enum SubscriptionStatus {
@@ -29,7 +30,7 @@ export class Subscription {
   @Column({
     type: 'enum',
     enum: SubscriptionPlan,
-    default: SubscriptionPlan.BASIC,
+    default: SubscriptionPlan.STANDARD,
   })
   plan!: SubscriptionPlan;
 

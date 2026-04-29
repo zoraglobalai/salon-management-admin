@@ -39,12 +39,19 @@ export type DashboardSummaryResponse = {
     revenue: number;
     clients: number;
     payments: number;
+    avgOrderValue: number;
   };
   today: {
     sales: number;
     revenue: number;
     clients: number;
     payments: number;
+  };
+  yesterday: {
+    sales: number;
+    revenue: number;
+    clients: number;
+    avgOrderValue: number;
   };
   trend: Array<{
     day: string;
@@ -59,10 +66,21 @@ export type DashboardSummaryResponse = {
   recentSales: Array<{
     id: string;
     clientName: string;
+    serviceName: string;
     totalAmount: number;
     paymentMethod: string;
     createdAt: string | null;
   }>;
+  paymentMethods: Array<{
+    paymentMethod: string;
+    amount: number;
+    count: number;
+  }>;
+  todayStatus: {
+    completed: number;
+    pending: number;
+    cancelled: number;
+  };
   branches: DashboardSummaryBranch[];
 };
 

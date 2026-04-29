@@ -10,7 +10,10 @@
     "start": "node -r reflect-metadata dist/server.js",
     "test-email": "node -r reflect-metadata .\\node_modules\\ts-node\\dist\\bin.js .\\src\\tooling\\scripts\\sendTestEmail.ts",
     "create-super-user": "node -r reflect-metadata .\\node_modules\\ts-node\\dist\\bin.js .\\src\\tooling\\scripts\\createSuperUser.ts",
-    "typeorm": "node -r ts-node/register -r reflect-metadata ./node_modules/typeorm/cli.js"
+    "typeorm": "node -r ts-node/register -r reflect-metadata ./node_modules/typeorm/cli.js",
+    "migration:run": "npm run typeorm -- migration:run -d .\\src\\database\\config.ts",
+    "migration:show": "npm run typeorm -- migration:show -d .\\src\\database\\config.ts",
+    "migration:revert": "npm run typeorm -- migration:revert -d .\\src\\database\\config.ts"
   },
   "keywords": [],
   "author": "",

@@ -1,7 +1,24 @@
+import type { LucideIcon } from "lucide-react";
+import {
+  LayoutDashboard,
+  Wallet,
+  ReceiptText,
+  Users,
+  UserRound,
+  Scissors,
+  Package,
+  MessageCircleMore,
+  BarChart3,
+  Settings,
+  UserCog,
+} from "lucide-react";
+import type { User } from "../../auth/types/auth.types";
+import { canAccessPOS } from "../../../shared/utils/posAccess";
+
 export type DashboardNavigationItem = {
   label: string;
   to: string;
-  icon: string;
+  icon: LucideIcon;
 };
 
 export type DashboardWorkspaceConfig = {
@@ -11,20 +28,17 @@ export type DashboardWorkspaceConfig = {
 };
 
 const getBaseNavigation = (): DashboardNavigationItem[] => [
-  { label: "Dashboard", to: "/dashboard", icon: "[]" },
-  { label: "Sales", to: "/dashboard/sales/pos", icon: "💰" },
-  { label: "Sales History", to: "/dashboard/sales/history", icon: "📜" },
-  { label: "Clients", to: "/dashboard/clients", icon: "()" },
-  { label: "Staff", to: "/dashboard/staff", icon: "<>" },
-  { label: "Services", to: "/dashboard/services", icon: "#" },
-  { label: "Inventory", to: "/dashboard/inventory", icon: "%" },
-  { label: "WhatsApp", to: "/dashboard/automation", icon: "*" },
-  { label: "Reports", to: "/dashboard/reports", icon: "=" },
-  { label: "Settings", to: "/dashboard/settings", icon: "@" },
+  { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
+  { label: "Sales", to: "/dashboard/sales/pos", icon: Wallet },
+  { label: "Sales History", to: "/dashboard/sales/history", icon: ReceiptText },
+  { label: "Clients", to: "/dashboard/clients", icon: Users },
+  { label: "Staff", to: "/dashboard/staff", icon: UserRound },
+  { label: "Services", to: "/dashboard/services", icon: Scissors },
+  { label: "Inventory", to: "/dashboard/inventory", icon: Package },
+  { label: "WhatsApp", to: "/dashboard/automation", icon: MessageCircleMore },
+  { label: "Reports", to: "/dashboard/reports", icon: BarChart3 },
+  { label: "Settings", to: "/dashboard/settings", icon: Settings },
 ];
-
-import type { User } from "../../auth/types/auth.types";
-import { canAccessPOS } from "../../../shared/utils/posAccess";
 
 export function getDashboardWorkspaceConfig(
   isManager: boolean,
@@ -33,20 +47,18 @@ export function getDashboardWorkspaceConfig(
 ): DashboardWorkspaceConfig {
   const navigation = getBaseNavigation();
 
-  // Hide Sales menu if user doesn't have POS access
   if (user && !canAccessPOS(user)) {
-    // Remove both Sales and Sales History if no POS access
     return {
       title: isManager ? "Location Operations" : (isMonitorView ? "Multi-Location Overview" : "Business Overview"),
       subtitle: isManager ? "Location management" : "Business operations",
-      navigation: navigation.filter((item) => 
-        item.label !== "Sales" && item.label !== "Sales History"
-      ).concat(!isManager ? [{ label: "Managers", to: "/dashboard/managers", icon: "👤" }] : []),
+      navigation: navigation
+        .filter((item) => item.label !== "Sales" && item.label !== "Sales History")
+        .concat(!isManager ? [{ label: "Managers", to: "/dashboard/managers", icon: UserCog }] : []),
     };
   }
 
   if (!isManager) {
-    navigation.push({ label: "Managers", to: "/dashboard/managers", icon: "👤" });
+    navigation.push({ label: "Managers", to: "/dashboard/managers", icon: UserCog });
   }
 
   return {

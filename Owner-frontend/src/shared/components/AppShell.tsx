@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, type PropsWithChildren } from "react";
 import { NavLink } from "react-router-dom";
+import type { LucideIcon } from "lucide-react";
 import { CircleHelp, Crown, LogOut, Moon, Settings2, UserCircle2 } from "lucide-react";
 import { useAuth } from "../../modules/auth/hooks/useAuth";
 import { fetchMe } from "../../core/api";
@@ -12,7 +13,7 @@ import { useDashboardTheme } from "../theme/ThemeProvider";
 type NavigationItem = {
   label: string;
   to: string;
-  icon: string;
+  icon: LucideIcon;
 };
 
 type AppShellProps = PropsWithChildren<{
@@ -179,14 +180,19 @@ export function AppShell({
         </div>
 
         <nav className="nav-list overflow-y-auto">
-          {navigation.map((item) => (
+          {navigation.map((item) => {
+            const Icon = item.icon;
+
+            return (
             <NavLink
               key={item.to}
               to={item.to}
               onClick={() => setIsSidebarOpen(false)}
               className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
             >
-              <span className="nav-icon">{item.icon}</span>
+              <span className="nav-icon">
+                <Icon size={18} />
+              </span>
               <span className="flex items-center gap-2">
                 <span>{item.label}</span>
                 {item.to === "/dashboard/inventory" && lowStockCount > 0 ? (
@@ -196,7 +202,8 @@ export function AppShell({
                 ) : null}
               </span>
             </NavLink>
-          ))}
+            );
+          })}
         </nav>
 
         <div className="relative mt-auto px-2 pb-2" ref={profileMenuRef}>

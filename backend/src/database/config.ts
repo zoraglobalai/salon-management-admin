@@ -16,8 +16,8 @@ export const databaseConfig = {
   database: ENV.DB_NAME,
   username: ENV.DB_USER,
   password: ENV.DB_PASSWORD,
-  synchronize: true,
-  logging: ENV.NODE_ENV === 'productionn',
+  synchronize: false,
+  logging: ENV.NODE_ENV === 'production',
   ssl: ENV.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 };
 
@@ -25,5 +25,5 @@ export const AppDataSource = new DataSource({
   type: 'postgres',
   ...databaseConfig,
   entities: [User, Tenant, Branch, Subscription, Trial, RevenueTransaction, SupportTicket, Log],
-  migrations: [],
+  migrations: ['src/database/migrations/*.ts', 'dist/database/migrations/*.js'],
 });

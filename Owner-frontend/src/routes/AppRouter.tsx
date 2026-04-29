@@ -11,7 +11,13 @@ import { DashboardClientsPage } from "../modules/dashboard/pages/DashboardClient
 import { ClientDetailPage } from "../modules/dashboard/pages/ClientDetailPage";
 import { DashboardPage } from "../modules/dashboard/pages/DashboardPage";
 import { DashboardInventoryPage } from "../modules/dashboard/pages/DashboardInventoryPage";
-import { DashboardReportsPage } from "../modules/dashboard/pages/DashboardReportsPage";
+import { ReportsLandingPage } from "../modules/reports/pages/ReportsLandingPage";
+import { SalesReportPage } from "../modules/reports/pages/SalesReportPage";
+import { CustomerReportPage } from "../modules/reports/pages/CustomerReportPage";
+import { ServiceReportPage } from "../modules/reports/pages/ServiceReportPage";
+import { StaffReportPage } from "../modules/reports/pages/StaffReportPage";
+import { InventoryReportPage } from "../modules/reports/pages/InventoryReportPage";
+import { ProfitLossPage } from "../modules/reports/pages/ProfitLossPage";
 import { DashboardSalesPOSPage } from "../modules/dashboard/pages/DashboardSalesPOSPage";
 import { DashboardSalesHistoryPage } from "../modules/dashboard/pages/DashboardSalesHistoryPage";
 import { DashboardServicesPage } from "../modules/dashboard/pages/DashboardServicesPage";
@@ -43,7 +49,15 @@ export function AppRouter() {
           <Route path="services" element={<DashboardServicesPage />} />
           <Route path="inventory" element={<DashboardInventoryPage />} />
           <Route path="automation" element={<DashboardAutomationPage />} />
-          <Route path="reports" element={<DashboardReportsPage />} />
+          <Route path="reports">
+            <Route index element={<ReportsLandingPage />} />
+            <Route path="sales" element={<SalesReportPage />} />
+            <Route path="customers" element={<CustomerReportPage />} />
+            <Route path="services" element={<ServiceReportPage />} />
+            <Route path="staff" element={<StaffReportPage />} />
+            <Route path="inventory" element={<InventoryReportPage />} />
+            <Route path="profit-loss" element={<ProfitLossPage />} />
+          </Route>
           <Route path="settings" element={<DashboardSettingsPage />} />
           <Route path="managers" element={<ManagerList />} />
         </Route>

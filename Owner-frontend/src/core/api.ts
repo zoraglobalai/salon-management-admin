@@ -45,9 +45,21 @@ export async function fetchDashboard() {
   return request<{ metrics: DashboardMetrics }>("/dashboard");
 }
 
-export async function fetchDashboardSummary() {
+export async function fetchDashboardSummary(filters?: { date?: string; branchId?: string }) {
   const token = sessionStorage.getItem("owner_token");
-  return request<DashboardSummaryResponse>("/dashboard/summary", {
+  const params = new URLSearchParams();
+
+  if (filters?.date) {
+    params.set("date", filters.date);
+  }
+
+  if (filters?.branchId && filters.branchId !== "all") {
+    params.set("branchId", filters.branchId);
+  }
+
+  const queryString = params.toString();
+
+  return request<DashboardSummaryResponse>(`/dashboard/summary${queryString ? `?${queryString}` : ""}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
 }
@@ -651,3 +663,4 @@ export async function createSale(payload: SaleInput) {
     body: JSON.stringify(payload),
   });
 }
+
