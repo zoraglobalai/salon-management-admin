@@ -8,19 +8,40 @@ import {
   YAxis,
 } from "recharts";
 
-const data = [
-  { date: "Mon", revenue: 15000 },
-  { date: "Tue", revenue: 23000 },
-  { date: "Wed", revenue: 18000 },
-  { date: "Thu", revenue: 28000 },
-  { date: "Fri", revenue: 35000 },
-  { date: "Sat", revenue: 45000 },
-  { date: "Sun", revenue: 42000 },
-];
+interface RevenueLineChartProps {
+  data?: Array<{ date: string; revenue: string | number }>;
+  interval?: "Daily" | "Weekly" | "Monthly";
+}
 
-export function RevenueLineChart() {
+export function RevenueLineChart({ data = [], interval = "Daily" }: RevenueLineChartProps) {
+  const hasData = data.some((item) => Number(item.revenue) > 0);
+
+  const formatXAxis = (tickItem: string) => {
+    const date = new Date(tickItem);
+    if (interval === "Daily") {
+      return date.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+    }
+    if (interval === "Weekly") {
+      return `Week ${date.toLocaleDateString(undefined, { day: "numeric", month: "short" })}`;
+    }
+    return date.toLocaleDateString(undefined, { month: "short", year: "2-digit" });
+  };
+
+  if (!hasData) {
+    return (
+      <div className="flex min-h-[320px] w-full items-center justify-center rounded-[22px] border border-dashed border-[#E8E1D8] bg-[#FCFAF7] px-6 text-center">
+        <div className="max-w-[280px] space-y-2">
+          <div className="text-sm font-semibold text-[#111827]">No revenue trend available</div>
+          <p className="text-sm leading-6 text-[#6B7280]">
+            Try a broader date range or wait for more sales to see how revenue changes over time.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="h-[300px] w-full">
+    <div className="h-[320px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
           <defs>
@@ -30,22 +51,28 @@ export function RevenueLineChart() {
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-          <XAxis 
-            dataKey="date" 
-            axisLine={false} 
-            tickLine={false} 
-            tick={{ fill: "#6B7280", fontSize: 12 }} 
-            dy={10}
-          />
-          <YAxis 
-            axisLine={false} 
-            tickLine={false} 
+          <XAxis
+            dataKey="date"
+            axisLine={false}
+            tickLine={false}
             tick={{ fill: "#6B7280", fontSize: 12 }}
-            tickFormatter={(value: any) => `₹${(Number(value) / 1000).toFixed(0)}k`}
+            dy={10}
+            tickFormatter={formatXAxis}
           />
-          <Tooltip 
-            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }}
-            formatter={(value: any) => [`₹${Number(value).toLocaleString()}`, "Revenue"]}
+          <YAxis
+            axisLine={false}
+            tickLine={false}
+            tick={{ fill: "#6B7280", fontSize: 12 }}
+            tickFormatter={(value) => `\u20B9${(Number(value) / 1000).toFixed(0)}k`}
+          />
+          <Tooltip
+            contentStyle={{
+              borderRadius: "12px",
+              border: "none",
+              boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
+            }}
+            formatter={(value) => [`\u20B9${Number(value ?? 0).toLocaleString()}`, "Revenue"]}
+            labelFormatter={(label) => new Date(label).toLocaleDateString(undefined, { dateStyle: "long" })}
           />
           <Area
             type="monotone"

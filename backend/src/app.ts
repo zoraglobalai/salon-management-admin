@@ -17,6 +17,7 @@ import { staffRouter } from './modules/staff/staff.routes';
 import { clientsRouter } from './modules/clients/clients.routes';
 import salesRouter from './modules/sales/sales.routes';
 import ownerRoutes from './modules/owner/owner.routes';
+import reportsRouter from './modules/reports/reports.routes';
 
 const app = express();
 
@@ -48,6 +49,7 @@ app.use('/api/services', authMiddleware, servicesRouter);
 app.use('/api/staff', authMiddleware, staffRouter);
 app.use('/api/clients', authMiddleware, clientsRouter);
 app.use('/api/sales', authMiddleware, salesRouter);
+app.use('/api/reports', reportsRouter);
 app.use('/api', authMiddleware, operatorRoutes);
 
 app.use((_req, res) => {

@@ -17,7 +17,6 @@ import { CustomerReportPage } from "../modules/reports/pages/CustomerReportPage"
 import { ServiceReportPage } from "../modules/reports/pages/ServiceReportPage";
 import { StaffReportPage } from "../modules/reports/pages/StaffReportPage";
 import { InventoryReportPage } from "../modules/reports/pages/InventoryReportPage";
-import { ProfitLossPage } from "../modules/reports/pages/ProfitLossPage";
 import { DashboardSalesPOSPage } from "../modules/dashboard/pages/DashboardSalesPOSPage";
 import { DashboardSalesHistoryPage } from "../modules/dashboard/pages/DashboardSalesHistoryPage";
 import { DashboardServicesPage } from "../modules/dashboard/pages/DashboardServicesPage";
@@ -56,7 +55,6 @@ export function AppRouter() {
             <Route path="services" element={<ServiceReportPage />} />
             <Route path="staff" element={<StaffReportPage />} />
             <Route path="inventory" element={<InventoryReportPage />} />
-            <Route path="profit-loss" element={<ProfitLossPage />} />
           </Route>
           <Route path="settings" element={<DashboardSettingsPage />} />
           <Route path="managers" element={<ManagerList />} />

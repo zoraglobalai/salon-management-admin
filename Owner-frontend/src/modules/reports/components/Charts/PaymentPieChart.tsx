@@ -1,40 +1,64 @@
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
-const data = [
-  { name: "Cash", value: 15000, color: "#8B5E3C" },
-  { name: "UPI", value: 35000, color: "#D7B496" },
-  { name: "Card", value: 20000, color: "#111827" },
-  { name: "Wallet", value: 5000, color: "#9CA3AF" },
-];
+const COLORS = ["#8B5E3C", "#D7B496", "#111827", "#9CA3AF"];
 
-export function PaymentPieChart() {
+interface PaymentPieChartProps {
+  data?: Array<{ payment_method: string; count: string; amount: string | number }>;
+}
+
+export function PaymentPieChart({ data = [] }: PaymentPieChartProps) {
+  const chartData = data.map((item, index) => ({
+    name: item.payment_method.charAt(0).toUpperCase() + item.payment_method.slice(1).toLowerCase(),
+    value: Number(item.amount),
+    color: COLORS[index % COLORS.length],
+  }));
+  const hasData = chartData.some((item) => item.value > 0);
+
+  if (!hasData) {
+    return (
+      <div className="flex min-h-[340px] w-full items-center justify-center rounded-[22px] border border-dashed border-[#E8E1D8] bg-[#FCFAF7] px-6 text-center">
+        <div className="max-w-[250px] space-y-2">
+          <div className="text-sm font-semibold text-[#111827]">No payment data yet</div>
+          <p className="text-sm leading-6 text-[#6B7280]">
+            Payment method totals will appear here once transactions are available for the selected filters.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="h-[300px] w-full">
+    <div className="h-[340px] w-full min-w-0">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
-            data={data}
+            data={chartData}
             cx="50%"
-            cy="45%"
-            innerRadius={70}
-            outerRadius={100}
-            paddingAngle={5}
+            cy="42%"
+            innerRadius={72}
+            outerRadius={110}
+            paddingAngle={3}
             dataKey="value"
             stroke="none"
           >
-            {data.map((entry, index) => (
+            {chartData.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.color} />
             ))}
           </Pie>
-          <Tooltip 
-            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }}
-            formatter={(value: any) => [`₹${Number(value).toLocaleString()}`, "Amount"]}
+          <Tooltip
+            contentStyle={{
+              borderRadius: "12px",
+              border: "none",
+              boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
+            }}
+            formatter={(value) => [`\u20B9${Number(value ?? 0).toLocaleString()}`, "Amount"]}
           />
-          <Legend 
-            verticalAlign="bottom" 
-            height={36}
+          <Legend
+            verticalAlign="bottom"
+            height={56}
             iconType="circle"
-            formatter={(value) => <span className="text-[#4B5563] text-sm">{value}</span>}
+            wrapperStyle={{ paddingTop: 20 }}
+            formatter={(value) => <span className="text-sm text-[#4B5563]">{value}</span>}
           />
         </PieChart>
       </ResponsiveContainer>
