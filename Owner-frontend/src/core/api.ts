@@ -16,6 +16,11 @@ export function clearSession() {
   localStorage.removeItem(USER_KEY);
 }
 
+function getOwnerAuthHeaders(): Record<string, string> {
+  const token = sessionStorage.getItem("owner_token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
@@ -391,11 +396,6 @@ export type OwnerManager = {
   status: "ACTIVE" | "INACTIVE";
 };
 
-function getOwnerAuthHeaders() {
-  const token = sessionStorage.getItem("owner_token");
-  return token ? ({ Authorization: `Bearer ${token}` } as Record<string, string>) : {};
-}
-
 export async function fetchOwnerManagers() {
   return request<{ data: OwnerManager[] }>("/owner/managers", {
     headers: getOwnerAuthHeaders(),
@@ -665,3 +665,88 @@ export async function createSale(payload: SaleInput) {
   });
 }
 
+// ─── Reports API ──────────────────────────────────────────────────────────────
+
+export type ReportFilters = {
+  startDate?: string;
+  endDate?: string;
+  locationId?: string;
+  paymentMethod?: string;
+  interval?: string;
+  page?: number;
+  limit?: number;
+};
+
+export async function fetchSalesReport(filters: ReportFilters) {
+  const params = new URLSearchParams();
+  if (filters.startDate) params.set("startDate", filters.startDate);
+  if (filters.endDate) params.set("endDate", filters.endDate);
+  if (filters.locationId && filters.locationId !== "all") params.set("locationId", filters.locationId);
+  if (filters.paymentMethod && filters.paymentMethod !== "all") params.set("paymentMethod", filters.paymentMethod);
+  if (filters.interval) params.set("interval", filters.interval);
+  if (filters.page) params.set("page", filters.page.toString());
+  if (filters.limit) params.set("limit", filters.limit.toString());
+
+  const qs = params.toString();
+  return request<{ success: boolean; data: any }>(`/reports/sales${qs ? `?${qs}` : ""}`, {
+    headers: getOwnerAuthHeaders(),
+  });
+}
+
+export async function fetchCustomerReport(filters: { startDate?: string; endDate?: string; locationId?: string }) {
+  const params = new URLSearchParams();
+  if (filters.startDate) params.set("startDate", filters.startDate);
+  if (filters.endDate) params.set("endDate", filters.endDate);
+  if (filters.locationId && filters.locationId !== "all") params.set("locationId", filters.locationId);
+
+  const qs = params.toString();
+  return request<{ success: boolean; data: any }>(`/reports/customers${qs ? `?${qs}` : ""}`, {
+    headers: getOwnerAuthHeaders(),
+  });
+}
+
+export async function fetchStaffReport(filters: { startDate?: string; endDate?: string; locationId?: string }) {
+  const params = new URLSearchParams();
+  if (filters.startDate) params.set("startDate", filters.startDate);
+  if (filters.endDate) params.set("endDate", filters.endDate);
+  if (filters.locationId && filters.locationId !== "all") params.set("locationId", filters.locationId);
+
+  const qs = params.toString();
+  return request<{ success: boolean; data: any }>(`/reports/staff${qs ? `?${qs}` : ""}`, {
+    headers: getOwnerAuthHeaders(),
+  });
+}
+
+export async function fetchServiceReport(filters: { startDate?: string; endDate?: string; locationId?: string }) {
+  const params = new URLSearchParams();
+  if (filters.startDate) params.set("startDate", filters.startDate);
+  if (filters.endDate) params.set("endDate", filters.endDate);
+  if (filters.locationId && filters.locationId !== "all") params.set("locationId", filters.locationId);
+
+  const qs = params.toString();
+  return request<{ success: boolean; data: any }>(`/reports/services${qs ? `?${qs}` : ""}`, {
+    headers: getOwnerAuthHeaders(),
+  });
+}
+
+export async function fetchInventoryReport(filters: { locationId?: string }) {
+  const params = new URLSearchParams();
+  if (filters.locationId && filters.locationId !== "all") params.set("locationId", filters.locationId);
+
+  const qs = params.toString();
+  return request<{ success: boolean; data: any }>(`/reports/inventory${qs ? `?${qs}` : ""}`, {
+    headers: getOwnerAuthHeaders(),
+  });
+}
+
+export async function fetchReportsSummary(filters: { startDate?: string; endDate?: string; locationId?: string }) {
+  const params = new URLSearchParams();
+  if (filters.startDate) params.set("startDate", filters.startDate);
+  if (filters.endDate) params.set("endDate", filters.endDate);
+  if (filters.locationId && filters.locationId !== "all") params.set("locationId", filters.locationId);
+
+  const qs = params.toString();
+  return request<{ success: boolean; data: any }>(`/reports/summary${qs ? `?${qs}` : ""}`, {
+    headers: getOwnerAuthHeaders(),
+  });
+}

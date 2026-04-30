@@ -1,0 +1,83 @@
+import type { NextFunction, Request, Response } from "express";
+import { isAuthUserPayload } from "../../middleware/authMiddleware";
+import * as reportsService from "./reports.service";
+
+export async function handleGetSalesReport(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!isAuthUserPayload(req.user)) return res.status(401).json({ message: "Unauthorized" });
+    const filters = {
+      startDate: req.query.startDate as string,
+      endDate: req.query.endDate as string,
+      locationId: req.query.locationId as string,
+      paymentMethod: req.query.paymentMethod as string,
+      interval: req.query.interval as string || 'daily',
+      page: req.query.page ? parseInt(req.query.page as string) : 1,
+      limit: req.query.limit ? parseInt(req.query.limit as string) : 10,
+    };
+    const data = await reportsService.getSalesReport(req.user, filters);
+    return res.status(200).json({ success: true, data });
+  } catch (err) { next(err); }
+}
+
+export async function handleGetCustomerReport(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!isAuthUserPayload(req.user)) return res.status(401).json({ message: "Unauthorized" });
+    const filters = {
+      startDate: req.query.startDate as string,
+      endDate: req.query.endDate as string,
+      locationId: req.query.locationId as string,
+    };
+    const data = await reportsService.getCustomerReport(req.user, filters);
+    return res.status(200).json({ success: true, data });
+  } catch (err) { next(err); }
+}
+
+export async function handleGetStaffReport(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!isAuthUserPayload(req.user)) return res.status(401).json({ message: "Unauthorized" });
+    const filters = {
+      startDate: req.query.startDate as string,
+      endDate: req.query.endDate as string,
+      locationId: req.query.locationId as string,
+    };
+    const data = await reportsService.getStaffReport(req.user, filters);
+    return res.status(200).json({ success: true, data });
+  } catch (err) { next(err); }
+}
+
+export async function handleGetServiceReport(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!isAuthUserPayload(req.user)) return res.status(401).json({ message: "Unauthorized" });
+    const filters = {
+      startDate: req.query.startDate as string,
+      endDate: req.query.endDate as string,
+      locationId: req.query.locationId as string,
+    };
+    const data = await reportsService.getServiceReport(req.user, filters);
+    return res.status(200).json({ success: true, data });
+  } catch (err) { next(err); }
+}
+
+export async function handleGetInventoryReport(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!isAuthUserPayload(req.user)) return res.status(401).json({ message: "Unauthorized" });
+    const filters = {
+      locationId: req.query.locationId as string,
+    };
+    const data = await reportsService.getInventoryReport(req.user, filters);
+    return res.status(200).json({ success: true, data });
+  } catch (err) { next(err); }
+}
+
+export async function handleGetReportsSummary(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!isAuthUserPayload(req.user)) return res.status(401).json({ message: "Unauthorized" });
+    const filters = {
+      startDate: req.query.startDate as string,
+      endDate: req.query.endDate as string,
+      locationId: req.query.locationId as string,
+    };
+    const data = await reportsService.getReportsSummary(req.user, filters);
+    return res.status(200).json({ success: true, data });
+  } catch (err) { next(err); }
+}
