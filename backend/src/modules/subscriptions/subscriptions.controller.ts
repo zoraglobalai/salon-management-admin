@@ -11,17 +11,31 @@ import { SubscriptionPaymentMethod, SubscriptionPlan } from '../../entities/plat
 
 export const listSubscriptions = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { status } = req.query;
-    const data = await getAllSubscriptions(status as string);
+    const { status, search, plan, fromDate, toDate, period } = req.query;
+    const data = await getAllSubscriptions({
+      status: status as string,
+      search: search as string,
+      plan: plan as string,
+      fromDate: fromDate as string,
+      toDate: toDate as string,
+      period: period as 'today' | 'yesterday' | 'last7days' | 'last30days',
+    });
     res.status(200).json({ success: true, count: data.length, data });
   } catch (error) {
     next(error);
   }
 };
 
-export const subscriptionStats = async (_req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+export const subscriptionStats = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const data = await getSubscriptionStats();
+    const { search, plan, fromDate, toDate, period } = req.query;
+    const data = await getSubscriptionStats({
+      search: search as string,
+      plan: plan as string,
+      fromDate: fromDate as string,
+      toDate: toDate as string,
+      period: period as 'today' | 'yesterday' | 'last7days' | 'last30days',
+    });
     res.status(200).json({ success: true, data });
   } catch (error) {
     next(error);

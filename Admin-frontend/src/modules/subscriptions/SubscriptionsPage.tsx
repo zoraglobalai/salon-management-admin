@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CreditCard, CheckCircle, RefreshCw, XCircle } from 'lucide-react';
+import { CreditCard, CheckCircle, RefreshCw, Search, XCircle } from 'lucide-react';
 import DataTable from '../../components/ui/DataTable';
 import { StatusBadge } from '../../components/ui/Badge';
 import StatCard from '../../components/ui/StatCard';
@@ -19,11 +19,10 @@ interface Subscription {
   tenant: { name: string; email: string; businessName: string };
 }
 
+type SubscriptionPeriod = '' | 'today' | 'yesterday' | 'last7days' | 'last30days';
+
 const formatMoney = (value: number) =>
-  `Rs ${Number(value || 0).toLocaleString('en-IN', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+  `Rs ${Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const formatPaymentMethod = (value: string | null) => {
   if (!value) return 'Manual';
@@ -35,13 +34,51 @@ const SubscriptionsPage: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
+  const [search, setSearch] = useState('');
+  const [plan, setPlan] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [period, setPeriod] = useState<SubscriptionPeriod>('');
 
-  const fetch = async () => {
+  const buildParams = (overrides?: {
+    statusFilter?: string;
+    search?: string;
+    plan?: string;
+    fromDate?: string;
+    toDate?: string;
+    period?: SubscriptionPeriod;
+  }) => {
+    const nextStatusFilter = overrides?.statusFilter ?? statusFilter;
+    const nextSearch = overrides?.search ?? search;
+    const nextPlan = overrides?.plan ?? plan;
+    const nextFromDate = overrides?.fromDate ?? fromDate;
+    const nextToDate = overrides?.toDate ?? toDate;
+    const nextPeriod = overrides?.period ?? period;
+
+    return {
+      ...(nextStatusFilter ? { status: nextStatusFilter } : {}),
+      ...(nextSearch.trim() ? { search: nextSearch.trim() } : {}),
+      ...(nextPlan ? { plan: nextPlan } : {}),
+      ...(nextFromDate ? { fromDate: nextFromDate } : {}),
+      ...(nextToDate ? { toDate: nextToDate } : {}),
+      ...(nextPeriod ? { period: nextPeriod } : {}),
+    };
+  };
+
+  const fetch = async (overrides?: {
+    statusFilter?: string;
+    search?: string;
+    plan?: string;
+    fromDate?: string;
+    toDate?: string;
+    period?: SubscriptionPeriod;
+  }) => {
     setIsLoading(true);
     try {
+      const params = buildParams(overrides);
       const [listRes, statsRes] = await Promise.all([
-        subscriptionsApi.getAll(statusFilter || undefined),
-        subscriptionsApi.getStats(),
+        subscriptionsApi.getAll(params),
+        subscriptionsApi.getStats(params),
       ]);
       setData(listRes.data.data);
       setStats(statsRes.data.data);
@@ -54,7 +91,7 @@ const SubscriptionsPage: React.FC = () => {
 
   useEffect(() => {
     void fetch();
-  }, [statusFilter]);
+  }, [statusFilter, search, plan, fromDate, toDate, period]);
 
   const columns = [
     {
@@ -110,21 +147,104 @@ const SubscriptionsPage: React.FC = () => {
       </div>
 
       <div className="card">
-        <div className="flex items-center gap-2 border-b border-[var(--color-border)] p-4">
-          {['', 'ACTIVE', 'EXPIRED'].map((s) => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
-                statusFilter === s
-                  ? 'bg-[var(--color-primary)] text-white'
-                  : 'bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)] hover:bg-[var(--color-primary-light)]'
-              }`}
+        <div className="border-b border-[var(--color-border)] p-4">
+          <div className="flex items-center gap-2">
+            {['', 'ACTIVE', 'EXPIRED'].map((s) => (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+                  statusFilter === s
+                    ? 'bg-[var(--color-primary)] text-white'
+                    : 'bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)] hover:bg-[var(--color-primary-light)]'
+                }`}
+              >
+                {s || 'All'}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-4 grid gap-3 lg:grid-cols-[1.6fr_0.9fr_repeat(2,0.9fr)]">
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+              <input
+                type="text"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search by business name or plan"
+                className="input pl-8"
+              />
+            </div>
+            <select
+              value={plan}
+              onChange={(event) => setPlan(event.target.value)}
+              className="input"
             >
-              {s || 'All'}
+              <option value="">All Plans</option>
+              <option value="STANDARD">Standard</option>
+              <option value="PRO">Pro</option>
+              <option value="CUSTOM">Custom</option>
+            </select>
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(event) => {
+                setFromDate(event.target.value);
+                if (event.target.value) setPeriod('');
+              }}
+              className="input"
+            />
+            <input
+              type="date"
+              value={toDate}
+              onChange={(event) => {
+                setToDate(event.target.value);
+                if (event.target.value) setPeriod('');
+              }}
+              className="input"
+            />
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {[
+              { label: 'Today', value: 'today' },
+              { label: 'Yesterday', value: 'yesterday' },
+              { label: 'Last 7 Days', value: 'last7days' },
+              { label: 'Last 30 Days', value: 'last30days' },
+            ].map((item) => (
+              <button
+                key={item.value}
+                onClick={() => {
+                  const nextPeriod = period === item.value ? '' : (item.value as SubscriptionPeriod);
+                  setPeriod(nextPeriod);
+                  setFromDate('');
+                  setToDate('');
+                }}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+                  period === item.value
+                    ? 'bg-[var(--color-primary)] text-white'
+                    : 'bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)] hover:bg-[var(--color-primary-light)]'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+
+            <button
+              onClick={() => {
+                setSearch('');
+                setPlan('');
+                setFromDate('');
+                setToDate('');
+                setPeriod('');
+              }}
+              className="rounded-full bg-[var(--color-surface-raised)] px-3 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] transition hover:bg-[var(--color-primary-light)]"
+            >
+              Clear Filters
             </button>
-          ))}
+          </div>
         </div>
+
         <DataTable
           columns={columns}
           data={data}

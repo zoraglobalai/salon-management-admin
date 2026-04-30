@@ -15,8 +15,6 @@ import {
   UserCheck,
   UserX,
   List,
-  BarChart3,
-  Receipt,
   LogOut,
 } from 'lucide-react';
 import { useAuthStore } from '../../modules/auth/authStore';
@@ -41,22 +39,8 @@ const navItems: NavItem[] = [
       { label: 'Create Owner', to: '/users/create', icon: <UserPlus size={14} /> },
     ],
   },
-  {
-    label: 'Subscriptions',
-    icon: <CreditCard size={18} />,
-    children: [
-      { label: 'All Plans', to: '/subscriptions', icon: <List size={14} /> },
-      { label: 'Active', to: '/subscriptions/active', icon: <UserCheck size={14} /> },
-    ],
-  },
-  {
-    label: 'Revenue',
-    icon: <DollarSign size={18} />,
-    children: [
-      { label: 'Overview', to: '/revenue', icon: <BarChart3 size={14} /> },
-      { label: 'Transactions', to: '/revenue/transactions', icon: <Receipt size={14} /> },
-    ],
-  },
+  { label: 'Subscriptions', icon: <CreditCard size={18} />, to: '/subscriptions' },
+  { label: 'Revenue', icon: <DollarSign size={18} />, to: '/revenue' },
   { label: 'Trials', icon: <FlaskConical size={18} />, to: '/trials' },
   { label: 'Support', icon: <HeadphonesIcon size={18} />, to: '/support' },
   { label: 'Logs & Security', icon: <ShieldCheck size={18} />, to: '/logs' },

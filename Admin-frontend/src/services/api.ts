@@ -49,16 +49,40 @@ export const usersApi = {
 
 // ── Subscriptions ─────────────────────────────────────────────
 export const subscriptionsApi = {
-  getAll: (status?: string) =>
-    api.get('/subscriptions', { params: status ? { status } : {} }),
-  getStats: () => api.get('/subscriptions/stats'),
+  getAll: (params?: {
+    status?: string;
+    search?: string;
+    plan?: string;
+    fromDate?: string;
+    toDate?: string;
+    period?: 'today' | 'yesterday' | 'last7days' | 'last30days';
+  }) => api.get('/subscriptions', { params }),
+  getStats: (params?: {
+    search?: string;
+    plan?: string;
+    fromDate?: string;
+    toDate?: string;
+    period?: 'today' | 'yesterday' | 'last7days' | 'last30days';
+  }) => api.get('/subscriptions/stats', { params }),
 };
 
 // ── Revenue ───────────────────────────────────────────────────
 export const revenueApi = {
-  getAll: (status?: string) =>
-    api.get('/revenue', { params: status ? { status } : {} }),
-  getOverview: () => api.get('/revenue/overview'),
+  getAll: (params?: {
+    status?: string;
+    search?: string;
+    plan?: string;
+    fromDate?: string;
+    toDate?: string;
+    period?: 'today' | 'yesterday' | 'last7days' | 'last30days';
+  }) => api.get('/revenue', { params }),
+  getOverview: (params?: {
+    search?: string;
+    plan?: string;
+    fromDate?: string;
+    toDate?: string;
+    period?: 'today' | 'yesterday' | 'last7days' | 'last30days';
+  }) => api.get('/revenue/overview', { params }),
 };
 
 // ── Trials ────────────────────────────────────────────────────
@@ -72,8 +96,8 @@ export const trialsApi = {
 export const supportApi = {
   getAll: (status?: string) =>
     api.get('/support', { params: status ? { status } : {} }),
-  closeTicket: (id: string, resolution?: string) =>
-    api.patch(`/support/${id}/close`, { resolution }),
+  updateTicket: (id: string, status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED', resolution?: string) =>
+    api.patch(`/support/${id}`, { status, resolution }),
   getStats: () => api.get('/support/stats'),
 };
 
@@ -81,6 +105,8 @@ export const supportApi = {
 export const logsApi = {
   getAll: (limit?: number) =>
     api.get('/logs', { params: limit ? { limit } : {} }),
+  getNotifications: (limit?: number) =>
+    api.get('/logs/notifications', { params: limit ? { limit } : {} }),
 };
 
 // ── Types ─────────────────────────────────────────────────────

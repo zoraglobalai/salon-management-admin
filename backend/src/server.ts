@@ -72,6 +72,26 @@ const ensureSchemas = async () => {
     END IF;
   END $$`);
 
+  await query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS description TEXT NOT NULL DEFAULT ''`);
+  await query(`ALTER TABLE support_tickets ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
+  await query(`INSERT INTO trials ("tenantId", "startDate", "endDate", status, "createdAt")
+    SELECT
+      t.id,
+      DATE(t."createdAt"),
+      DATE(t."createdAt" + INTERVAL '7 days'),
+      CASE
+        WHEN t.status = 'ACTIVE' THEN 'CONVERTED'::trials_status_enum
+        WHEN t.status = 'EXPIRED' THEN 'EXPIRED'::trials_status_enum
+        ELSE 'ACTIVE'::trials_status_enum
+      END,
+      t."createdAt"
+    FROM tenants t
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM trials tr
+      WHERE tr."tenantId" = t.id
+    )`);
+
   // Inventory Schema
   await query(`
     CREATE TABLE IF NOT EXISTS inventory (

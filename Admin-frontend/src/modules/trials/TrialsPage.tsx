@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { trialsApi } from '../../services/api';
+import { FlaskConical, RefreshCw } from 'lucide-react';
 import DataTable from '../../components/ui/DataTable';
 import { StatusBadge } from '../../components/ui/Badge';
 import StatCard from '../../components/ui/StatCard';
-import { FlaskConical, RefreshCw } from 'lucide-react';
+import { trialsApi } from '../../services/api';
+
+type TrialStatus = 'ACTIVE' | 'EXPIRED' | 'CONVERTED';
 
 interface Trial {
   id: string;
   tenantId: string;
   startDate: string;
   endDate: string;
-  status: string;
+  status: TrialStatus;
   tenant: { name: string; email: string; businessName: string };
 }
 
@@ -18,12 +20,13 @@ const TrialsPage: React.FC = () => {
   const [data, setData] = useState<Trial[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('');
 
   const fetch = async () => {
     setIsLoading(true);
     try {
       const [listRes, statsRes] = await Promise.all([
-        trialsApi.getAll(),
+        trialsApi.getAll(statusFilter || undefined),
         trialsApi.getStats(),
       ]);
       setData(listRes.data.data);
@@ -35,11 +38,26 @@ const TrialsPage: React.FC = () => {
     }
   };
 
-  useEffect(() => { fetch(); }, []);
+  useEffect(() => {
+    void fetch();
+  }, [statusFilter]);
 
-  const daysLeft = (endDate: string) => {
-    const diff = Math.ceil((new Date(endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-    return diff;
+  const getDaysLeftLabel = (row: Trial) => {
+    const diff = Math.ceil((new Date(row.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    if (diff <= 0) {
+      return 'Expired';
+    }
+
+    return `${diff} days`;
+  };
+
+  const getDaysLeftClass = (row: Trial) => {
+    const diff = Math.ceil((new Date(row.endDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    if (row.status === 'CONVERTED') return diff > 0 ? 'text-emerald-600' : 'text-slate-500';
+    if (row.status === 'EXPIRED') return 'text-red-600';
+    if (diff > 3) return 'text-emerald-600';
+    if (diff > 0) return 'text-amber-600';
+    return 'text-red-600';
   };
 
   const columns = [
@@ -66,14 +84,11 @@ const TrialsPage: React.FC = () => {
     {
       key: 'daysLeft',
       header: 'Days Left',
-      render: (row: Trial) => {
-        const d = daysLeft(row.endDate);
-        return (
-          <span className={`font-medium ${d > 7 ? 'text-green-600' : d > 0 ? 'text-amber-600' : 'text-red-600'}`}>
-            {d > 0 ? `${d} days` : 'Expired'}
-          </span>
-        );
-      },
+      render: (row: Trial) => (
+        <span className={`font-medium ${getDaysLeftClass(row)}`}>
+          {getDaysLeftLabel(row)}
+        </span>
+      ),
     },
     { key: 'status', header: 'Status', render: (row: Trial) => <StatusBadge status={row.status} /> },
   ];
@@ -85,19 +100,34 @@ const TrialsPage: React.FC = () => {
           <h1 className="page-title">Trial Management</h1>
           <p className="page-subtitle">Monitor and manage salon owner trial periods</p>
         </div>
-        <button onClick={fetch} className="btn-secondary gap-1.5 text-xs">
+        <button onClick={() => void fetch()} className="btn-secondary gap-1.5 text-xs">
           <RefreshCw size={13} /> Refresh
         </button>
       </div>
 
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        <StatCard title="Total Trials" value={stats?.total ?? '—'} icon={<FlaskConical size={18} />} />
-        <StatCard title="Active" value={stats?.active ?? '—'} icon={<FlaskConical size={18} />} color="info" />
-        <StatCard title="Expired" value={stats?.expired ?? '—'} icon={<FlaskConical size={18} />} color="danger" />
-        <StatCard title="Converted" value={stats?.converted ?? '—'} icon={<FlaskConical size={18} />} color="success" />
+      <div className="mb-6 grid grid-cols-4 gap-4">
+        <StatCard title="Total Trials" value={stats?.total ?? '--'} icon={<FlaskConical size={18} />} />
+        <StatCard title="Active Trials" value={stats?.active ?? '--'} icon={<FlaskConical size={18} />} color="info" />
+        <StatCard title="Expired" value={stats?.expired ?? '--'} icon={<FlaskConical size={18} />} color="danger" />
+        <StatCard title="Converted" value={stats?.converted ?? '--'} icon={<FlaskConical size={18} />} color="success" />
       </div>
 
       <div className="card">
+        <div className="flex items-center gap-2 border-b border-[var(--color-border)] p-4">
+          {['', 'ACTIVE', 'EXPIRED', 'CONVERTED'].map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+                statusFilter === s
+                  ? 'bg-[var(--color-primary)] text-white'
+                  : 'bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)] hover:bg-[var(--color-primary-light)]'
+              }`}
+            >
+              {s || 'All'}
+            </button>
+          ))}
+        </div>
         <DataTable
           columns={columns}
           data={data}

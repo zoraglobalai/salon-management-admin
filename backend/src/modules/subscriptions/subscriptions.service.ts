@@ -12,6 +12,7 @@ import { SupportTicket, TicketStatus } from '../../entities/platform/SupportTick
 import { Log } from '../../entities/platform/Log';
 import { UserRole } from '../../entities/platform/User';
 import { createError } from '../../middleware/errorHandler';
+import { SelectQueryBuilder } from 'typeorm';
 
 const subRepo = () => AppDataSource.getRepository(Subscription);
 const revenueRepo = () => AppDataSource.getRepository(RevenueTransaction);
@@ -19,6 +20,15 @@ const tenantRepo = () => AppDataSource.getRepository(Tenant);
 const trialRepo = () => AppDataSource.getRepository(Trial);
 const supportTicketRepo = () => AppDataSource.getRepository(SupportTicket);
 const logRepo = () => AppDataSource.getRepository(Log);
+
+export type SubscriptionFilters = {
+  status?: string;
+  search?: string;
+  plan?: string;
+  fromDate?: string;
+  toDate?: string;
+  period?: 'today' | 'yesterday' | 'last7days' | 'last30days';
+};
 
 const PLAN_CATALOG = [
   {
@@ -33,7 +43,7 @@ const PLAN_CATALOG = [
     label: 'Pro',
     price: 2999,
     durationDays: 30,
-    features: ['Advanced subscription tier', 'Priority platform access', 'Best fit for scaling salons'],
+    features: ['Multi Buisness subscription', 'Priority platform access', 'Best fit for scaling salons'],
   },
   {
     id: SubscriptionPlan.CUSTOM,
@@ -129,6 +139,17 @@ async function syncExpiredState(tenantId: string) {
   if (activeTrial && new Date(activeTrial.endDate) < new Date()) {
     activeTrial.status = TrialStatus.EXPIRED;
     await trialRepo().save(activeTrial);
+
+    const tenant = await tenantRepo().findOne({ where: { id: tenantId } });
+    if (tenant) {
+      await logRepo().save(
+        logRepo().create({
+          action: 'TRIAL_ENDED',
+          performedBy: tenant.email,
+          details: `${tenant.businessName} trial period ended`,
+        })
+      );
+    }
   }
 }
 
@@ -173,6 +194,82 @@ function formatTrialRecord(trial: Trial | null) {
   };
 }
 
+function getDateRange(period?: SubscriptionFilters['period']) {
+  if (!period) return null;
+
+  const now = new Date();
+  const start = new Date(now);
+  const end = new Date(now);
+
+  if (period === 'today') {
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }
+
+  if (period === 'yesterday') {
+    start.setDate(start.getDate() - 1);
+    end.setDate(end.getDate() - 1);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }
+
+  if (period === 'last7days') {
+    start.setDate(start.getDate() - 6);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }
+
+  if (period === 'last30days') {
+    start.setDate(start.getDate() - 29);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }
+
+  return null;
+}
+
+function applySubscriptionFilters(
+  query: SelectQueryBuilder<Subscription>,
+  filters: SubscriptionFilters
+) {
+  if (filters.status && ['ACTIVE', 'EXPIRED'].includes(filters.status.toUpperCase())) {
+    query.andWhere('sub.status = :status', { status: filters.status.toUpperCase() });
+  }
+
+  if (filters.search?.trim()) {
+    query.andWhere(
+      '(LOWER(tenant."businessName") LIKE :search OR LOWER(COALESCE(tenant.name, \'\')) LIKE :search OR LOWER(sub.plan::text) LIKE :search)',
+      { search: `%${filters.search.trim().toLowerCase()}%` }
+    );
+  }
+
+  if (filters.plan?.trim()) {
+    query.andWhere('LOWER(sub.plan::text) = :plan', {
+      plan: filters.plan.trim().toLowerCase(),
+    });
+  }
+
+  const periodRange = getDateRange(filters.period);
+  const fromDate = filters.fromDate ? new Date(filters.fromDate) : periodRange?.start;
+  const toDate = filters.toDate ? new Date(filters.toDate) : periodRange?.end;
+
+  if (fromDate && !Number.isNaN(fromDate.getTime())) {
+    fromDate.setHours(0, 0, 0, 0);
+    query.andWhere('sub."startDate" >= :fromDate', { fromDate: fromDate.toISOString().slice(0, 10) });
+  }
+
+  if (toDate && !Number.isNaN(toDate.getTime())) {
+    toDate.setHours(23, 59, 59, 999);
+    query.andWhere('sub."startDate" <= :toDate', { toDate: toDate.toISOString().slice(0, 10) });
+  }
+
+  return query;
+}
+
 async function buildOwnerSubscriptionOverview(
   tenant: Tenant,
   currentSubscription: Subscription | null,
@@ -203,24 +300,31 @@ async function buildOwnerSubscriptionOverview(
   };
 }
 
-export const getAllSubscriptions = async (status?: string) => {
+export const getAllSubscriptions = async (filters: SubscriptionFilters = {}) => {
   const query = subRepo()
     .createQueryBuilder('sub')
     .leftJoinAndSelect('sub.tenant', 'tenant')
     .orderBy('sub.createdAt', 'DESC');
 
-  if (status && ['ACTIVE', 'EXPIRED'].includes(status.toUpperCase())) {
-    query.where('sub.status = :status', { status: status.toUpperCase() });
-  }
+  applySubscriptionFilters(query, filters);
 
   return query.getMany();
 };
 
-export const getSubscriptionStats = async () => {
+export const getSubscriptionStats = async (filters: SubscriptionFilters = {}) => {
+  const totalQuery = subRepo().createQueryBuilder('sub').leftJoin('sub.tenant', 'tenant');
+  applySubscriptionFilters(totalQuery, filters);
+
+  const activeQuery = subRepo().createQueryBuilder('sub').leftJoin('sub.tenant', 'tenant');
+  applySubscriptionFilters(activeQuery, { ...filters, status: SubscriptionStatus.ACTIVE });
+
+  const expiredQuery = subRepo().createQueryBuilder('sub').leftJoin('sub.tenant', 'tenant');
+  applySubscriptionFilters(expiredQuery, { ...filters, status: SubscriptionStatus.EXPIRED });
+
   const [total, active, expired] = await Promise.all([
-    subRepo().count(),
-    subRepo().count({ where: { status: SubscriptionStatus.ACTIVE } }),
-    subRepo().count({ where: { status: SubscriptionStatus.EXPIRED } }),
+    totalQuery.getCount(),
+    activeQuery.getCount(),
+    expiredQuery.getCount(),
   ]);
   return { total, active, expired };
 };
@@ -309,9 +413,9 @@ export const checkoutOwnerSubscription = async (
 
     await manager.save(
       manager.create(Log, {
-        action: 'UPDATE_SUBSCRIPTION',
+        action: 'SUBSCRIPTION_PAYMENT',
         performedBy: user?.email || 'unknown',
-        details: `Activated ${payload.plan} subscription for tenant ${tenantId}`,
+        details: `${overview.businessName} paid Rs ${price} for ${payload.plan} subscription via ${payload.paymentMethod}`,
       })
     );
   });

@@ -3,6 +3,7 @@ import { Tenant, TenantStatus } from '../../entities/platform/Tenant';
 import { User, UserRole } from '../../entities/platform/User';
 import { Branch } from '../../entities/platform/Branch';
 import { Log } from '../../entities/platform/Log';
+import { Trial, TrialStatus } from '../../entities/platform/Trial';
 import bcrypt from 'bcryptjs';
 import { createError } from '../../middleware/errorHandler';
 
@@ -10,6 +11,7 @@ const tenantRepo = () => AppDataSource.getRepository(Tenant);
 const userRepo = () => AppDataSource.getRepository(User);
 const branchRepo = () => AppDataSource.getRepository(Branch);
 const logRepo = () => AppDataSource.getRepository(Log);
+const trialRepo = () => AppDataSource.getRepository(Trial);
 
 export const getAllUsers = async (status?: string) => {
   const query = tenantRepo()
@@ -83,6 +85,19 @@ export const createOwner = async (input: CreateOwnerInput) => {
     status: TenantStatus.TRIAL,
   });
   const savedTenant = await tenantRepo().save(tenant);
+
+  const trialStartDate = new Date();
+  const trialEndDate = new Date(trialStartDate);
+  trialEndDate.setDate(trialEndDate.getDate() + 7);
+
+  await trialRepo().save(
+    trialRepo().create({
+      tenantId: savedTenant.id,
+      startDate: trialStartDate,
+      endDate: trialEndDate,
+      status: TrialStatus.ACTIVE,
+    })
+  );
 
   const allBranchAddresses = [input.mainBranchLocation, ...input.branchAddresses];
 

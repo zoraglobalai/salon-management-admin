@@ -52,6 +52,20 @@ function formatTicket(ticket: SupportTicket) {
   };
 }
 
+function getNextTicketStatus(status: TicketStatus) {
+  switch (status) {
+    case TicketStatus.OPEN:
+      return TicketStatus.IN_PROGRESS;
+    case TicketStatus.IN_PROGRESS:
+      return TicketStatus.RESOLVED;
+    case TicketStatus.RESOLVED:
+      return TicketStatus.CLOSED;
+    case TicketStatus.CLOSED:
+    default:
+      return null;
+  }
+}
+
 export const getSupportContact = async () => SUPPORT_CONTACT;
 
 export const getOwnerTickets = async (user?: OwnerUserShape) => {
@@ -97,9 +111,9 @@ export const createOwnerTicket = async (
 
   await logRepo().save(
     logRepo().create({
-      action: 'CREATE_TENANT',
+      action: 'SUPPORT_TICKET_RAISED',
       performedBy: user?.email || 'unknown',
-      details: `Created support ticket ${ticket.id} for tenant ${tenant.businessName}`,
+      details: `${tenant.businessName} raised a support ticket for ${ticket.issue}`,
     })
   );
 
@@ -128,8 +142,23 @@ export const updateTicketStatus = async (
   const ticket = await ticketRepo().findOne({ where: { id }, relations: ['tenant'] });
   if (!ticket) throw createError('Ticket not found.', 404);
 
+  const nextStatus = getNextTicketStatus(ticket.status);
+  if (ticket.status !== status && status !== nextStatus) {
+    throw createError(`Ticket can only move from ${ticket.status} to ${nextStatus || TicketStatus.CLOSED}.`, 409);
+  }
+
+  if (ticket.status === TicketStatus.CLOSED && status === TicketStatus.CLOSED) {
+    return ticket;
+  }
+
   ticket.status = status;
-  ticket.resolution = resolution?.trim() || (status === TicketStatus.RESOLVED ? 'Resolved by admin' : status === TicketStatus.CLOSED ? 'Closed by admin' : null);
+  ticket.resolution =
+    resolution?.trim() ||
+    (status === TicketStatus.RESOLVED
+      ? 'Resolved by admin'
+      : status === TicketStatus.CLOSED
+        ? 'Closed by admin'
+        : null);
   await ticketRepo().save(ticket);
 
   await logRepo().save(

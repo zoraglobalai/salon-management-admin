@@ -46,11 +46,9 @@ const AppRouter: React.FC = () => {
 
             {/* Subscriptions */}
             <Route path="/subscriptions" element={<SubscriptionsPage />} />
-            <Route path="/subscriptions/active" element={<SubscriptionsPage />} />
 
             {/* Revenue */}
             <Route path="/revenue" element={<RevenuePage />} />
-            <Route path="/revenue/transactions" element={<RevenuePage />} />
 
             {/* Trials */}
             <Route path="/trials" element={<TrialsPage />} />
