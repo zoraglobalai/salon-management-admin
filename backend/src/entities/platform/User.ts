@@ -47,6 +47,12 @@ export class User {
   @Column({ type: 'varchar', length: 255, unique: true })
   email!: string;
 
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  phone!: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  shopName!: string | null;
+
   @Column({ type: 'text' })
   password!: string;
 

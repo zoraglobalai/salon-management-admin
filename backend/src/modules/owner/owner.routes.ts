@@ -1,11 +1,19 @@
 import { Router } from 'express';
-import { createOwnerManager, getOwnerProfile, listOwnerManagers, removeOwnerManager } from './owner.controller';
+import {
+  createOwnerManager,
+  getOwnerProfile,
+  listOwnerManagers,
+  removeOwnerManager,
+  resetOwnerManagerPassword,
+  updateOwnerProfile,
+} from './owner.controller';
 import { authMiddleware } from '../../middleware/authMiddleware';
 
 const router = Router();
 
 // GET /api/owner/profile
 router.get('/profile', authMiddleware, getOwnerProfile);
+router.put('/profile', authMiddleware, updateOwnerProfile);
 router.get('/managers', authMiddleware, listOwnerManagers);
 router.post('/managers', authMiddleware, createOwnerManager);
 router.delete('/managers/:managerId', authMiddleware, removeOwnerManager);
@@ -23,13 +31,6 @@ router.get('/locations', authMiddleware, async (req, res, next) => {
   }
 });
 
-router.put('/managers/:managerId/reset-password', authMiddleware, async (req, res, next) => {
-  try {
-    const { resetOwnerManagerPassword } = await import('./owner.controller');
-    await resetOwnerManagerPassword(req, res, next);
-  } catch (error) {
-    next(error);
-  }
-});
+router.put('/managers/:managerId/reset-password', authMiddleware, resetOwnerManagerPassword);
 
 export default router;

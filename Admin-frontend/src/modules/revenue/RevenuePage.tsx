@@ -9,6 +9,9 @@ interface Transaction {
   id: string;
   tenantId: string;
   amount: number;
+  plan: string | null;
+  paymentMethod: string | null;
+  transactionReference: string | null;
   status: string;
   description: string;
   createdAt: string;
@@ -50,18 +53,33 @@ const RevenuePage: React.FC = () => {
       ),
     },
     {
+      key: 'plan',
+      header: 'Plan',
+      render: (row: Transaction) => <StatusBadge status={row.plan || 'UNKNOWN'} />,
+    },
+    {
       key: 'amount',
       header: 'Amount',
       render: (row: Transaction) => (
         <span className="font-semibold text-[var(--color-text-primary)]">
-          ₹{Number(row.amount).toFixed(2)}
+          Rs {Number(row.amount).toFixed(2)}
         </span>
       ),
     },
     {
+      key: 'paymentMethod',
+      header: 'Payment',
+      render: (row: Transaction) => <span className="text-[var(--color-text-secondary)]">{row.paymentMethod || '—'}</span>,
+    },
+    {
       key: 'description',
-      header: 'Description',
-      render: (row: Transaction) => <span className="text-[var(--color-text-secondary)]">{row.description || '—'}</span>,
+      header: 'Reference',
+      render: (row: Transaction) => (
+        <div>
+          <p className="text-[var(--color-text-secondary)]">{row.transactionReference || '—'}</p>
+          <p className="text-xs text-[var(--color-text-muted)]">{row.description || 'Subscription payment'}</p>
+        </div>
+      ),
     },
     { key: 'status', header: 'Status', render: (row: Transaction) => <StatusBadge status={row.status} /> },
     {
@@ -86,7 +104,7 @@ const RevenuePage: React.FC = () => {
       <div className="grid grid-cols-2 gap-4 mb-6">
         <StatCard
           title="Total Revenue"
-          value={`₹${overview?.totalRevenue?.toFixed(2) ?? '0.00'}`}
+          value={`Rs ${overview?.totalRevenue?.toFixed(2) ?? '0.00'}`}
           icon={<IndianRupee size={18} />}
           color="success"
           trend={{ value: 18, label: 'this year' }}

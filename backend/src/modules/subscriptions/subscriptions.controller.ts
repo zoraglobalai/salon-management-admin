@@ -1,6 +1,13 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../../middleware/authMiddleware';
-import { getAllSubscriptions, getSubscriptionStats } from './subscriptions.service';
+import {
+  checkoutOwnerSubscription,
+  getAllSubscriptions,
+  getOwnerSubscriptionOverview,
+  getSubscriptionStats,
+  requestOwnerCustomSubscription,
+} from './subscriptions.service';
+import { SubscriptionPaymentMethod, SubscriptionPlan } from '../../entities/platform/Subscription';
 
 export const listSubscriptions = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -16,6 +23,56 @@ export const subscriptionStats = async (_req: AuthRequest, res: Response, next: 
   try {
     const data = await getSubscriptionStats();
     res.status(200).json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const ownerSubscriptionCurrent = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const data = await getOwnerSubscriptionOverview(req.user);
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const ownerSubscriptionCheckout = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { plan, paymentMethod } = req.body ?? {};
+
+    if (!plan || !paymentMethod) {
+      res.status(400).json({ success: false, message: 'Plan and payment method are required.' });
+      return;
+    }
+
+    if (![SubscriptionPlan.STANDARD, SubscriptionPlan.PRO].includes(plan)) {
+      res.status(400).json({ success: false, message: 'Only Standard and Pro plans can be paid directly.' });
+      return;
+    }
+
+    if (!Object.values(SubscriptionPaymentMethod).includes(paymentMethod)) {
+      res.status(400).json({ success: false, message: 'Invalid payment method.' });
+      return;
+    }
+
+    const data = await checkoutOwnerSubscription(req.user, { plan, paymentMethod });
+    res.status(200).json({ success: true, message: 'Subscription activated successfully.', data });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const ownerCustomSubscriptionRequest = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { message } = req.body ?? {};
+    if (!message || !String(message).trim()) {
+      res.status(400).json({ success: false, message: 'Custom subscription message is required.' });
+      return;
+    }
+
+    const data = await requestOwnerCustomSubscription(req.user, String(message));
+    res.status(200).json({ success: true, message: 'Custom subscription request sent successfully.', data });
   } catch (error) {
     next(error);
   }

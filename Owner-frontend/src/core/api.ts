@@ -170,6 +170,7 @@ export type SubscriptionPlanOption = {
 };
 
 export type OwnerSubscriptionOverview = {
+  businessName: string;
   currentSubscription: OwnerSubscriptionRecord | null;
   currentTrial: OwnerTrialRecord | null;
   tenantStatus: "ACTIVE" | "TRIAL" | "EXPIRED";
@@ -211,10 +212,8 @@ export async function fetchOwnerSubscriptionOverview() {
 }
 
 export async function checkoutOwnerSubscription(payload: {
-  plan: "STANDARD" | "PRO" | "CUSTOM";
+  plan: "STANDARD" | "PRO";
   paymentMethod: "CARD" | "UPI" | "CASH";
-  customAmount?: number;
-  customMessage?: string;
 }) {
   const token = sessionStorage.getItem("owner_token");
   return request<{ success: boolean; message: string; data: OwnerSubscriptionOverview }>("/subscriptions/owner/checkout", {
@@ -385,6 +384,8 @@ export type OwnerManager = {
   id: string;
   name: string;
   email: string;
+  phone: string;
+  shopName: string;
   branchId: string | null;
   location: string;
   status: "ACTIVE" | "INACTIVE";

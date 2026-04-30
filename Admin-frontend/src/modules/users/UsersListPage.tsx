@@ -14,6 +14,11 @@ interface Tenant {
   phone: string;
   createdAt: string;
   branches: any[];
+  currentSubscription?: {
+    plan: string;
+    status: string;
+    endDate: string;
+  } | null;
 }
 
 interface UsersListPageProps {
@@ -63,6 +68,15 @@ const UsersListPage: React.FC<UsersListPageProps> = ({ statusFilter, title = 'Us
     },
     { key: 'businessName', header: 'Business Name' },
     {
+      key: 'phone',
+      header: 'Phone',
+      render: (row: Tenant) => (
+        <span className="text-[var(--color-text-secondary)]">
+          {row.phone || '—'}
+        </span>
+      ),
+    },
+    {
       key: 'ownerType',
       header: 'Type',
       render: (row: Tenant) => <StatusBadge status={row.ownerType} />,
@@ -71,6 +85,21 @@ const UsersListPage: React.FC<UsersListPageProps> = ({ statusFilter, title = 'Us
       key: 'status',
       header: 'Status',
       render: (row: Tenant) => <StatusBadge status={row.status} />,
+    },
+    {
+      key: 'currentSubscription',
+      header: 'Plan',
+      render: (row: Tenant) =>
+        row.currentSubscription ? (
+          <div>
+            <StatusBadge status={row.currentSubscription.plan} />
+            <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+              {row.currentSubscription.status} until {new Date(row.currentSubscription.endDate).toLocaleDateString()}
+            </p>
+          </div>
+        ) : (
+          <span className="text-[var(--color-text-muted)]">No paid plan</span>
+        ),
     },
     {
       key: 'branches',
@@ -106,7 +135,6 @@ const UsersListPage: React.FC<UsersListPageProps> = ({ statusFilter, title = 'Us
       </div>
 
       <div className="card">
-        {/* Toolbar */}
         <div className="flex items-center gap-3 p-4 border-b border-[var(--color-border)]">
           <div className="relative flex-1 max-w-sm">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
@@ -141,8 +169,6 @@ const UsersListPage: React.FC<UsersListPageProps> = ({ statusFilter, title = 'Us
     </div>
   );
 };
-
-// ── Individual page exports ──────────────────────────────────────
 
 export const AllUsersPage: React.FC = () => (
   <UsersListPage title="All Users" subtitle="All registered salon owners across the platform" />

@@ -126,6 +126,8 @@ export function ManagerList() {
               <tr className="border-b border-[var(--line)] bg-gray-50/50">
                 <th className="p-4 font-semibold text-sm text-[var(--muted)] uppercase tracking-wider">Name</th>
                 <th className="p-4 font-semibold text-sm text-[var(--muted)] uppercase tracking-wider">Email</th>
+                <th className="p-4 font-semibold text-sm text-[var(--muted)] uppercase tracking-wider">Phone</th>
+                <th className="p-4 font-semibold text-sm text-[var(--muted)] uppercase tracking-wider">Shop</th>
                 <th className="p-4 font-semibold text-sm text-[var(--muted)] uppercase tracking-wider">Location</th>
                 <th className="p-4 font-semibold text-sm text-[var(--muted)] uppercase tracking-wider">Status</th>
                 <th className="p-4 font-semibold text-sm text-[var(--muted)] uppercase tracking-wider text-right">Actions</th>
@@ -134,7 +136,7 @@ export function ManagerList() {
             <tbody>
               {isLoading && (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center text-[var(--muted)]">
+                  <td colSpan={7} className="p-8 text-center text-[var(--muted)]">
                     Loading managers...
                   </td>
                 </tr>
@@ -143,6 +145,8 @@ export function ManagerList() {
                 <tr key={manager.id} className="border-b border-[var(--line)] last:border-0 hover:bg-gray-50 transition-colors">
                   <td className="p-4 font-semibold">{manager.name}</td>
                   <td className="p-4 text-[var(--muted)] text-sm">{manager.email}</td>
+                  <td className="p-4 text-[var(--muted)] text-sm">{manager.phone || "—"}</td>
+                  <td className="p-4 text-[var(--muted)] text-sm">{manager.shopName || "—"}</td>
                   <td className="p-4">
                     <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-xs font-bold">
                       {manager.location}
@@ -177,7 +181,7 @@ export function ManagerList() {
               ))}
               {!isLoading && managers.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center text-[var(--muted)]">
+                  <td colSpan={7} className="p-8 text-center text-[var(--muted)]">
                     No managers assigned yet.
                   </td>
                 </tr>
@@ -199,6 +203,8 @@ export function ManagerList() {
                 <div>
                   <h3 className="font-bold text-lg">{manager.name}</h3>
                   <p className="text-sm text-[var(--muted)]">{manager.email}</p>
+                  <p className="text-xs text-[var(--muted)] mt-1">{manager.phone || "No phone added"}</p>
+                  <p className="text-xs text-[var(--muted)]">{manager.shopName || "No shop name added"}</p>
                 </div>
                 <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
                   manager.status === 'ACTIVE' 

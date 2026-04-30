@@ -3,6 +3,7 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  UpdateDateColumn,
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
@@ -26,6 +27,9 @@ export class SupportTicket {
   @Column({ type: 'text' })
   issue!: string;
 
+  @Column({ type: 'text' })
+  description!: string;
+
   @Column({
     type: 'enum',
     enum: TicketStatus,
@@ -42,4 +46,7 @@ export class SupportTicket {
 
   @CreateDateColumn()
   createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt!: Date;
 }

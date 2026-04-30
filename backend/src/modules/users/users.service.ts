@@ -23,7 +23,17 @@ export const getAllUsers = async (status?: string) => {
   }
 
   const tenants = await query.getMany();
-  return tenants;
+  return tenants.map((tenant) => {
+    const sortedSubscriptions = [...(tenant.subscriptions || [])].sort((a, b) => {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+    const currentSubscription = sortedSubscriptions.find((subscription) => subscription.status === 'ACTIVE') || sortedSubscriptions[0] || null;
+
+    return {
+      ...tenant,
+      currentSubscription,
+    };
+  });
 };
 
 export const getUserById = async (id: string) => {
@@ -93,8 +103,10 @@ export const createOwner = async (input: CreateOwnerInput) => {
   const user = userRepo().create({
     name: input.name,
     email: input.email,
+    phone: input.phone || null,
     password: hashedPassword,
     role,
+    shopName: input.businessName,
     tenantId: savedTenant.id,
     isActive: true,
   });

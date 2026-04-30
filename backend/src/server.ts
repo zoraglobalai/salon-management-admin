@@ -11,6 +11,67 @@ import { verifyMailerConnection } from './shared/mail/mailer';
 const DEFAULT_PORT = parseInt(process.env.PORT || '5000', 10);
 
 const ensureSchemas = async () => {
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20)`);
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "shopName" VARCHAR(255)`);
+  await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS amount_paid NUMERIC(10,2) NOT NULL DEFAULT 0`);
+  await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS payment_method TEXT`);
+  await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS transaction_reference VARCHAR(120)`);
+  await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`);
+  await query(`UPDATE subscriptions SET amount_paid = COALESCE(amount_paid, 0)`);
+  await query(`DO $$
+  BEGIN
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_constraint
+      WHERE conname = 'subscriptions_payment_method_check'
+    ) THEN
+      ALTER TABLE subscriptions
+      ADD CONSTRAINT subscriptions_payment_method_check
+      CHECK (payment_method IS NULL OR payment_method IN ('CARD', 'UPI', 'CASH'));
+    END IF;
+  END $$`);
+
+  await query(`ALTER TABLE revenue_transactions ADD COLUMN IF NOT EXISTS subscription_id UUID`);
+  await query(`ALTER TABLE revenue_transactions ADD COLUMN IF NOT EXISTS plan TEXT`);
+  await query(`ALTER TABLE revenue_transactions ADD COLUMN IF NOT EXISTS payment_method TEXT`);
+  await query(`ALTER TABLE revenue_transactions ADD COLUMN IF NOT EXISTS transaction_reference VARCHAR(120)`);
+  await query(`DO $$
+  BEGIN
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_constraint
+      WHERE conname = 'revenue_transactions_subscription_id_fkey'
+    ) THEN
+      ALTER TABLE revenue_transactions
+      ADD CONSTRAINT revenue_transactions_subscription_id_fkey
+      FOREIGN KEY (subscription_id) REFERENCES subscriptions(id) ON DELETE SET NULL;
+    END IF;
+  END $$`);
+  await query(`DO $$
+  BEGIN
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_constraint
+      WHERE conname = 'revenue_transactions_plan_check'
+    ) THEN
+      ALTER TABLE revenue_transactions
+      ADD CONSTRAINT revenue_transactions_plan_check
+      CHECK (plan IS NULL OR plan IN ('STANDARD', 'PRO', 'CUSTOM'));
+    END IF;
+  END $$`);
+  await query(`DO $$
+  BEGIN
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_constraint
+      WHERE conname = 'revenue_transactions_payment_method_check'
+    ) THEN
+      ALTER TABLE revenue_transactions
+      ADD CONSTRAINT revenue_transactions_payment_method_check
+      CHECK (payment_method IS NULL OR payment_method IN ('CARD', 'UPI', 'CASH'));
+    END IF;
+  END $$`);
+
   // Inventory Schema
   await query(`
     CREATE TABLE IF NOT EXISTS inventory (

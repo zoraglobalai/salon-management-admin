@@ -1,13 +1,20 @@
 import { AppDataSource } from '../../database/config';
 import { Branch } from '../../entities/platform/Branch';
+import { Tenant } from '../../entities/platform/Tenant';
 import { User } from '../../entities/platform/User';
 import { createError } from '../../middleware/errorHandler';
 import bcrypt from 'bcryptjs';
+import { Log } from '../../entities/platform/Log';
 
 const userRepo = () => AppDataSource.getRepository(User);
 const branchRepo = () => AppDataSource.getRepository(Branch);
+const tenantRepo = () => AppDataSource.getRepository(Tenant);
+const logRepo = () => AppDataSource.getRepository(Log);
 
-const getOwnerWithTenant = async (userId: string) => {
+const normalizeText = (value: string) => value.trim().replace(/\s+/g, ' ');
+const normalizeEmail = (value: string) => value.trim().toLowerCase();
+
+const getUserWithTenant = async (userId: string) => {
   const user = await userRepo().findOne({
     where: { id: userId },
     relations: ['tenant', 'tenant.branches'],
@@ -25,7 +32,7 @@ const getOwnerWithTenant = async (userId: string) => {
 };
 
 export const getOwnerProfileService = async (userId: string) => {
-  const user = await getOwnerWithTenant(userId);
+  const user = await getUserWithTenant(userId);
   const tenantId = user.tenantId as string;
 
   const businessName = user.tenant?.businessName || 'Business Overview';
@@ -46,11 +53,116 @@ export const getOwnerProfileService = async (userId: string) => {
     businessName,
     locations,
     totalManagers,
+    profile: {
+      role: user.role,
+      fullName: user.name,
+      email: user.email,
+      phone: user.role === 'MANAGER' ? (user.phone || '') : (user.tenant?.phone || user.phone || ''),
+      shopName:
+        user.role === 'MANAGER'
+          ? (user.shopName || user.tenant?.businessName || '')
+          : (user.tenant?.businessName || user.shopName || ''),
+    },
+  };
+};
+
+type UpdateProfileInput = {
+  fullName: string;
+  email: string;
+  phone?: string;
+  shopName: string;
+};
+
+export const updateOwnerProfileService = async (userId: string, input: UpdateProfileInput) => {
+  const user = await getUserWithTenant(userId);
+  const tenantId = user.tenantId as string;
+
+  const fullName = normalizeText(input.fullName);
+  const email = normalizeEmail(input.email);
+  const phone = (input.phone || '').trim();
+  const shopName = normalizeText(input.shopName);
+
+  if (!fullName) {
+    throw createError('Full name is required.', 400);
+  }
+
+  if (!email) {
+    throw createError('Email is required.', 400);
+  }
+
+  if (!shopName) {
+    throw createError('Shop name is required.', 400);
+  }
+
+  const duplicateUser = await userRepo().findOne({ where: { email } });
+  if (duplicateUser && duplicateUser.id !== user.id) {
+    throw createError('A user with this email already exists.', 409);
+  }
+
+  user.name = fullName;
+  user.email = email;
+
+  if (user.role === 'MANAGER') {
+    user.phone = phone || null;
+    user.shopName = shopName;
+    await userRepo().save(user);
+
+    await logRepo().save(
+      logRepo().create({
+        action: 'UPDATE_MANAGER_PROFILE',
+        performedBy: user.email,
+        details: `Manager profile updated for tenant ${tenantId}`,
+      })
+    );
+
+    return {
+      role: user.role,
+      fullName: user.name,
+      email: user.email,
+      phone: user.phone || '',
+      shopName: user.shopName || '',
+    };
+  }
+
+  const tenant = user.tenant;
+  if (!tenant) {
+    throw createError('Owner tenant not found.', 400);
+  }
+
+  const duplicateTenant = await tenantRepo().findOne({ where: { email } });
+  if (duplicateTenant && duplicateTenant.id !== tenant.id) {
+    throw createError('A tenant with this email already exists.', 409);
+  }
+
+  user.phone = phone || null;
+  user.shopName = shopName;
+  tenant.name = fullName;
+  tenant.email = email;
+  tenant.phone = phone || null;
+  tenant.businessName = shopName;
+
+  await tenantRepo().save(tenant);
+  await userRepo().save(user);
+
+  await logRepo().save(
+    logRepo().create({
+      action: 'UPDATE_OWNER_PROFILE',
+      performedBy: user.email,
+      details: `Owner profile updated for tenant ${tenantId}`,
+    })
+  );
+
+  return {
+    role: user.role,
+    fullName: user.name,
+    email: user.email,
+    phone: tenant.phone || '',
+    shopName: tenant.businessName,
   };
 };
 
 export const listOwnerManagersService = async (userId: string) => {
-  const owner = await getOwnerWithTenant(userId);
+  const owner = await getUserWithTenant(userId);
   const tenantId = owner.tenantId as string;
   const managers = await userRepo().find({
     where: {
@@ -65,6 +177,8 @@ export const listOwnerManagersService = async (userId: string) => {
     id: manager.id,
     name: manager.name,
     email: manager.email,
+    phone: manager.phone || '',
+    shopName: manager.shopName || manager.branch?.name?.split('-')[0].trim() || owner.tenant?.businessName || '',
     branchId: manager.branchId,
     location: manager.branch?.name?.split('-')[0].trim() || 'Unassigned',
     status: manager.isActive ? 'ACTIVE' : 'INACTIVE',
@@ -79,7 +193,7 @@ type CreateManagerInput = {
 };
 
 export const createOwnerManagerService = async (userId: string, input: CreateManagerInput) => {
-  const owner = await getOwnerWithTenant(userId);
+  const owner = await getUserWithTenant(userId);
   const tenantId = owner.tenantId as string;
   const normalizedEmail = input.email.trim().toLowerCase();
 
@@ -118,10 +232,12 @@ export const createOwnerManagerService = async (userId: string, input: CreateMan
   const manager = userRepo().create({
     name: input.name.trim(),
     email: normalizedEmail,
+    phone: null,
     password: passwordHash,
     role: 'MANAGER' as User['role'],
     tenantId,
     branchId: branch.id,
+    shopName: owner.tenant?.businessName || branch.name.split('-')[0].trim(),
     isActive: true,
     isDefaultPassword: true,
   });
@@ -136,6 +252,8 @@ export const createOwnerManagerService = async (userId: string, input: CreateMan
     id: savedManager.id,
     name: savedManager.name,
     email: savedManager.email,
+    phone: savedManager.phone || '',
+    shopName: savedManager.shopName || owner.tenant?.businessName || '',
     branchId: branch.id,
     location: branch.name.split('-')[0].trim(),
     status: 'ACTIVE' as const,
@@ -143,7 +261,7 @@ export const createOwnerManagerService = async (userId: string, input: CreateMan
 };
 
 export const removeOwnerManagerService = async (userId: string, managerId: string) => {
-  const owner = await getOwnerWithTenant(userId);
+  const owner = await getUserWithTenant(userId);
   const tenantId = owner.tenantId as string;
   const manager = await userRepo().findOne({
     where: {
@@ -175,7 +293,7 @@ export const removeOwnerManagerService = async (userId: string, managerId: strin
 };
 
 export const resetOwnerManagerPasswordService = async (ownerId: string, managerId: string, newPassword: string) => {
-  const owner = await getOwnerWithTenant(ownerId);
+  const owner = await getUserWithTenant(ownerId);
   const tenantId = owner.tenantId as string;
   
   const manager = await userRepo().findOne({

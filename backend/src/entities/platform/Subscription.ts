@@ -3,10 +3,18 @@ import {
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
+  UpdateDateColumn,
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
 import { Tenant } from './Tenant';
+import { RevenueTransaction } from './RevenueTransaction';
+
+export enum SubscriptionPaymentMethod {
+  CARD = 'CARD',
+  UPI = 'UPI',
+  CASH = 'CASH',
+}
 
 export enum SubscriptionPlan {
   STANDARD = 'STANDARD',
@@ -41,6 +49,20 @@ export class Subscription {
   })
   status!: SubscriptionStatus;
 
+  @Column({ name: 'amount_paid', type: 'decimal', precision: 10, scale: 2, default: 0 })
+  amountPaid!: number;
+
+  @Column({
+    name: 'payment_method',
+    type: 'varchar',
+    length: 20,
+    nullable: true,
+  })
+  paymentMethod!: SubscriptionPaymentMethod | null;
+
+  @Column({ name: 'transaction_reference', type: 'varchar', length: 120, nullable: true })
+  transactionReference!: string | null;
+
   @Column({ type: 'date' })
   startDate!: Date;
 
@@ -53,4 +75,7 @@ export class Subscription {
 
   @CreateDateColumn()
   createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt!: Date;
 }

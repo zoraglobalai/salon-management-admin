@@ -98,6 +98,14 @@ export const loginService = async (
       id: user.id,
       name: user.name,
       email: user.email,
+      phone:
+        user.role === UserRole.MANAGER
+          ? user.phone
+          : (user.tenant?.phone ?? user.phone ?? null),
+      shopName:
+        user.role === UserRole.MANAGER
+          ? (user.shopName ?? user.tenant?.businessName ?? '')
+          : (user.tenant?.businessName ?? user.shopName ?? ''),
       role: user.role,
       tenantId: user.tenantId,
       branchId: user.branchId,

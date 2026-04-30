@@ -37,10 +37,10 @@ app.get('/health', (_req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', authMiddleware, requireSuperAdmin, usersRoutes);
-app.use('/api/subscriptions', authMiddleware, requireSuperAdmin, subscriptionsRoutes);
+app.use('/api/subscriptions', authMiddleware, subscriptionsRoutes);
 app.use('/api/revenue', authMiddleware, requireSuperAdmin, revenueRoutes);
 app.use('/api/trials', authMiddleware, requireSuperAdmin, trialsRoutes);
-app.use('/api/support', authMiddleware, requireSuperAdmin, supportRoutes);
+app.use('/api/support', supportRoutes);
 app.use('/api/logs', authMiddleware, requireSuperAdmin, logsRoutes);
 app.use('/api/owner', ownerRoutes);
 app.use('/api/inventory', authMiddleware, inventoryRouter);

@@ -7,6 +7,7 @@ export const getAllTransactions = async (status?: string) => {
   const query = revenueRepo()
     .createQueryBuilder('tx')
     .leftJoinAndSelect('tx.tenant', 'tenant')
+    .leftJoinAndSelect('tx.subscription', 'subscription')
     .orderBy('tx.createdAt', 'DESC');
 
   if (status) {

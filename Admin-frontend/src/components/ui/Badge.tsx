@@ -31,7 +31,9 @@ export const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
     MULTI_BRANCH: { variant: 'info', label: 'Multi-Branch' },
     INDEPENDENT: { variant: 'gray', label: 'Independent' },
     BASIC: { variant: 'gray', label: 'Basic' },
+    STANDARD: { variant: 'gray', label: 'Standard' },
     PRO: { variant: 'info', label: 'Pro' },
+    CUSTOM: { variant: 'warning', label: 'Custom' },
   };
 
   const config = map[status] || { variant: 'gray' as const, label: status };

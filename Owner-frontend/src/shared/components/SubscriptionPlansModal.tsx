@@ -35,7 +35,7 @@ function formatPlanLabel(plan?: string | null) {
 
 function formatMoney(value?: string | number | null) {
   const amount = typeof value === "string" ? Number(value) : Number(value || 0);
-  return `₹${amount.toLocaleString("en-IN")}`;
+  return `Rs ${amount.toLocaleString("en-IN")}`;
 }
 
 function PlanCard({
@@ -98,11 +98,16 @@ export function SubscriptionPlansModal({ isOpen, onClose }: SubscriptionPlansMod
   const [isLoading, setIsLoading] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlanOption | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("UPI");
-  const [customAmount, setCustomAmount] = useState("");
   const [customMessage, setCustomMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const loadOverview = async () => {
+    const response = await fetchOwnerSubscriptionOverview();
+    setOverview(response.data);
+    return response.data;
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -112,8 +117,7 @@ export function SubscriptionPlansModal({ isOpen, onClose }: SubscriptionPlansMod
     setSuccess(null);
     setSelectedPlan(null);
 
-    fetchOwnerSubscriptionOverview()
-      .then((response) => setOverview(response.data))
+    loadOverview()
       .catch((err) => setError(err instanceof Error ? err.message : "Unable to load subscriptions."))
       .finally(() => setIsLoading(false));
   }, [isOpen]);
@@ -143,27 +147,40 @@ export function SubscriptionPlansModal({ isOpen, onClose }: SubscriptionPlansMod
     setSelectedPlan(plan);
     setError(null);
     setSuccess(null);
-    setCustomAmount("");
     setCustomMessage("");
   };
 
   const handleCheckout = async () => {
     if (!selectedPlan || selectedPlan.price === null) return;
 
+    const chosenPlan = selectedPlan;
     setIsSubmitting(true);
     setError(null);
     setSuccess(null);
 
     try {
       const response = await checkoutOwnerSubscription({
-        plan: selectedPlan.id as "STANDARD" | "PRO",
+        plan: chosenPlan.id as "STANDARD" | "PRO",
         paymentMethod,
       });
       setOverview(response.data);
-      setSuccess(`${selectedPlan.label} plan activated successfully.`);
+      setSuccess(`${chosenPlan.label} plan activated successfully.`);
       setSelectedPlan(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to complete payment.");
+      try {
+        const refreshedOverview = await loadOverview();
+        const activatedPlan = refreshedOverview.currentSubscription?.plan === chosenPlan.id;
+        const isActive = refreshedOverview.currentSubscription?.status === "ACTIVE";
+
+        if (activatedPlan && isActive) {
+          setSuccess(`${chosenPlan.label} plan activated successfully.`);
+          setSelectedPlan(null);
+        } else {
+          throw err;
+        }
+      } catch {
+        setError(err instanceof Error ? err.message : "Unable to complete payment.");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -220,9 +237,33 @@ export function SubscriptionPlansModal({ isOpen, onClose }: SubscriptionPlansMod
                 <h3 className="text-[1.3rem] font-semibold text-[var(--theme-heading)]">Your Current Subscription</h3>
                 <div className="mt-4 space-y-2">
                   <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="text-[var(--theme-muted)]">Business</span>
+                    <strong className="text-right text-[var(--theme-heading)]">{overview?.businessName || "Business Overview"}</strong>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 text-sm">
                     <span className="text-[var(--theme-muted)]">Current Plan</span>
                     <strong className="text-[var(--theme-heading)]">{currentLabel}</strong>
                   </div>
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="text-[var(--theme-muted)]">Status</span>
+                    <strong className="text-[var(--theme-heading)]">{overview?.currentSubscription?.status || overview?.tenantStatus || "TRIAL"}</strong>
+                  </div>
+                  {overview?.currentSubscription ? (
+                    <>
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="text-[var(--theme-muted)]">Start Date</span>
+                        <strong className="text-[var(--theme-heading)]">
+                          {new Date(overview.currentSubscription.startDate).toLocaleDateString("en-IN")}
+                        </strong>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="text-[var(--theme-muted)]">End Date</span>
+                        <strong className="text-[var(--theme-heading)]">
+                          {new Date(overview.currentSubscription.endDate).toLocaleDateString("en-IN")}
+                        </strong>
+                      </div>
+                    </>
+                  ) : null}
                   <div className="flex items-center gap-2 text-sm text-[var(--theme-muted)]">
                     <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
                     <span>{currentMeta}</span>
@@ -263,92 +304,32 @@ export function SubscriptionPlansModal({ isOpen, onClose }: SubscriptionPlansMod
                 {selectedPlan.price === null ? (
                   <div className="mt-4">
                     <p className="text-sm text-[var(--theme-muted)]">
-                      Enter the agreed custom amount, choose a payment method, and add a short note for the team.
+                      Custom plans are handled directly by Super Admin. Share your branch and plan needs, and we will connect you with the team.
                     </p>
-                    <div className="mt-4 grid gap-5 lg:grid-cols-[1fr_1fr]">
+                    <div className="mt-4 grid gap-5 lg:grid-cols-[1.2fr_0.8fr]">
                       <div className="space-y-4">
-                        <input
-                          type="number"
-                          min="1"
-                          step="1"
-                          value={customAmount}
-                          onChange={(event) => setCustomAmount(event.target.value)}
-                          placeholder="Enter custom amount"
-                          className="w-full rounded-[18px] border border-[var(--theme-border-soft)] bg-[var(--theme-card-soft)] px-4 py-3 text-sm text-[var(--theme-body)] outline-none"
-                        />
                         <textarea
                           value={customMessage}
                           onChange={(event) => setCustomMessage(event.target.value)}
                           rows={4}
-                          placeholder="Describe your custom plan needs..."
+                          placeholder="Describe branch count, business needs, and the custom support you need..."
                           className="w-full rounded-[18px] border border-[var(--theme-border-soft)] bg-[var(--theme-card-soft)] px-4 py-3 text-sm text-[var(--theme-body)] outline-none"
                         />
                       </div>
-                      <div>
-                        <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--theme-heading)]">
-                          <Wallet size={16} />
-                          Payment method
+                      <div className="rounded-[20px] border border-[var(--theme-border-soft)] bg-[var(--theme-card-soft)] p-4">
+                        <div className="text-sm text-[var(--theme-muted)]">Super Admin contact</div>
+                        <div className="mt-2 text-lg font-semibold text-[var(--theme-heading)]">
+                          {overview?.supportContact.name || "Super Admin"}
                         </div>
-                        <div className="grid gap-3 sm:grid-cols-3">
-                          {paymentMethods.map((method) => (
-                            <button
-                              key={method.id}
-                              type="button"
-                              onClick={() => setPaymentMethod(method.id)}
-                              className={`rounded-[18px] border px-4 py-3 text-sm font-semibold transition ${
-                                paymentMethod === method.id
-                                  ? "border-[var(--theme-accent-strong)] bg-[var(--theme-card-soft)] text-[var(--theme-heading)]"
-                                  : "border-[var(--theme-border-soft)] bg-[var(--theme-card)] text-[var(--theme-muted)]"
-                              }`}
-                            >
-                              {method.label}
-                            </button>
-                          ))}
-                        </div>
-                        <div className="mt-4 flex gap-3">
-                          <button
-                            type="button"
-                            disabled={isSubmitting}
-                            onClick={() => void handleCustomRequest()}
-                            className="inline-flex items-center justify-center rounded-[16px] border border-[var(--theme-border-soft)] bg-[var(--theme-card-soft)] px-5 py-3 text-sm font-semibold text-[var(--theme-heading)] transition hover:opacity-90 disabled:opacity-60"
-                          >
-                            Send request
-                          </button>
-                          <button
-                            type="button"
-                            disabled={isSubmitting}
-                            onClick={async () => {
-                              const amount = Number(customAmount);
-                              if (!amount || amount <= 0) {
-                                setError("Enter a valid custom paid amount.");
-                                return;
-                              }
-                              setIsSubmitting(true);
-                              setError(null);
-                              setSuccess(null);
-                              try {
-                                const response = await checkoutOwnerSubscription({
-                                  plan: "CUSTOM",
-                                  paymentMethod,
-                                  customAmount: amount,
-                                  customMessage: customMessage.trim() || undefined,
-                                });
-                                setOverview(response.data);
-                                setSuccess("Custom plan payment completed successfully.");
-                                setSelectedPlan(null);
-                                setCustomAmount("");
-                                setCustomMessage("");
-                              } catch (err) {
-                                setError(err instanceof Error ? err.message : "Unable to complete custom plan payment.");
-                              } finally {
-                                setIsSubmitting(false);
-                              }
-                            }}
-                            className="inline-flex items-center justify-center rounded-[16px] bg-[var(--theme-action-chip)] px-5 py-3 text-sm font-semibold text-[var(--theme-heading)] transition hover:opacity-90 disabled:opacity-60"
-                          >
-                            {isSubmitting ? "Processing..." : "Complete custom payment"}
-                          </button>
-                        </div>
+                        <div className="mt-1 text-sm text-[var(--theme-body)]">{overview?.supportContact.phone || "Contact number unavailable"}</div>
+                        <button
+                          type="button"
+                          disabled={isSubmitting}
+                          onClick={() => void handleCustomRequest()}
+                          className="mt-4 inline-flex items-center justify-center rounded-[16px] bg-[var(--theme-action-chip)] px-5 py-3 text-sm font-semibold text-[var(--theme-heading)] transition hover:opacity-90 disabled:opacity-60"
+                        >
+                          {isSubmitting ? "Sending request..." : "Send request"}
+                        </button>
                       </div>
                     </div>
                   </div>

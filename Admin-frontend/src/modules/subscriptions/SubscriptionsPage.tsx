@@ -1,20 +1,34 @@
 import React, { useEffect, useState } from 'react';
-import { subscriptionsApi } from '../../services/api';
+import { CreditCard, CheckCircle, RefreshCw, XCircle } from 'lucide-react';
 import DataTable from '../../components/ui/DataTable';
 import { StatusBadge } from '../../components/ui/Badge';
 import StatCard from '../../components/ui/StatCard';
-import { CreditCard, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { subscriptionsApi } from '../../services/api';
 
 interface Subscription {
   id: string;
   tenantId: string;
   plan: string;
   status: string;
+  amountPaid: number;
+  paymentMethod: string | null;
+  transactionReference: string | null;
   startDate: string;
   endDate: string;
   createdAt: string;
   tenant: { name: string; email: string; businessName: string };
 }
+
+const formatMoney = (value: number) =>
+  `Rs ${Number(value || 0).toLocaleString('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+
+const formatPaymentMethod = (value: string | null) => {
+  if (!value) return 'Manual';
+  return value.charAt(0) + value.slice(1).toLowerCase();
+};
 
 const SubscriptionsPage: React.FC = () => {
   const [data, setData] = useState<Subscription[]>([]);
@@ -38,7 +52,9 @@ const SubscriptionsPage: React.FC = () => {
     }
   };
 
-  useEffect(() => { fetch(); }, [statusFilter]);
+  useEffect(() => {
+    void fetch();
+  }, [statusFilter]);
 
   const columns = [
     {
@@ -53,6 +69,16 @@ const SubscriptionsPage: React.FC = () => {
     },
     { key: 'plan', header: 'Plan', render: (row: Subscription) => <StatusBadge status={row.plan} /> },
     { key: 'status', header: 'Status', render: (row: Subscription) => <StatusBadge status={row.status} /> },
+    {
+      key: 'amountPaid',
+      header: 'Amount',
+      render: (row: Subscription) => formatMoney(row.amountPaid),
+    },
+    {
+      key: 'paymentMethod',
+      header: 'Payment Type',
+      render: (row: Subscription) => formatPaymentMethod(row.paymentMethod),
+    },
     {
       key: 'startDate',
       header: 'Start Date',
@@ -72,24 +98,24 @@ const SubscriptionsPage: React.FC = () => {
           <h1 className="page-title">Subscriptions</h1>
           <p className="page-subtitle">Manage all subscription plans and statuses</p>
         </div>
-        <button onClick={fetch} className="btn-secondary gap-1.5 text-xs">
+        <button onClick={() => void fetch()} className="btn-secondary gap-1.5 text-xs">
           <RefreshCw size={13} /> Refresh
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <StatCard title="Total" value={stats?.total ?? '—'} icon={<CreditCard size={18} />} />
-        <StatCard title="Active" value={stats?.active ?? '—'} icon={<CheckCircle size={18} />} color="success" />
-        <StatCard title="Expired" value={stats?.expired ?? '—'} icon={<XCircle size={18} />} color="danger" />
+      <div className="mb-6 grid grid-cols-3 gap-4">
+        <StatCard title="Total" value={stats?.total ?? '--'} icon={<CreditCard size={18} />} />
+        <StatCard title="Active" value={stats?.active ?? '--'} icon={<CheckCircle size={18} />} color="success" />
+        <StatCard title="Expired" value={stats?.expired ?? '--'} icon={<XCircle size={18} />} color="danger" />
       </div>
 
       <div className="card">
-        <div className="flex items-center gap-2 p-4 border-b border-[var(--color-border)]">
+        <div className="flex items-center gap-2 border-b border-[var(--color-border)] p-4">
           {['', 'ACTIVE', 'EXPIRED'].map((s) => (
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
-              className={`text-xs px-3 py-1.5 rounded-full font-medium transition-all ${
+              className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
                 statusFilter === s
                   ? 'bg-[var(--color-primary)] text-white'
                   : 'bg-[var(--color-surface-raised)] text-[var(--color-text-secondary)] hover:bg-[var(--color-primary-light)]'
