@@ -86,7 +86,7 @@ const DashboardPage: React.FC = () => {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Users"
           value={isLoading ? '—' : stats?.totalTenants ?? 0}

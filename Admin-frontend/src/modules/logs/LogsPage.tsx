@@ -46,12 +46,12 @@ const LogsPage: React.FC = () => {
 
   return (
     <div>
-      <div className="page-header flex items-start justify-between">
+      <div className="page-header flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="page-title">Logs & Security</h1>
           <p className="page-subtitle">Audit trail of all administrative actions</p>
         </div>
-        <button onClick={fetch} className="btn-secondary gap-1.5 text-xs">
+        <button onClick={fetch} className="btn-secondary w-full gap-1.5 text-xs sm:w-auto">
           <RefreshCw size={13} /> Refresh
         </button>
       </div>
@@ -73,7 +73,7 @@ const LogsPage: React.FC = () => {
         ) : (
           <div className="divide-y divide-[var(--color-border)]">
             {logs.map((log) => (
-              <div key={log.id} className="flex items-start gap-4 p-4 hover:bg-[var(--color-surface-raised)] transition-colors">
+              <div key={log.id} className="flex flex-col gap-3 p-4 transition-colors hover:bg-[var(--color-surface-raised)] sm:flex-row sm:items-start sm:gap-4">
                 <div className={`shrink-0 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide ${actionColors[log.action] || 'bg-gray-100 text-gray-600'}`}>
                   {log.action.replace(/_/g, ' ')}
                 </div>
@@ -83,7 +83,7 @@ const LogsPage: React.FC = () => {
                     {log.ipAddress && <> · {log.ipAddress}</>}
                   </p>
                 </div>
-                <span className="text-xs text-[var(--color-text-muted)] shrink-0">
+                <span className="shrink-0 text-xs text-[var(--color-text-muted)]">
                   {new Date(log.createdAt).toLocaleString()}
                 </span>
               </div>

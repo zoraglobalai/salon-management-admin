@@ -1,4 +1,4 @@
-import { ArrowLeft, Package, AlertCircle, TrendingUp, Activity, Archive, ShoppingCart, BarChart3, ChevronRight } from "lucide-react";
+import { ArrowLeft, Package, AlertCircle, TrendingUp, Archive, ShoppingCart, BarChart3, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { FiltersBar } from "../components/FiltersBar";
 import { SummaryCard } from "../components/SummaryCard";

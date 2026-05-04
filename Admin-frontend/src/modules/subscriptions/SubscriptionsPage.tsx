@@ -130,17 +130,17 @@ const SubscriptionsPage: React.FC = () => {
 
   return (
     <div>
-      <div className="page-header flex items-start justify-between">
+      <div className="page-header flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="page-title">Subscriptions</h1>
           <p className="page-subtitle">Manage all subscription plans and statuses</p>
         </div>
-        <button onClick={() => void fetch()} className="btn-secondary gap-1.5 text-xs">
+        <button onClick={() => void fetch()} className="btn-secondary w-full gap-1.5 text-xs sm:w-auto">
           <RefreshCw size={13} /> Refresh
         </button>
       </div>
 
-      <div className="mb-6 grid grid-cols-3 gap-4">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <StatCard title="Total" value={stats?.total ?? '--'} icon={<CreditCard size={18} />} />
         <StatCard title="Active" value={stats?.active ?? '--'} icon={<CheckCircle size={18} />} color="success" />
         <StatCard title="Expired" value={stats?.expired ?? '--'} icon={<XCircle size={18} />} color="danger" />
