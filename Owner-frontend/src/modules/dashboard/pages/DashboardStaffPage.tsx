@@ -336,7 +336,16 @@ export function DashboardStaffPage() {
                     )}
                     <div>
                       <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Full Name</label>
-                      <input required name="name" value={form.name} onChange={f} placeholder="e.g. Rahul Singh"
+                      <input required name="name" value={form.name} 
+                        maxLength={35}
+                        onKeyDown={(e) => {
+                          if (e.key === " " && !form.name) e.preventDefault();
+                        }}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/^\s+/, "").replace(/[^a-zA-Z\s]/g, "").replace(/\s{2,}/g, " ").slice(0, 35);
+                          setForm((c) => ({ ...c, name: val }));
+                        }}
+                        placeholder="e.g. Rahul Singh"
                         className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
                           isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
                         }`} />
@@ -357,7 +366,16 @@ export function DashboardStaffPage() {
                     <div className="relative">
                       <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Phone Number</label>
                       <div className="relative">
-                        <input required name="phoneNumber" value={form.phoneNumber} onChange={f} placeholder="98765 43210"
+                        <input required name="phoneNumber" value={form.phoneNumber} 
+                          maxLength={10}
+                          onKeyDown={(e) => {
+                            if (e.key === " ") e.preventDefault();
+                          }}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                            setForm((c) => ({ ...c, phoneNumber: val }));
+                          }}
+                          placeholder="9876543210"
                           className={`w-full rounded-xl border pl-10 pr-4 py-3 text-sm outline-none transition-all ${
                             isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
                           }`} />

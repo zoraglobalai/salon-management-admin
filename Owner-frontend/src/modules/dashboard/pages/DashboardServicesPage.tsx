@@ -163,12 +163,8 @@ export function DashboardServicesPage() {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (form.products.length === 0) {
-      setError("Please add at least one product to the service.");
-      return;
-    }
-    if (form.products.some((p) => !p.productId || !p.quantityUsed)) {
-      setError("Please complete all product fields.");
+    if (form.products.length > 0 && form.products.some((p) => !p.productId || !p.quantityUsed)) {
+      setError("Please complete all product fields or remove empty rows.");
       return;
     }
 
@@ -411,7 +407,14 @@ export function DashboardServicesPage() {
                   <label className={`mb-1.5 block text-[10px] font-black uppercase tracking-[0.1em] ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>
                     Service Name
                   </label>
-                  <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  <input required value={form.name} 
+                    onKeyDown={(e) => {
+                      if (e.key === " " && !form.name) e.preventDefault();
+                    }}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/^\s+/, "").replace(/\s{2,}/g, " ");
+                      setForm({ ...form, name: val });
+                    }}
                     placeholder="e.g. Keratin Therapy"
                     className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
                       isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] placeholder:text-[#4A4744] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
@@ -465,7 +468,14 @@ export function DashboardServicesPage() {
                   <label className={`mb-1.5 block text-[10px] font-black uppercase tracking-[0.1em] ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>
                     Service Insights
                   </label>
-                  <textarea rows={2} value={form.benefits} onChange={(e) => setForm({ ...form, benefits: e.target.value })}
+                  <textarea rows={2} value={form.benefits} 
+                    onKeyDown={(e) => {
+                      if (e.key === " " && !form.benefits) e.preventDefault();
+                    }}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/^\s+/, "").replace(/\s{2,}/g, " ");
+                      setForm({ ...form, benefits: val });
+                    }}
                     placeholder="Highlight core benefits for clients…"
                     className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
                       isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] placeholder:text-[#4A4744] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"

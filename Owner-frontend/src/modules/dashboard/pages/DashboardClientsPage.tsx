@@ -476,7 +476,15 @@ export function DashboardClientsPage() {
                     )}
                     <div>
                       <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>Full Name</label>
-                      <input required value={form.name} onChange={(e) => setForm((c) => ({ ...c, name: e.target.value }))}
+                      <input required value={form.name} 
+                        maxLength={35}
+                        onKeyDown={(e) => {
+                          if (e.key === " " && !form.name) e.preventDefault();
+                        }}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/^\s+/, "").replace(/[^a-zA-Z\s]/g, "").replace(/\s{2,}/g, " ").slice(0, 35);
+                          setForm((c) => ({ ...c, name: val }));
+                        }}
                         placeholder="Meena Kumari"
                         className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
                           isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] placeholder:text-[#4A4744] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
@@ -484,7 +492,15 @@ export function DashboardClientsPage() {
                     </div>
                     <div>
                       <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>Phone Number</label>
-                      <input required value={form.phoneNumber} onChange={(e) => setForm((c) => ({ ...c, phoneNumber: e.target.value }))}
+                      <input required value={form.phoneNumber} 
+                        maxLength={10}
+                        onKeyDown={(e) => {
+                          if (e.key === " ") e.preventDefault();
+                        }}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                          setForm((c) => ({ ...c, phoneNumber: val }));
+                        }}
                         placeholder="9876543210"
                         className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
                           isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] placeholder:text-[#4A4744] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"

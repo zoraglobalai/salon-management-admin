@@ -449,7 +449,14 @@ export function DashboardInventoryPage() {
             <form onSubmit={handleSubmit} className="grid gap-5 overflow-y-auto p-6 md:grid-cols-2 scrollbar-elegant">
               <div className="md:col-span-2">
                 <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>Product Name</label>
-                <input required value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+                <input required value={form.name} 
+                  onKeyDown={(e) => {
+                    if (e.key === " " && !form.name) e.preventDefault();
+                  }}
+                  onChange={(event) => {
+                    const val = event.target.value.replace(/^\s+/, "").replace(/\s{2,}/g, " ");
+                    setForm((current) => ({ ...current, name: val }));
+                  }}
                   placeholder="e.g., Argan Oil Shampoo"
                   className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
                     isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] placeholder:text-[#4A4744] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
@@ -508,7 +515,14 @@ export function DashboardInventoryPage() {
               </div>
               <div className="md:col-span-2">
                 <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>Key Benefits / Description</label>
-                <textarea rows={3} value={form.benefits} onChange={(event) => setForm((current) => ({ ...current, benefits: event.target.value }))}
+                <textarea rows={3} value={form.benefits} 
+                  onKeyDown={(e) => {
+                    if (e.key === " " && !form.benefits) e.preventDefault();
+                  }}
+                  onChange={(event) => {
+                    const val = event.target.value.replace(/^\s+/, "").replace(/\s{2,}/g, " ");
+                    setForm((current) => ({ ...current, benefits: val }));
+                  }}
                   placeholder="Highlight key ingredients or usage benefits…"
                   className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
                     isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] placeholder:text-[#4A4744] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"

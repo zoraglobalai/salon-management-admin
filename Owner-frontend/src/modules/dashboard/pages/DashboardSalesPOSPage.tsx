@@ -38,6 +38,8 @@ export function DashboardSalesPOSPage() {
   const [phone, setPhone] = useState("");
   const [clientName, setClientName] = useState("");
   const [foundClient, setFoundClient] = useState<ClientRecord | null>(null);
+  const [suggestions, setSuggestions] = useState<ClientRecord[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   
   // Billing State
   const [discount, setDiscount] = useState(0);
@@ -85,27 +87,43 @@ export function DashboardSalesPOSPage() {
 
   useEffect(() => {
     if (!selectedLocationId) {
-      setFoundClient(null);
-      setClientName("");
+      setSuggestions([]);
       return;
     }
 
-    if (phone.length >= 10) {
+    if (phone.length >= 3) {
       fetchClients(selectedLocationId, { search: phone })
         .then(r => {
-          if (r.clients.length > 0) {
-            setFoundClient(r.clients[0]);
-            setClientName(r.clients[0].name);
+          setSuggestions(r.clients);
+          // If exactly one match with exact phone number, auto-select it
+          const exactMatch = r.clients.find(c => (c.phoneNumber || "").replace(/\D/g, '') === phone.replace(/\D/g, ''));
+          if (exactMatch && phone.length >= 10) {
+            setFoundClient(exactMatch);
+            setClientName(exactMatch.name);
+            setShowSuggestions(false);
+          } else if (r.clients.length > 0) {
+            setShowSuggestions(true);
           } else {
             setFoundClient(null);
-            setClientName("");
+            setShowSuggestions(false);
           }
+        })
+        .catch(() => {
+          setSuggestions([]);
+          setShowSuggestions(false);
         });
     } else {
-      setFoundClient(null);
-      setClientName("");
+      setSuggestions([]);
+      setShowSuggestions(false);
     }
   }, [phone, selectedLocationId]);
+
+  const selectClient = (client: ClientRecord) => {
+    setFoundClient(client);
+    setClientName(client.name);
+    setPhone((client.phoneNumber || "").replace(/\D/g, ''));
+    setShowSuggestions(false);
+  };
 
   const subtotal = useMemo(() => {
     const sTotal = selectedServices.reduce((acc, s) => acc + s.price, 0);
@@ -274,12 +292,39 @@ export function DashboardSalesPOSPage() {
                 <input 
                   type="text" 
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  maxLength={10}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                    setPhone(val);
+                    if (foundClient) setFoundClient(null);
+                  }}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                  onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
                   placeholder="Enter phone number…"
                   className={`w-full pl-11 pr-4 py-3 rounded-2xl border outline-none transition-all text-sm font-bold ${
                     isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E] placeholder:text-[#4A4744]" : "bg-gray-50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
                   }`}
                 />
+                {showSuggestions && suggestions.length > 0 && (
+                  <div className={`absolute z-[100] mt-2 w-full rounded-2xl border shadow-2xl overflow-hidden backdrop-blur-md ${
+                    isDark ? "bg-[#1C2030]/95 border-[rgba(255,255,255,0.1)]" : "bg-white/95 border-[#E8E1D8]"
+                  }`}>
+                    {suggestions.map((client) => (
+                      <button
+                        key={client.id}
+                        type="button"
+                        onClick={() => selectClient(client)}
+                        className={`w-full text-left px-4 py-3 text-sm transition-all border-b last:border-0 ${
+                          isDark ? "border-[rgba(255,255,255,0.05)] hover:bg-[rgba(255,255,255,0.05)]" : "border-gray-50 hover:bg-gray-50"
+                        }`}
+                      >
+                        <div className={`font-black ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>{client.name}</div>
+                        <div className={`text-[10px] font-bold opacity-60 ${isDark ? "text-[#C8BFB4]" : "text-gray-500"}`}>{client.phoneNumber}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
               </div>
             </div>
             
@@ -289,7 +334,11 @@ export function DashboardSalesPOSPage() {
                 <input 
                   type="text" 
                   value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
+                  maxLength={35}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^a-zA-Z\s]/g, "").replace(/\s{2,}/g, " ").slice(0, 35);
+                    setClientName(val);
+                  }}
                   disabled={!!foundClient}
                   placeholder={foundClient ? "Synchronized" : "Legal name…"}
                   className={`w-full px-4 py-3 rounded-2xl border outline-none transition-all text-sm font-bold ${
