@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { useGlobalFilters } from "../../../shared/context/FilterContext";
 
 type ReportResponse<T> = Promise<{ success: boolean; data: T }>;
 
@@ -11,15 +12,28 @@ export function useReport<T, F extends Record<string, any>>(
   initialFilters: F,
   options: UseReportOptions = {},
 ) {
+  const { filters: globalFilters } = useGlobalFilters();
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<F>(initialFilters);
 
-  const loadData = async (currentFilters: F, showLoader = true) => {
+  const getMergedFilters = useCallback(() => {
+    const locId = globalFilters.locationId === "all" ? undefined : globalFilters.locationId;
+    return {
+      ...filters,
+      startDate: globalFilters.startDate,
+      endDate: globalFilters.endDate,
+      locationId: locId,
+      paymentMethod: globalFilters.paymentMethod,
+    } as unknown as F;
+  }, [filters, globalFilters]);
+
+  const loadData = useCallback(async (showLoader = true) => {
     if (showLoader) setLoading(true);
 
     try {
-      const res = await fetchFn(currentFilters);
+      const merged = getMergedFilters();
+      const res = await fetchFn(merged);
       if (res.success) {
         setData(res.data);
       }
@@ -28,27 +42,27 @@ export function useReport<T, F extends Record<string, any>>(
     } finally {
       if (showLoader) setLoading(false);
     }
-  };
+  }, [fetchFn, getMergedFilters]);
 
   useEffect(() => {
-    loadData(filters);
-  }, [filters]);
+    void loadData();
+  }, [loadData]);
 
   useEffect(() => {
     if (!options.refreshMs) return;
 
     const timer = window.setInterval(() => {
-      void loadData(filters, false);
+      void loadData(false);
     }, options.refreshMs);
 
     return () => window.clearInterval(timer);
-  }, [filters, options.refreshMs]);
+  }, [loadData, options.refreshMs]);
 
   return {
     data,
     loading,
     filters,
     setFilters,
-    refresh: () => loadData(filters),
+    refresh: () => loadData(),
   };
 }

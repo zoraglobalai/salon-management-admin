@@ -3,11 +3,13 @@ import { Link } from 'react-router-dom';
 import { AuthLayout } from '../components/AuthLayout';
 import { AuthForm } from '../components/AuthForm';
 import { useAuth } from '../hooks/useAuth';
+import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 
 export const Login: React.FC = () => {
   const { login, isLoading, error, showDefaultPasswordModal, closeDefaultPasswordModal } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,16 +33,22 @@ export const Login: React.FC = () => {
             Email address
           </label>
           <div className="mt-1">
-            <input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-            />
+            <div className="relative">
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onKeyDown={(e) => {
+                  if (e.key === " ") e.preventDefault();
+                }}
+                onChange={(e) => setEmail(e.target.value.replace(/\s/g, ""))}
+                className="appearance-none block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              />
+              <Mail size={16} className="absolute left-3 top-2.5 text-gray-400" />
+            </div>
           </div>
         </div>
 
@@ -49,16 +57,29 @@ export const Login: React.FC = () => {
             Password
           </label>
           <div className="mt-1">
-            <input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-            />
+            <div className="relative">
+              <input
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                required
+                value={password}
+                onKeyDown={(e) => {
+                  if (e.key === " ") e.preventDefault();
+                }}
+                onChange={(e) => setPassword(e.target.value.replace(/\s/g, ""))}
+                className="appearance-none block w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              />
+              <Lock size={16} className="absolute left-3 top-2.5 text-gray-400" />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 focus:outline-none"
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
         </div>
 

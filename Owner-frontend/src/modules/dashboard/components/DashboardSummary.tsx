@@ -6,6 +6,7 @@ import {
   ChevronDown,
   IndianRupee,
   MapPin,
+  RotateCcw,
   Scissors,
   ShoppingBag,
   Users,
@@ -15,6 +16,7 @@ import { fetchDashboardSummary } from "../../../core/api";
 import type { DashboardSummaryResponse } from "../../../core/types";
 import { useAuth } from "../../auth/hooks/useAuth";
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
+import { useGlobalFilters } from "../../../shared/context/FilterContext";
 
 type OutletContext = {
   ownerLocations?: Array<{ id: string; name: string; city?: string }>;
@@ -400,10 +402,8 @@ export function DashboardSummary() {
   const isDark = theme === "dark";
   const { ownerLocations } = useOutletContext<OutletContext>() || {};
   const locations = Array.isArray(ownerLocations) ? ownerLocations : [];
+  const { filters: globalFilters, setFilters, resetFilters } = useGlobalFilters();
   const isManager = user?.role === "MANAGER";
-  const defaultBranchId = isManager ? user?.branchId || "all" : "all";
-  const [selectedDate, setSelectedDate] = useState(getTodayDate);
-  const [selectedBranchId, setSelectedBranchId] = useState(defaultBranchId);
   const [trendRange, setTrendRange] = useState<TrendRange>("7d");
   const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -411,11 +411,6 @@ export function DashboardSummary() {
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationsRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    if (isManager) {
-      setSelectedBranchId(user?.branchId || "all");
-    }
-  }, [isManager, user?.branchId]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -438,8 +433,8 @@ export function DashboardSummary() {
         }
 
         const response = await fetchDashboardSummary({
-          date: selectedDate,
-          branchId: isManager ? user?.branchId : selectedBranchId !== "all" ? selectedBranchId : undefined,
+          date: globalFilters.startDate,
+          branchId: isManager ? user?.branchId : globalFilters.locationId !== "all" ? globalFilters.locationId : undefined,
           trendRange,
         });
 
@@ -462,7 +457,7 @@ export function DashboardSummary() {
       mounted = false;
       window.clearInterval(intervalId);
     };
-  }, [isManager, selectedBranchId, selectedDate, trendRange, user?.branchId]);
+  }, [isManager, globalFilters.locationId, globalFilters.startDate, trendRange, user?.branchId]);
 
   const totals = summary?.totals;
   const yesterday = summary?.yesterday;
@@ -471,7 +466,7 @@ export function DashboardSummary() {
   const recentSales = Array.isArray(summary?.recentSales) ? summary?.recentSales : [];
   const branches = Array.isArray(summary?.branches) ? summary?.branches : [];
 
-  const selectedLocation = locations.find((location) => location.id === selectedBranchId);
+  const selectedLocation = locations.find((location) => location.id === globalFilters.locationId);
   const fallbackBranch = branches[0];
   const resolvedBranchName =
     (isManager ? user?.location : getLocationLabel(selectedLocation)) ||
@@ -480,7 +475,7 @@ export function DashboardSummary() {
     getLocationLabel(locations[0]) ||
     "All Branches";
   const ownerHasMultipleBranches = !isManager && locations.length > 1;
-  const subtitleBranchText = ownerHasMultipleBranches && selectedBranchId === "all" ? "all locations" : resolvedBranchName;
+  const subtitleBranchText = ownerHasMultipleBranches && globalFilters.locationId === "all" ? "all locations" : resolvedBranchName;
 
   const revenueGrowth = computeGrowth(totals?.revenue ?? 0, yesterday?.revenue ?? 0);
   const salesGrowth = computeGrowth(totals?.totalSales ?? 0, yesterday?.sales ?? 0);
@@ -528,7 +523,7 @@ export function DashboardSummary() {
     return best;
   }, visibleBranchCards[0])?.branchId;
 
-  const selectedDateLabel = new Date(`${selectedDate}T00:00:00`).toLocaleDateString("en-US", {
+  const selectedDateLabel = new Date(`${globalFilters.startDate}T00:00:00`).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -577,8 +572,8 @@ export function DashboardSummary() {
               <ToolbarChip className="pr-9">
                 <MapPin size={15} className={isDark ? "text-[#C9A96E]" : "text-[#5A5049]"} />
                 <select
-                  value={selectedBranchId}
-                  onChange={(event) => setSelectedBranchId(event.target.value)}
+                  value={globalFilters.locationId}
+                  onChange={(event) => setFilters({ locationId: event.target.value })}
                   className="appearance-none bg-transparent pr-1 text-[14px] outline-none"
                   aria-label="Select branch"
                 >
@@ -604,15 +599,26 @@ export function DashboardSummary() {
               <CalendarDays size={15} className={isDark ? "text-[#C9A96E]" : "text-[#5A5049]"} />
               <input
                 type="date"
-                value={selectedDate}
+                value={globalFilters.startDate}
                 max={getTodayDate()}
-                onChange={(event) => setSelectedDate(event.target.value)}
+                onChange={(event) => setFilters({ startDate: event.target.value, endDate: event.target.value, dateRangeType: "Custom" })}
                 className="bg-transparent text-[14px] outline-none"
                 aria-label="Select dashboard date"
               />
             </ToolbarChip>
             <ChevronDown size={16} className={`pointer-events-none absolute right-3 top-3 ${isDark ? "text-[#C9A96E]" : "text-[#5A5049]"}`} />
           </label>
+
+          <button
+            onClick={() => resetFilters()}
+            className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
+              isDark ? "text-[#C9A96E] hover:bg-white/5" : "text-[#8B5E3C] hover:bg-gray-100"
+            }`}
+            title="Reset Filters"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            Reset
+          </button>
 
           <div className="relative" ref={notificationsRef}>
             <button

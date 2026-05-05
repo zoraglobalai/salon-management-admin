@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { fetchResource } from "../../../core/api";
+import { fetchResource, fetchSales } from "../../../core/api";
 import type { ResourceItem } from "../../../core/types";
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
+import { useGlobalFilters } from "../../../shared/context/FilterContext";
 import { Search, Plus, Calendar, Filter, ChevronDown, Download, Info, MoreHorizontal, Receipt, Clock } from "lucide-react";
 
 type SalesTab = "sales" | "drafts";
@@ -81,18 +82,16 @@ function formatDateTime(value: string) {
   }).format(new Date(value));
 }
 
-function isToday(value: string) {
-  return new Date(value).toDateString() === new Date().toDateString();
-}
+
 
 export function DashboardSalesPage() {
   const { theme } = useDashboardTheme();
   const isDark = theme === "dark";
+  const { filters: globalFilters, setFilters } = useGlobalFilters();
   const [activeTab, setActiveTab] = useState<SalesTab>("sales");
   const [sales, setSales] = useState<SaleRecord[]>([]);
   const [clients, setClients] = useState<ClientRecord[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [todayOnly, setTodayOnly] = useState(true);
   const [paymentFilter, setPaymentFilter] = useState("all");
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [status, setStatus] = useState("Loading transactions...");
@@ -115,13 +114,19 @@ export function DashboardSalesPage() {
   useEffect(() => {
     let isMounted = true;
 
-    Promise.all([fetchResource("sales"), fetchResource("clients")])
+    Promise.all([
+      fetchSales(globalFilters.locationId === "all" ? undefined : globalFilters.locationId, { 
+        startDate: globalFilters.startDate, 
+        endDate: globalFilters.endDate
+      }), 
+      fetchResource("clients")
+    ])
       .then(([salesResponse, clientsResponse]) => {
         if (!isMounted) {
           return;
         }
 
-        const normalizedSales = normalizeSales(salesResponse.items);
+        const normalizedSales = normalizeSales(salesResponse.sales);
         setSales(normalizedSales);
         setClients(normalizeClients(clientsResponse.items));
         setStatus(normalizedSales.length ? "" : "No records found");
@@ -135,7 +140,7 @@ export function DashboardSalesPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [globalFilters.startDate, globalFilters.endDate, globalFilters.locationId]);
 
   const clientMap = new Map(clients.map((client) => [client.id, client.fullName]));
   const paymentMethods = Array.from(new Set(sales.map((sale) => sale.paymentMethod))).sort();
@@ -146,7 +151,9 @@ export function DashboardSalesPage() {
       clientName: sale.clientId ? clientMap.get(sale.clientId) || "Walk-in client" : "Walk-in client",
     }))
     .filter((sale) => {
-      if (todayOnly && !isToday(sale.saleDate)) {
+      // Respect the global date range if applicable
+      const saleDateStr = sale.saleDate.split("T")[0];
+      if (saleDateStr < globalFilters.startDate || saleDateStr > globalFilters.endDate) {
         return false;
       }
 
@@ -252,12 +259,15 @@ export function DashboardSalesPage() {
 
         <button
           className={`flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition-all border ${
-            todayOnly 
+            globalFilters.dateRangeType === "Today" 
               ? (isDark ? "bg-[rgba(201,169,110,0.1)] border-[#C9A96E] text-[#E8C98A]" : "bg-[#FBF9F6] border-[#8B5E3C] text-[#8B5E3C]")
               : (isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.06)] text-[#7A7572]" : "bg-white border-[#E8E1D8] text-gray-500")
           }`}
           type="button"
-          onClick={() => setTodayOnly((current) => !current)}
+          onClick={() => {
+            const today = new Date().toISOString().split("T")[0];
+            setFilters({ startDate: today, endDate: today, dateRangeType: "Today" });
+          }}
         >
           <Calendar size={16} />
           Today Only
@@ -305,7 +315,7 @@ export function DashboardSalesPage() {
                   <div className="flex items-center gap-2">
                     <span className={`text-[10px] font-black uppercase tracking-widest ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>{filteredSales.length} Transactions</span>
                     <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-lg ${isDark ? "bg-[#151821] text-[#7A7572]" : "bg-white text-gray-400"}`}>
-                      {todayOnly ? "Today's Cycle" : "Full Period"}
+                      {globalFilters.dateRangeType === "Today" ? "Today's Cycle" : "Full Period"}
                     </span>
                   </div>
                 </div>
@@ -366,7 +376,7 @@ export function DashboardSalesPage() {
                 <p className={`text-sm max-w-xs leading-relaxed ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>
                   {status && status !== "No records found"
                     ? "We encountered an issue while fetching the ledger details."
-                    : todayOnly
+                    : globalFilters.dateRangeType === "Today"
                       ? "The financial ledger is empty for the current date."
                       : "Adjust your filters to locate historical transaction records."}
                 </p>

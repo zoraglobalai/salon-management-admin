@@ -4,7 +4,6 @@ import { useAuth } from "../../auth/hooks/useAuth";
 import {
   createService,
   deleteService,
-  executeService,
   fetchInventory,
   fetchServices,
   type InventoryItem,
@@ -14,7 +13,8 @@ import {
 } from "../../../core/api";
 import { useNotifications } from "../../../shared/components/NotificationProvider";
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
-import { Plus, Scissors, Clock, Zap, MapPin, ChevronDown, Edit3, Trash2, X, Info } from "lucide-react";
+import { useGlobalFilters } from "../../../shared/context/FilterContext";
+import { Plus, Clock, Zap, MapPin, ChevronDown, Edit3, Trash2, X, Info } from "lucide-react";
 
 type LocationOption = { id: string; name: string; city?: string };
 type ServicesOutletContext = {
@@ -57,8 +57,8 @@ export function DashboardServicesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingService, setEditingService] = useState<ServiceItem | null>(null);
   const [form, setForm] = useState<ServiceFormState>(EMPTY_FORM);
-  const [executingServiceId, setExecutingServiceId] = useState<string | null>(null);
 
+  const { filters: globalFilters, setFilters } = useGlobalFilters();
   const isManager = user?.role === "MANAGER";
   const locationOptions = ownerLocations || [];
   const defaultLocationId = useMemo(() => {
@@ -66,17 +66,8 @@ export function DashboardServicesPage() {
     return locationOptions[0]?.id || "";
   }, [isManager, user?.branchId, locationOptions]);
 
-  const [selectedLocationId, setSelectedLocationId] = useState<string>(
-    isManager ? defaultLocationId : "all"
-  );
 
-  useEffect(() => {
-    if (isManager && defaultLocationId) {
-      setSelectedLocationId(defaultLocationId);
-    }
-  }, [isManager, defaultLocationId]);
-
-  const loadData = (locationId = selectedLocationId) => {
+  const loadData = (locationId = globalFilters.locationId) => {
     setIsLoading(true);
     const apiLocationId =
       isManager ? defaultLocationId : locationId === "all" ? undefined : locationId;
@@ -96,13 +87,9 @@ export function DashboardServicesPage() {
   };
 
   useEffect(() => {
-    if (!isManager && selectedLocationId === "" && locationOptions.length) {
-      setSelectedLocationId("all");
-      return;
-    }
     if (isManager && !defaultLocationId) return;
     loadData();
-  }, [selectedLocationId, defaultLocationId, isManager, locationOptions.length]);
+  }, [globalFilters.locationId, defaultLocationId, isManager, locationOptions.length]);
 
   const openCreateModal = () => {
     setEditingService(null);
@@ -110,9 +97,9 @@ export function DashboardServicesPage() {
       ...EMPTY_FORM,
       locationId: isManager
         ? defaultLocationId
-        : selectedLocationId !== "all"
-        ? selectedLocationId
-        : defaultLocationId,
+        : globalFilters.locationId !== "all"
+        ? globalFilters.locationId
+        : (locationOptions[0]?.id || ""),
       products: [],
     });
     setIsModalOpen(true);
@@ -176,12 +163,8 @@ export function DashboardServicesPage() {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (form.products.length === 0) {
-      setError("Please add at least one product to the service.");
-      return;
-    }
-    if (form.products.some((p) => !p.productId || !p.quantityUsed)) {
-      setError("Please complete all product fields.");
+    if (form.products.length > 0 && form.products.some((p) => !p.productId || !p.quantityUsed)) {
+      setError("Please complete all product fields or remove empty rows.");
       return;
     }
 
@@ -235,19 +218,6 @@ export function DashboardServicesPage() {
     });
   };
 
-  const handleExecute = async (service: ServiceItem) => {
-    setExecutingServiceId(service.id);
-    try {
-      await executeService(service.id);
-      setError(null);
-      toast(`Successfully executed "${service.name}". Stock has been deducted.`);
-      loadData();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to execute service.");
-    } finally {
-      setExecutingServiceId(null);
-    }
-  };
 
   const availableInventory = isManager
     ? inventory
@@ -271,8 +241,8 @@ export function DashboardServicesPage() {
           {!isManager && (
             <div className="relative">
               <select
-                value={selectedLocationId}
-                onChange={(e) => setSelectedLocationId(e.target.value)}
+                value={globalFilters.locationId}
+                onChange={(e) => setFilters({ locationId: e.target.value })}
                 className={`appearance-none rounded-xl border px-10 py-2.5 text-sm font-semibold outline-none transition-all ${
                   isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#C8BFB4] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-700 focus:border-[#8B5E3C]"
                 }`}
@@ -383,19 +353,7 @@ export function DashboardServicesPage() {
 
               {/* Actions */}
               <div className="flex flex-col gap-3">
-                <button
-                  type="button"
-                  onClick={() => handleExecute(service)}
-                  disabled={executingServiceId === service.id}
-                  className={`w-full flex items-center justify-center gap-2 rounded-2xl py-3 text-xs font-black uppercase tracking-widest text-white transition-all shadow-md active:scale-[0.98] ${
-                    isDark 
-                      ? "bg-[linear-gradient(135deg,#C9A96E_0%,#A67C3D_100%)] shadow-[0_8px_15px_rgba(201,169,110,0.15)]" 
-                      : "bg-[#8B5E3C] hover:bg-[#744A2E] shadow-[0_8px_15px_rgba(139,94,60,0.15)]"
-                  } disabled:opacity-50`}
-                >
-                  <Scissors size={14} />
-                  {executingServiceId === service.id ? "Executing…" : "Execute Service"}
-                </button>
+
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -449,7 +407,14 @@ export function DashboardServicesPage() {
                   <label className={`mb-1.5 block text-[10px] font-black uppercase tracking-[0.1em] ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>
                     Service Name
                   </label>
-                  <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  <input required value={form.name} 
+                    onKeyDown={(e) => {
+                      if (e.key === " " && !form.name) e.preventDefault();
+                    }}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/^\s+/, "").replace(/\s{2,}/g, " ");
+                      setForm({ ...form, name: val });
+                    }}
                     placeholder="e.g. Keratin Therapy"
                     className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
                       isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] placeholder:text-[#4A4744] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
@@ -503,7 +468,14 @@ export function DashboardServicesPage() {
                   <label className={`mb-1.5 block text-[10px] font-black uppercase tracking-[0.1em] ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>
                     Service Insights
                   </label>
-                  <textarea rows={2} value={form.benefits} onChange={(e) => setForm({ ...form, benefits: e.target.value })}
+                  <textarea rows={2} value={form.benefits} 
+                    onKeyDown={(e) => {
+                      if (e.key === " " && !form.benefits) e.preventDefault();
+                    }}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/^\s+/, "").replace(/\s{2,}/g, " ");
+                      setForm({ ...form, benefits: val });
+                    }}
                     placeholder="Highlight core benefits for clients…"
                     className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
                       isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] placeholder:text-[#4A4744] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"

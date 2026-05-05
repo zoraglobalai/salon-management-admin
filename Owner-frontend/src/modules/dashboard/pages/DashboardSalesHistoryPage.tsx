@@ -9,6 +9,7 @@ import {
   type StaffMember, 
   type ServiceItem 
 } from "../../../core/api";
+import { useAuth } from "../../auth/hooks/useAuth";
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
 import { 
   User, 
@@ -37,6 +38,8 @@ export function DashboardSalesHistoryPage() {
   const navigate = useNavigate();
   const { theme } = useDashboardTheme();
   const isDark = theme === "dark";
+  const { user } = useAuth();
+  const isManager = user?.role === "MANAGER";
   const { ownerLocations } = useOutletContext<SalesOutletContext>() || {};
   const locations = ownerLocations || [];
 
@@ -48,7 +51,7 @@ export function DashboardSalesHistoryPage() {
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
   // Filter States
-  const [selectedLocationId, setSelectedLocationId] = useState<string>("all");
+  const [selectedLocationId, setSelectedLocationId] = useState<string>(isManager ? user?.branchId || "" : "all");
   const [filters, setFilters] = useState<SaleFilters>({
     search: "",
     startDate: "",
@@ -105,7 +108,7 @@ export function DashboardSalesHistoryPage() {
       sortBy: "createdAt",
       sortOrder: "desc",
     });
-    setSelectedLocationId("all");
+    setSelectedLocationId(isManager ? user?.branchId || "" : "all");
   };
 
   const getSortIcon = (field: string) => {
@@ -173,7 +176,8 @@ export function DashboardSalesHistoryPage() {
                 <select 
                   value={selectedLocationId}
                   onChange={(e) => setSelectedLocationId(e.target.value)}
-                  className={`w-full h-10 pl-10 pr-10 rounded-xl border appearance-none text-xs font-bold outline-none transition-all ${
+                  disabled={isManager}
+                  className={`w-full h-10 pl-10 pr-10 rounded-xl border appearance-none text-xs font-bold outline-none transition-all disabled:opacity-50 ${
                     isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3]" : "bg-gray-50 border-[#F2EDE7] text-gray-900"
                   }`}
                 >
@@ -449,11 +453,11 @@ export function DashboardSalesHistoryPage() {
                               </button>
                             </div>
                             
-                            <div className={`p-6 rounded-3xl border ${isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.05)]" : "bg-white border-[#F2EDE7]"}`}>
+                            {/* <div className={`p-6 rounded-3xl border ${isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.05)]" : "bg-white border-[#F2EDE7]"}`}>
                                <p className={`text-center text-[10px] font-bold italic ${isDark ? "text-[#4A4744]" : "text-gray-400"}`}>
                                  Inline expansion provides a quick snapshot. For full ledger reconstruction, line-item details, and modifications, please refer to the POS module or generate a detailed PDF invoice.
                                </p>
-                            </div>
+                            </div> */}
                           </div>
                         </div>
                       </td>

@@ -11,6 +11,7 @@ import {
 } from "../../../core/api";
 import { useNotifications } from "../../../shared/components/NotificationProvider";
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
+import { useGlobalFilters } from "../../../shared/context/FilterContext";
 import { Plus, Search, MapPin, ChevronDown, Edit3, Trash2, X, User, Phone, Calendar, Banknote, Map, Shield } from "lucide-react";
 
 type LocationOption = { id: string; name: string; city?: string };
@@ -52,6 +53,7 @@ export function DashboardStaffPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY);
 
+  const { filters: globalFilters, setFilters } = useGlobalFilters();
   const isManager = user?.role === "MANAGER";
   const locationOptions = ownerLocations || [];
   const defaultLocationId = useMemo(() => {
@@ -59,13 +61,8 @@ export function DashboardStaffPage() {
     return locationOptions[0]?.id || "";
   }, [isManager, user?.branchId, locationOptions]);
 
-  const [selectedLocation, setSelectedLocation] = useState(isManager ? defaultLocationId : "all");
 
-  useEffect(() => {
-    if (isManager && defaultLocationId) setSelectedLocation(defaultLocationId);
-  }, [isManager, defaultLocationId]);
-
-  const loadStaff = (locId = selectedLocation) => {
+  const loadStaff = (locId = globalFilters.locationId) => {
     setIsLoading(true);
     const apiLoc = isManager ? defaultLocationId : locId === "all" ? undefined : locId;
     fetchStaff(apiLoc)
@@ -76,9 +73,8 @@ export function DashboardStaffPage() {
 
   useEffect(() => {
     if (isManager && !defaultLocationId) return;
-    if (!isManager && selectedLocation === "" && locationOptions.length) { setSelectedLocation("all"); return; }
     loadStaff();
-  }, [selectedLocation, defaultLocationId, isManager, locationOptions.length]);
+  }, [globalFilters.locationId, defaultLocationId, isManager, locationOptions.length]);
 
   const filtered = staff.filter((m) => {
     if (!search.trim()) return true;
@@ -88,7 +84,7 @@ export function DashboardStaffPage() {
 
   const openCreate = () => {
     setEditingId(null);
-    setForm({ ...EMPTY, locationId: isManager ? defaultLocationId : selectedLocation !== "all" ? selectedLocation : defaultLocationId });
+    setForm({ ...EMPTY, locationId: isManager ? defaultLocationId : globalFilters.locationId !== "all" ? globalFilters.locationId : (locationOptions[0]?.id || "") });
     setError(null);
     setIsModalOpen(true);
   };
@@ -164,7 +160,7 @@ export function DashboardStaffPage() {
         <div className="flex gap-3 flex-wrap items-center">
           {!isManager && (
             <div className="relative">
-              <select value={selectedLocation} onChange={(e) => setSelectedLocation(e.target.value)}
+              <select value={globalFilters.locationId} onChange={(e) => setFilters({ locationId: e.target.value })}
                 className={`appearance-none rounded-xl border px-10 py-2.5 text-sm font-semibold outline-none transition-all ${
                   isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#C8BFB4] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-700 focus:border-[#8B5E3C]"
                 }`}>
@@ -340,7 +336,16 @@ export function DashboardStaffPage() {
                     )}
                     <div>
                       <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Full Name</label>
-                      <input required name="name" value={form.name} onChange={f} placeholder="e.g. Rahul Singh"
+                      <input required name="name" value={form.name} 
+                        maxLength={35}
+                        onKeyDown={(e) => {
+                          if (e.key === " " && !form.name) e.preventDefault();
+                        }}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/^\s+/, "").replace(/[^a-zA-Z\s]/g, "").replace(/\s{2,}/g, " ").slice(0, 35);
+                          setForm((c) => ({ ...c, name: val }));
+                        }}
+                        placeholder="e.g. Rahul Singh"
                         className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
                           isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
                         }`} />
@@ -361,7 +366,16 @@ export function DashboardStaffPage() {
                     <div className="relative">
                       <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Phone Number</label>
                       <div className="relative">
-                        <input required name="phoneNumber" value={form.phoneNumber} onChange={f} placeholder="98765 43210"
+                        <input required name="phoneNumber" value={form.phoneNumber} 
+                          maxLength={10}
+                          onKeyDown={(e) => {
+                            if (e.key === " ") e.preventDefault();
+                          }}
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                            setForm((c) => ({ ...c, phoneNumber: val }));
+                          }}
+                          placeholder="9876543210"
                           className={`w-full rounded-xl border pl-10 pr-4 py-3 text-sm outline-none transition-all ${
                             isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
                           }`} />
