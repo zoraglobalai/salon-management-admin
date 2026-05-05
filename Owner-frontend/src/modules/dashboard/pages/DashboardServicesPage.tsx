@@ -4,7 +4,6 @@ import { useAuth } from "../../auth/hooks/useAuth";
 import {
   createService,
   deleteService,
-  executeService,
   fetchInventory,
   fetchServices,
   type InventoryItem,
@@ -15,7 +14,7 @@ import {
 import { useNotifications } from "../../../shared/components/NotificationProvider";
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
 import { useGlobalFilters } from "../../../shared/context/FilterContext";
-import { Plus, Scissors, Clock, Zap, MapPin, ChevronDown, Edit3, Trash2, X, Info } from "lucide-react";
+import { Plus, Clock, Zap, MapPin, ChevronDown, Edit3, Trash2, X, Info } from "lucide-react";
 
 type LocationOption = { id: string; name: string; city?: string };
 type ServicesOutletContext = {
@@ -58,7 +57,6 @@ export function DashboardServicesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingService, setEditingService] = useState<ServiceItem | null>(null);
   const [form, setForm] = useState<ServiceFormState>(EMPTY_FORM);
-  const [executingServiceId, setExecutingServiceId] = useState<string | null>(null);
 
   const { filters: globalFilters, setFilters } = useGlobalFilters();
   const isManager = user?.role === "MANAGER";
@@ -224,19 +222,6 @@ export function DashboardServicesPage() {
     });
   };
 
-  const handleExecute = async (service: ServiceItem) => {
-    setExecutingServiceId(service.id);
-    try {
-      await executeService(service.id);
-      setError(null);
-      toast(`Successfully executed "${service.name}". Stock has been deducted.`);
-      loadData();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to execute service.");
-    } finally {
-      setExecutingServiceId(null);
-    }
-  };
 
   const availableInventory = isManager
     ? inventory
@@ -372,19 +357,7 @@ export function DashboardServicesPage() {
 
               {/* Actions */}
               <div className="flex flex-col gap-3">
-                <button
-                  type="button"
-                  onClick={() => handleExecute(service)}
-                  disabled={executingServiceId === service.id}
-                  className={`w-full flex items-center justify-center gap-2 rounded-2xl py-3 text-xs font-black uppercase tracking-widest text-white transition-all shadow-md active:scale-[0.98] ${
-                    isDark 
-                      ? "bg-[linear-gradient(135deg,#C9A96E_0%,#A67C3D_100%)] shadow-[0_8px_15px_rgba(201,169,110,0.15)]" 
-                      : "bg-[#8B5E3C] hover:bg-[#744A2E] shadow-[0_8px_15px_rgba(139,94,60,0.15)]"
-                  } disabled:opacity-50`}
-                >
-                  <Scissors size={14} />
-                  {executingServiceId === service.id ? "Executing…" : "Execute Service"}
-                </button>
+
                 <div className="flex gap-2">
                   <button
                     type="button"
