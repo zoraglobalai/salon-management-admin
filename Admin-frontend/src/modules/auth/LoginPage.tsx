@@ -4,15 +4,46 @@ import { useAuthStore } from './authStore';
 import { Eye, EyeOff } from 'lucide-react';
 import groovmyLogo from '../../assets/groovmy-logo.png';
 
+const EMAIL_MAX_LENGTH = 40;
+const PASSWORD_MAX_LENGTH = 20;
+const ADMIN_EMAIL_PATTERN = /^[A-Za-z][A-Za-z0-9._%+-]*@gmail\.com$/;
+
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const { login, isLoading, error, clearError } = useAuthStore();
   const [form, setForm] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
+  const [validationError, setValidationError] = useState('');
+
+  const handleEmailChange = (value: string) => {
+    const sanitizedEmail = value.replace(/\s+/g, '').slice(0, EMAIL_MAX_LENGTH);
+    setValidationError('');
+    setForm((prev) => ({ ...prev, email: sanitizedEmail }));
+  };
+
+  const handlePasswordChange = (value: string) => {
+    setValidationError('');
+    setForm((prev) => ({ ...prev, password: value.slice(0, PASSWORD_MAX_LENGTH) }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
+
+    if (!ADMIN_EMAIL_PATTERN.test(form.email) || form.email.length > EMAIL_MAX_LENGTH) {
+      setValidationError(
+        'Email must start with a letter, contain no spaces, use @gmail.com, and stay within 40 characters.',
+      );
+      return;
+    }
+
+    if (form.password.length > PASSWORD_MAX_LENGTH) {
+      setValidationError('Password must be 20 characters or fewer.');
+      return;
+    }
+
+    setValidationError('');
+
     try {
       await login(form.email, form.password);
       // Wait for store state to update and verify isAuthenticated
@@ -39,7 +70,7 @@ const LoginPage: React.FC = () => {
             className="mx-auto mb-4 h-20 w-20 rounded-full border border-[var(--color-border)] object-cover shadow-lg"
           />
           <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">Groomvy</h1>
-          <p className="text-sm text-[var(--color-text-muted)] mt-1">Super Admin Panel</p>
+          <p className="text-sm text-[var(--color-text-muted)] mt-1">Admin Panel</p>
         </div>
 
         {/* Card */}
@@ -49,10 +80,10 @@ const LoginPage: React.FC = () => {
             <p className="text-sm text-[var(--color-text-muted)] mt-0.5">Sign in to your admin account</p>
           </div>
 
-          {error && (
+          {(validationError || error) && (
             <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700 flex items-start gap-2">
               <span className="mt-0.5">⚠</span>
-              <span>{error}</span>
+              <span>{validationError || error}</span>
             </div>
           )}
 
@@ -63,12 +94,14 @@ const LoginPage: React.FC = () => {
               </label>
               <input
                 id="login-email"
-                type="email"
+                type="text"
                 required
                 className="input"
-                placeholder="superadmin@salonengine.com"
+                inputMode="email"
+                maxLength={EMAIL_MAX_LENGTH}
+                placeholder="superadmin@gmail.com"
                 value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                onChange={(e) => handleEmailChange(e.target.value)}
               />
             </div>
 
@@ -82,9 +115,10 @@ const LoginPage: React.FC = () => {
                   type={showPassword ? 'text' : 'password'}
                   required
                   className="input pr-10"
+                  maxLength={PASSWORD_MAX_LENGTH}
                   placeholder="Enter your password"
                   value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  onChange={(e) => handlePasswordChange(e.target.value)}
                 />
                 <button
                   type="button"
@@ -118,8 +152,8 @@ const LoginPage: React.FC = () => {
 
           <div className="mt-6 pt-5 border-t border-[var(--color-border)]">
             <p className="text-xs text-[var(--color-text-muted)] text-center">
-              This panel is restricted to Super Administrators only.<br />
-              Contact your system administrator for access.
+              This panel is restricted to Super Administrators only<br />
+              Contact your system administrator for access
             </p>
           </div>
         </div>
