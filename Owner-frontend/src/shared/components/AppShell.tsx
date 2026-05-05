@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type PropsWithChildren } from "react";
 import { NavLink } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
-import { CircleHelp, Crown, LogOut, Moon, Settings2, UserCircle2 } from "lucide-react";
+import { CircleHelp, Crown, LogOut, Menu, Moon, Settings2, UserCircle2, X } from "lucide-react";
 import brandLogo from "../../assets/Groomvy Logo icon.png";
 import { fetchMe } from "../../core/api";
 import { useAuth } from "../../modules/auth/hooks/useAuth";
@@ -110,7 +110,7 @@ export function AppShell({
   /* ── Dark mode class helpers ── */
   const sidebarBg       = isDark ? "bg-[#0F1115] border-r border-[rgba(255,255,255,0.06)]" : "bg-white";
   const sidebarShadow   = isDark ? "shadow-[4px_0_40px_rgba(0,0,0,0.45)]" : "shadow-[0_18px_42px_rgba(88,56,32,0.18)]";
-  const headerBg        = isDark ? "bg-[linear-gradient(160deg,#1e2235_0%,#12151e_100%)]" : "bg-[linear-gradient(180deg,#5b321c_0%,#3c2115_100%)]";
+  const headerBg        = isDark ? "bg-[linear-gradient(160deg,#1e2235_0%,#12151e_100%)]" : "bg-[linear-gradient(180deg,#5b321c_0%,#5a3422_100%)]";
   const navItemBase     = isDark
     ? "text-[#C8BFB4] hover:bg-[rgba(255,255,255,0.04)] hover:text-[#F0EBE3]"
     : "text-[#54473d] hover:bg-[#faf5ef]";
@@ -133,7 +133,9 @@ export function AppShell({
   const profileRoleColor= isDark ? "text-[#7A7572]" : "text-[#8d837b]";
   const settingsIcon    = isDark ? "text-[#C9A96E]" : "text-[#8f7e6a]";
   const closeBtnStyle   = isDark ? "border-[rgba(255,255,255,0.12)] text-[#C8BFB4]" : "border-white/20 text-white/80";
-  const hamburgerStyle  = isDark ? "border-[rgba(255,255,255,0.1)] bg-[#151821] text-[#C8BFB4]" : "border-[#eadfd5] bg-white text-[#3a2a20]";
+  const hamburgerStyle  = isDark 
+    ? "border-[rgba(255,255,255,0.12)] bg-[#151821]/80 backdrop-blur-md text-[#C8BFB4]" 
+    : "border-[rgba(234,223,213,0.6)] bg-white/70 backdrop-blur-md text-[#3a2a20]";
 
   return (
     <div className={`min-h-screen p-2.5 md:h-screen md:overflow-hidden md:p-3 theme-${theme} ${isDark ? "bg-[#0F1115]" : "bg-[#f7f1ea]"}`}>
@@ -177,17 +179,16 @@ export function AppShell({
               <div className="flex items-center gap-3">
                 <img src={brandLogo} alt="Salon Desk" className="h-10 w-10 rounded-2xl object-contain" />
                 <div>
-                  {/* <p className="text-[12px] font-semibold uppercase tracking-[0.22em] text-white/70">Salon Desk</p> */}
                   <h1 className="mt-0.5 text-[1.5rem] font-semibold leading-none tracking-[-0.04em]">Groomvy</h1>
                   <p className="mt-1 text-[11px] text-white/75">Smart Salon Management</p>
                 </div>
               </div>
               <button
                 type="button"
-                className={`rounded-full border px-3 py-1 text-xs font-medium md:hidden ${closeBtnStyle}`}
+                className={`rounded-full border p-2 md:hidden transition-all hover:bg-white/10 ${closeBtnStyle}`}
                 onClick={() => setIsSidebarOpen(false)}
               >
-                Close
+                <X size={18} />
               </button>
             </div>
           </div>
@@ -313,14 +314,14 @@ export function AppShell({
         <main className={`workspace relative flex min-h-0 flex-col overflow-hidden rounded-[30px] border md:h-[calc(100vh-24px)] ${mainBg} ${mainBorder} ${mainShadow}`}>
           <button
             type="button"
-            className={`ml-4 mt-4 inline-flex h-11 items-center justify-center rounded-full border px-4 text-sm font-semibold shadow-sm md:hidden ${hamburgerStyle}`}
+            className={`fixed left-6 top-6 z-[60] flex h-11 w-11 items-center justify-center rounded-full border shadow-lg md:hidden ${hamburgerStyle}`}
             onClick={toggleSidebar}
             aria-label="Open navigation"
           >
-            Menu
+            <Menu size={22} />
           </button>
 
-          <section className="flex-1 overflow-y-auto px-4 pb-4 pt-2 md:min-h-0 md:px-6 md:pb-5 md:pt-5 xl:px-7 xl:pb-6 xl:pt-5">
+          <section className="flex-1 overflow-y-auto px-4 pb-4 pt-16 md:min-h-0 md:px-6 md:pb-5 md:pt-5 xl:px-7 xl:pb-6 xl:pt-5">
             {children}
           </section>
         </main>

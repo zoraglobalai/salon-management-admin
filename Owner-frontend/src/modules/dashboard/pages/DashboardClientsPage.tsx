@@ -195,7 +195,7 @@ export function DashboardClientsPage() {
         isDark ? "bg-[#151821] border-[rgba(255,255,255,0.07)]" : "bg-white border-[#E8E1D8]"
       }`}>
         <div>
-          <h2 className={`text-2xl font-bold font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>Client CRM</h2>
+          <h2 className={`text-2xl font-bold font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>Client Records</h2>
           <p className={`mt-1 text-sm ${isDark ? "text-[#7A7572]" : "text-[#6B7280]"}`}>{clients.length} clients · manage profiles, visits & follow-ups.</p>
         </div>
         <div className="flex gap-3 flex-wrap items-center">
