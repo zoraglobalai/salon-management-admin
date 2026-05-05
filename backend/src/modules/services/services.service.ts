@@ -59,9 +59,7 @@ function normalizeInput(input: ServiceInput) {
     throw createError("Duration must be a positive number.", 400);
   }
 
-  if (!input.products || !Array.isArray(input.products) || input.products.length === 0) {
-    throw createError("At least one product must be associated with the service.", 400);
-  }
+
 
   return {
     name: input.name.trim(),
@@ -410,7 +408,7 @@ export async function executeServiceUsage(user: AuthUserPayload, serviceId: stri
     );
 
     if (productsResult.rows.length === 0) {
-      throw createError("No products attached to this service.", 400);
+      return { success: true, message: "Service executed. No stock to deduct." };
     }
 
     for (const product of productsResult.rows) {

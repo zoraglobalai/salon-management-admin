@@ -17,6 +17,15 @@ import type { DashboardSummaryResponse } from "../../../core/types";
 import { useAuth } from "../../auth/hooks/useAuth";
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
 import { useGlobalFilters } from "../../../shared/context/FilterContext";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 type OutletContext = {
   ownerLocations?: Array<{ id: string; name: string; city?: string }>;
@@ -232,25 +241,17 @@ function LineAreaChart({
   isDark: boolean;
 }) {
   const points = Array.isArray(trend) ? trend : [];
-  const revenues = points.map((item) => item.revenue || 0);
-  const maxRevenue = Math.max(...revenues, 1);
-  const minRevenue = Math.min(...revenues, 0);
-  const range = Math.max(maxRevenue - minRevenue, maxRevenue * 0.45, 1);
   const totalRevenue = points.reduce((sum, item) => sum + (item.revenue || 0), 0);
-  const yLabels = [0, 1, 2, 3].map((step) => {
-    const value = Math.round((maxRevenue / 1000) * step);
-    return `\u20B9${value}K`;
-  });
 
-  const chartPoints = points.map((point, index) => {
-    const x = (index / Math.max(points.length - 1, 1)) * 100;
-    const normalized = ((point.revenue || 0) - minRevenue) / range;
-    const y = 84 - normalized * 54;
-    return { x, y, day: point.day };
-  });
+  // Custom formatting for currency values in axis
+  const formatYAxis = (value: number) => {
+    if (value >= 1000) return `₹${(value / 1000).toFixed(0)}K`;
+    return `₹${value}`;
+  };
 
-  const polyline = chartPoints.map((point) => `${point.x},${point.y}`).join(" ");
-  const area = chartPoints.length ? `0,100 ${polyline} 100,100` : "";
+  const chartColor = isDark ? "#C9A96E" : "#8B4E24";
+  const gridColor = isDark ? "rgba(255,255,255,0.04)" : "#EFE1D5";
+  const labelColor = isDark ? "#7A7572" : "#8A7E74";
 
   return (
     <div className="h-full space-y-4">
@@ -281,56 +282,59 @@ function LineAreaChart({
         </label>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-[42px_minmax(0,1fr)]">
-        <div className={`hidden justify-between py-2 text-[12px] font-medium md:flex md:flex-col ${isDark ? "text-[#7A7572]" : "text-[#958a82]"}`}>
-          {yLabels
-            .slice()
-            .reverse()
-            .map((label) => (
-              <span key={label}>{label}</span>
-            ))}
-        </div>
-        <div className={`relative h-[210px] overflow-hidden rounded-[20px] xl:h-[225px] transition-all ${
-          isDark
-            ? "bg-[radial-gradient(circle_at_center,rgba(201,169,110,0.08),transparent_70%),#0F1115]"
-            : "bg-[radial-gradient(circle_at_center,rgba(224,182,145,0.22),transparent_62%),linear-gradient(180deg,rgba(255,248,242,0.95),rgba(255,255,255,0.45))]"
-        }`}>
-          <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
+      <div className={`h-[240px] w-full rounded-[20px] transition-all p-2 ${
+        isDark
+          ? "bg-[#0F1115]"
+          : "bg-white"
+      }`}>
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={points} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <defs>
-              <linearGradient id="revenueArea" x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stopColor={isDark ? "#C9A96E" : "#D8A57E"} stopOpacity={isDark ? "0.22" : "0.36"} />
-                <stop offset="100%" stopColor={isDark ? "#C9A96E" : "#D8A57E"} stopOpacity="0.02" />
+              <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={chartColor} stopOpacity={0.25} />
+                <stop offset="95%" stopColor={chartColor} stopOpacity={0.01} />
               </linearGradient>
             </defs>
-            {[18, 38, 58, 78].map((y) => (
-              <line key={y} x1="0" x2="100" y1={y} y2={y} stroke={isDark ? "rgba(255,255,255,0.05)" : "#efe1d5"} strokeWidth="0.5" />
-            ))}
-            {area ? <path d={`M ${area}`} fill="url(#revenueArea)" /> : null}
-            {polyline ? (
-              <polyline
-                fill="none"
-                stroke={isDark ? "#C9A96E" : "#8B4E24"}
-                strokeWidth="0.85"
-                strokeLinejoin="round"
-                strokeLinecap="round"
-                points={polyline}
-              />
-            ) : null}
-            {chartPoints.map((point) => (
-              <g key={point.day}>
-                <circle cx={point.x} cy={point.y} r="1.05" fill={isDark ? "#C9A96E" : "#8B4E24"} />
-                <circle cx={point.x} cy={point.y} r="1.9" fill={isDark ? "#C9A96E" : "#8B4E24"} fillOpacity="0.15" />
-              </g>
-            ))}
-          </svg>
-          <div className={`absolute inset-x-4 bottom-3 flex items-end justify-between text-[11px] font-medium ${isDark ? "text-[#7A7572]" : "text-[#8B8791]"}`}>
-            {points.map((point) => (
-              <span key={point.day} className="min-w-0 text-center">
-                {point.day}
-              </span>
-            ))}
-          </div>
-        </div>
+            <CartesianGrid 
+              strokeDasharray="3 3" 
+              vertical={false} 
+              stroke={gridColor} 
+            />
+            <XAxis 
+              dataKey="day" 
+              axisLine={false} 
+              tickLine={false} 
+              tick={{ fill: labelColor, fontSize: 11, fontWeight: 500 }}
+              dy={10}
+            />
+            <YAxis 
+              axisLine={false} 
+              tickLine={false} 
+              tick={{ fill: labelColor, fontSize: 11, fontWeight: 500 }}
+              tickFormatter={formatYAxis}
+            />
+            <Tooltip 
+              contentStyle={{ 
+                backgroundColor: isDark ? "#1C2030" : "#FFF", 
+                borderColor: isDark ? "rgba(255,255,255,0.12)" : "#EADFD4",
+                borderRadius: "12px",
+                fontSize: "12px",
+                color: isDark ? "#F0EBE3" : "#17181F"
+              }}
+              formatter={(value: any) => [formatCurrency(Number(value || 0)), "Revenue"]}
+              labelStyle={{ fontWeight: "bold", marginBottom: "4px" }}
+            />
+            <Area
+              type="monotone"
+              dataKey="revenue"
+              stroke={chartColor}
+              strokeWidth={2.5}
+              fillOpacity={1}
+              fill="url(#colorRevenue)"
+              animationDuration={1500}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
       </div>
     </div>
   );

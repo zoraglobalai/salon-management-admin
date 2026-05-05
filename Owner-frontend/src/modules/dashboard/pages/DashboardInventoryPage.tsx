@@ -340,7 +340,7 @@ export function DashboardInventoryPage() {
                         ? (isDark ? "bg-red-500/20 text-red-400" : "bg-red-100 text-red-700") 
                         : (isDark ? "bg-green-500/10 text-green-400" : "bg-green-100 text-green-700")
                     }`}>
-                      {item.stock} UNITS
+                      {item.stock}
                     </span>
                   </td>
                   <td className="p-4">
@@ -598,7 +598,7 @@ export function DashboardInventoryPage() {
       {/* Move Stock Modal */}
       {isMoveStockModalOpen && movingStockItem && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4 backdrop-blur-md">
-          <div className={`w-full max-w-lg rounded-[32px] border shadow-2xl transition-all ${
+          <div className={`w-full max-w-lg overflow-hidden rounded-[30px] border shadow-2xl transition-all ${
             isDark ? "bg-[#151821] border-[rgba(255,255,255,0.1)]" : "bg-white border-[#E8E1D8]"
           }`}>
             <div className={`flex items-center justify-between border-b px-6 py-5 ${
@@ -618,11 +618,11 @@ export function DashboardInventoryPage() {
               }`}>
                 <div className="flex justify-between items-center">
                   <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Current Stock</span>
-                  <span className={`text-sm font-black ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>{movingStockItem.stock} {movingStockItem.unit}</span>
+                  <span className={`text-sm font-black ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>{movingStockItem.stock}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Service Stock</span>
-                  <span className={`text-sm font-black ${isDark ? "text-[#C9A96E]" : "text-blue-600"}`}>{movingStockItem.serviceQuantity} {movingStockItem.unit}</span>
+                  <span className={`text-sm font-black ${isDark ? "text-[#C9A96E]" : "text-blue-600"}`}>{movingStockItem.serviceQuantity} {movingStockItem.unit} </span>
                 </div>
               </div>
               <div>
