@@ -646,9 +646,33 @@ export type SaleInput = {
   paidAmount: number;
 };
 
-export async function fetchSales(locationId?: string) {
+export type SaleFilters = {
+  startDate?: string;
+  endDate?: string;
+  paymentMethod?: string;
+  staffId?: string;
+  serviceId?: string;
+  minAmount?: number;
+  maxAmount?: number;
+  search?: string;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+};
+
+export async function fetchSales(locationId?: string, filters: SaleFilters = {}) {
   const params = new URLSearchParams();
   if (locationId && locationId !== "all") params.set("locationId", locationId);
+  if (filters.startDate) params.set("startDate", filters.startDate);
+  if (filters.endDate) params.set("endDate", filters.endDate);
+  if (filters.paymentMethod && filters.paymentMethod !== "all") params.set("paymentMethod", filters.paymentMethod);
+  if (filters.staffId && filters.staffId !== "all") params.set("staffId", filters.staffId);
+  if (filters.serviceId && filters.serviceId !== "all") params.set("serviceId", filters.serviceId);
+  if (filters.minAmount) params.set("minAmount", filters.minAmount.toString());
+  if (filters.maxAmount) params.set("maxAmount", filters.maxAmount.toString());
+  if (filters.search) params.set("search", filters.search);
+  if (filters.sortBy) params.set("sortBy", filters.sortBy);
+  if (filters.sortOrder) params.set("sortOrder", filters.sortOrder);
+
   const qs = params.toString();
   return request<{ sales: SaleRecord[] }>(`/sales${qs ? `?${qs}` : ""}`, {
     headers: getOwnerAuthHeaders(),

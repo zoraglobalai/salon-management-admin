@@ -193,25 +193,25 @@ function KpiCard(props: {
   isDark?: boolean;
 }) {
   return (
-    <DashboardCard className="rounded-[18px] p-4">
-      <div className="flex items-start justify-between gap-3">
+    <DashboardCard className="rounded-[18px] p-3 sm:p-4">
+      <div className="flex items-start justify-between gap-2 sm:gap-3">
         <div className="min-w-0">
-          <p className={`text-[13px] font-medium ${props.isDark ? "text-[#7A7572]" : "text-[#685e56]"}`}>{props.title}</p>
-          <h3 className={`mt-3 text-[1.7rem] font-semibold leading-none tracking-[-0.04em] ${props.isDark ? "text-[#F0EBE3]" : "text-[#1a1715]"}`}>{props.value}</h3>
-          <p className={`mt-2 text-[12px] ${props.isDark ? "text-[#4A4744]" : "text-[#8a7e74]"}`}>{props.subtext}</p>
+          <p className={`text-[11px] sm:text-[13px] font-medium leading-none ${props.isDark ? "text-[#7A7572]" : "text-[#685e56]"}`}>{props.title}</p>
+          <h3 className={`mt-2.5 text-[1.25rem] sm:text-[1.7rem] font-semibold leading-none tracking-[-0.04em] ${props.isDark ? "text-[#F0EBE3]" : "text-[#1a1715]"}`}>{props.value}</h3>
+          <p className={`mt-2 text-[10px] sm:text-[12px] truncate ${props.isDark ? "text-[#4A4744]" : "text-[#8a7e74]"}`}>{props.subtext}</p>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-3">
+        <div className="flex shrink-0 flex-col items-end gap-2 sm:gap-3">
           <div
-            className={`inline-flex items-center gap-1 text-[12px] font-medium ${
+            className={`inline-flex items-center gap-1 text-[10px] sm:text-[12px] font-medium ${
               props.growth >= 0 
                 ? (props.isDark ? "text-[#4ADE80]" : "text-[#30955a]") 
                 : (props.isDark ? "text-[#F87171]" : "text-[#d14343]")
             }`}
           >
-            <ArrowUpRight size={14} className={props.growth < 0 ? "rotate-90" : ""} />
+            <ArrowUpRight size={12} className={props.growth < 0 ? "rotate-90" : ""} />
             <span>{formatPercent(props.growth)}</span>
           </div>
-          <div className={`grid h-11 w-11 place-items-center rounded-[14px] ${props.iconBg}`}>{props.icon}</div>
+          <div className={`grid h-8 w-8 sm:h-11 sm:w-11 place-items-center rounded-[12px] sm:rounded-[14px] ${props.iconBg}`}>{props.icon}</div>
         </div>
       </div>
     </DashboardCard>
@@ -668,7 +668,7 @@ export function DashboardSummary() {
         </div>
       </div>
 
-      <div className="shrink-0 grid grid-cols-1 gap-3 lg:grid-cols-4">
+      <div className="shrink-0 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <KpiCard
           title="Total Revenue"
           value={formatCurrency(totals?.revenue)}

@@ -235,7 +235,7 @@ export function ReportsLandingPage() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
         <SummaryCard
           title="Total Revenue"
           value={loading ? "..." : formatCurrency(summary?.revenue)}
@@ -380,7 +380,7 @@ export function ReportsLandingPage() {
 
       <h2 className={`pt-2 text-xl font-semibold ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>Detailed Reports</h2>
 
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-3 sm:gap-5 grid-cols-2 lg:grid-cols-3">
         <ReportCard
           title="Sales Report"
           description="Track daily revenue, payment methods, and transaction history across all branches."
