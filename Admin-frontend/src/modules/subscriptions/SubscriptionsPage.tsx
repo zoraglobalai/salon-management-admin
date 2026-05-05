@@ -130,17 +130,17 @@ const SubscriptionsPage: React.FC = () => {
 
   return (
     <div>
-      <div className="page-header flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="page-header flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="page-title">Subscriptions</h1>
           <p className="page-subtitle">Manage all subscription plans and statuses</p>
         </div>
-        <button onClick={() => void fetch()} className="btn-secondary w-full gap-1.5 text-xs sm:w-auto">
+        <button onClick={() => void fetch()} className="btn-secondary ml-auto shrink-0 gap-1.5 px-3 text-xs">
           <RefreshCw size={13} /> Refresh
         </button>
       </div>
 
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-3">
         <StatCard title="Total" value={stats?.total ?? '--'} icon={<CreditCard size={18} />} />
         <StatCard title="Active" value={stats?.active ?? '--'} icon={<CheckCircle size={18} />} color="success" />
         <StatCard title="Expired" value={stats?.expired ?? '--'} icon={<XCircle size={18} />} color="danger" />
@@ -164,45 +164,56 @@ const SubscriptionsPage: React.FC = () => {
             ))}
           </div>
 
-          <div className="mt-4 grid gap-3 lg:grid-cols-[1.6fr_0.9fr_repeat(2,0.9fr)]">
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
-              <input
-                type="text"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search by business name or plan"
-                className="input pl-8"
-              />
+          <div className="mt-4 space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search by business name or plan"
+                  className="input pl-8"
+                />
+              </div>
+              <select
+                value={plan}
+                onChange={(event) => setPlan(event.target.value)}
+                className="input"
+              >
+                <option value="">All Plans</option>
+                <option value="STANDARD">Standard</option>
+                <option value="PRO">Pro</option>
+                <option value="CUSTOM">Custom</option>
+              </select>
             </div>
-            <select
-              value={plan}
-              onChange={(event) => setPlan(event.target.value)}
-              className="input"
-            >
-              <option value="">All Plans</option>
-              <option value="STANDARD">Standard</option>
-              <option value="PRO">Pro</option>
-              <option value="CUSTOM">Custom</option>
-            </select>
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(event) => {
-                setFromDate(event.target.value);
-                if (event.target.value) setPeriod('');
-              }}
-              className="input"
-            />
-            <input
-              type="date"
-              value={toDate}
-              onChange={(event) => {
-                setToDate(event.target.value);
-                if (event.target.value) setPeriod('');
-              }}
-              className="input"
-            />
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-[var(--color-text-muted)]">From</label>
+                <input
+                  type="date"
+                  value={fromDate}
+                  onChange={(event) => {
+                    setFromDate(event.target.value);
+                    if (event.target.value) setPeriod('');
+                  }}
+                  className="input"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-[var(--color-text-muted)]">To</label>
+                <input
+                  type="date"
+                  value={toDate}
+                  onChange={(event) => {
+                    setToDate(event.target.value);
+                    if (event.target.value) setPeriod('');
+                  }}
+                  className="input"
+                />
+              </div>
+            </div>
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-2">

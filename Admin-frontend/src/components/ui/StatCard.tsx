@@ -7,6 +7,7 @@ interface StatCardProps {
   icon: React.ReactNode;
   trend?: { value: number; label: string };
   color?: 'default' | 'success' | 'warning' | 'danger' | 'info';
+  onClick?: () => void;
 }
 
 const colorMap = {
@@ -23,11 +24,52 @@ const StatCard: React.FC<StatCardProps> = ({
   icon,
   trend,
   color = 'default',
+  onClick,
 }) => {
   const colors = colorMap[color];
+  const isInteractive = typeof onClick === 'function';
+  const cardClassName = `card w-full p-5 text-left transition-shadow duration-200 ${
+    isInteractive ? 'cursor-pointer hover:shadow-card-hover focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2' : ''
+  }`;
+
+  if (!isInteractive) {
+    return (
+      <div className={cardClassName}>
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5">
+              {title}
+            </p>
+            <p className={`text-2xl font-bold ${colors.value}`}>{value}</p>
+            {trend && (
+              <div className="flex items-center gap-1 mt-1.5">
+                {trend.value > 0 ? (
+                  <TrendingUp size={12} className="text-green-500" />
+                ) : trend.value < 0 ? (
+                  <TrendingDown size={12} className="text-red-500" />
+                ) : (
+                  <Minus size={12} className="text-gray-400" />
+                )}
+                <span className={`text-xs ${trend.value > 0 ? 'text-green-600' : trend.value < 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                  {trend.value > 0 ? '+' : ''}{trend.value}% {trend.label}
+                </span>
+              </div>
+            )}
+          </div>
+          <div className={`w-10 h-10 rounded-xl ${colors.bg} flex items-center justify-center shrink-0`}>
+            <span className={colors.icon}>{icon}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="card p-5 hover:shadow-card-hover transition-shadow duration-200">
+    <button
+      type="button"
+      onClick={onClick}
+      className={cardClassName}
+    >
       <div className="flex items-start justify-between">
         <div>
           <p className="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-1.5">
@@ -53,7 +95,7 @@ const StatCard: React.FC<StatCardProps> = ({
           <span className={colors.icon}>{icon}</span>
         </div>
       </div>
-    </div>
+    </button>
   );
 };
 

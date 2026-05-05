@@ -19,6 +19,12 @@ const sanitizeName = (value: string) =>
     .slice(0, 30);
 const sanitizePhone = (value: string) => value.replace(/\D/g, '').slice(0, 10);
 const sanitizeText = (value: string) => value.replace(/\s+/g, ' ').trimStart();
+const sanitizeBusinessName = (value: string) =>
+  value
+    .replace(/[^A-Za-z0-9\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trimStart()
+    .slice(0, 40);
 
 const getInitialFormState = () => ({
   name: '',
@@ -57,11 +63,13 @@ const CreateOwnerPage: React.FC = () => {
   };
 
   const handleBranchCountChange = (value: string) => {
-    setBranchCountInput(value);
-
     if (value.trim() === '') {
+      setBranchCountInput('1');
+      syncBranchCount(1);
       return;
     }
+
+    setBranchCountInput(value);
 
     const parsedValue = Number(value);
     if (Number.isInteger(parsedValue)) {
@@ -104,6 +112,10 @@ const CreateOwnerPage: React.FC = () => {
     if (!normalizedEmail) return 'Email is required.';
     if (!EMAIL_REGEX.test(normalizedEmail)) return 'Please enter a valid email address.';
     if (!normalizedBusinessName) return 'Business name is required.';
+    if (normalizedBusinessName.length > 40) return 'Business name must be 40 characters or fewer.';
+    if (!/^[A-Za-z0-9 ]+$/.test(normalizedBusinessName)) {
+      return 'Business name should not contain special characters.';
+    }
     if (!normalizedMainBranchLocation) return 'Main branch location is required.';
     if (normalizedPhone && normalizedPhone.length !== 10) return 'Primary phone must be exactly 10 digits.';
     if (normalizedAlternativePhone && normalizedAlternativePhone.length !== 10) {
@@ -260,7 +272,8 @@ const CreateOwnerPage: React.FC = () => {
                 className="input"
                 placeholder="The Style Studio"
                 value={form.businessName}
-                onChange={(e) => setForm({ ...form, businessName: sanitizeText(e.target.value) })}
+                maxLength={40}
+                onChange={(e) => setForm({ ...form, businessName: sanitizeBusinessName(e.target.value) })}
                 onBlur={() =>
                   setForm((current) => ({ ...current, businessName: collapseSpaces(current.businessName) }))
                 }

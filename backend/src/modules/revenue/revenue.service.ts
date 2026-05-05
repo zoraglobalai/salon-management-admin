@@ -51,6 +51,77 @@ function getDateRange(period?: RevenueFilters['period']) {
   return null;
 }
 
+function getMonthStart(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function getMonthKey(date: Date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  return `${year}-${month}`;
+}
+
+function formatMonthLabel(date: Date, includeYear: boolean) {
+  return date.toLocaleString('default', {
+    month: 'short',
+    ...(includeYear ? { year: '2-digit' } : {}),
+  });
+}
+
+function buildMonthlyRevenueSeries(
+  transactions: RevenueTransaction[],
+  filters: RevenueFilters
+) {
+  const periodRange = getDateRange(filters.period);
+  const explicitFromDate = filters.fromDate ? new Date(filters.fromDate) : null;
+  const explicitToDate = filters.toDate ? new Date(filters.toDate) : null;
+  const hasExplicitRange = Boolean(periodRange || explicitFromDate || explicitToDate);
+
+  const now = new Date();
+  const defaultStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+  const defaultEnd = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const startDate = explicitFromDate && !Number.isNaN(explicitFromDate.getTime())
+    ? getMonthStart(explicitFromDate)
+    : periodRange
+      ? getMonthStart(periodRange.start)
+      : defaultStart;
+
+  const endDate = explicitToDate && !Number.isNaN(explicitToDate.getTime())
+    ? getMonthStart(explicitToDate)
+    : periodRange
+      ? getMonthStart(periodRange.end)
+      : defaultEnd;
+
+  const safeStart = startDate <= endDate ? startDate : endDate;
+  const safeEnd = endDate >= startDate ? endDate : startDate;
+  const bucketMap = new Map<string, number>();
+
+  transactions.forEach((transaction) => {
+    const createdAt = new Date(transaction.createdAt);
+    if (Number.isNaN(createdAt.getTime())) return;
+
+    const key = getMonthKey(createdAt);
+    bucketMap.set(key, (bucketMap.get(key) || 0) + Number(transaction.amount));
+  });
+
+  const includeYearInLabel = safeStart.getFullYear() !== safeEnd.getFullYear();
+  const monthly: { month: string; amount: number }[] = [];
+  const cursor = new Date(safeStart);
+
+  while (cursor <= safeEnd) {
+    const key = getMonthKey(cursor);
+    monthly.push({
+      month: formatMonthLabel(cursor, includeYearInLabel || hasExplicitRange),
+      amount: bucketMap.get(key) || 0,
+    });
+
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+
+  return monthly;
+}
+
 function applyRevenueFilters(
   query: SelectQueryBuilder<RevenueTransaction>,
   filters: RevenueFilters
@@ -115,14 +186,7 @@ export const getRevenueOverview = async (filters: RevenueFilters = {}) => {
   const transactions = await query.getMany();
 
   const totalRevenue = transactions.reduce((sum, t) => sum + Number(t.amount), 0);
-
-  const monthlyMap: Record<string, number> = {};
-  transactions.forEach((t) => {
-    const month = new Date(t.createdAt).toLocaleString('default', { month: 'short', year: '2-digit' });
-    monthlyMap[month] = (monthlyMap[month] || 0) + Number(t.amount);
-  });
-
-  const monthly = Object.entries(monthlyMap).map(([month, amount]) => ({ month, amount }));
+  const monthly = buildMonthlyRevenueSeries(transactions, filters);
 
   return { totalRevenue, transactionCount: transactions.length, monthly };
 };
