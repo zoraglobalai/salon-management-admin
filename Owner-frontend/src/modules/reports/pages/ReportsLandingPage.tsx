@@ -20,7 +20,6 @@ import { FiltersBar } from "../components/FiltersBar";
 import { SummaryCard } from "../components/SummaryCard";
 import { ReportCard } from "../components/ReportCard";
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
-import { useNotifications } from "../../../shared/components/NotificationProvider";
 
 type OverviewFilters = {
   startDate: string;
@@ -129,7 +128,6 @@ function buildSuggestion(input: {
 
 export function ReportsLandingPage() {
   const { theme } = useDashboardTheme();
-  const { toast } = useNotifications();
   const isDark = theme === "dark";
   const [filters, setFilters] = useState<OverviewFilters>({
     startDate: formatLocalDate(new Date()),

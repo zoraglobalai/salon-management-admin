@@ -11,7 +11,6 @@ import {
 } from "../../../core/api";
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
 import { 
-  Calendar, 
   User, 
   CreditCard, 
   Search, 
@@ -432,12 +431,7 @@ export function DashboardSalesHistoryPage() {
                                 <span className={`text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Settlement Channel</span>
                                 <span className={`text-xs font-black uppercase tracking-widest ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>{s.paymentMethod}</span>
                               </div>
-                              {s.notes && (
-                                <div className="pt-2">
-                                  <label className={`text-[9px] font-black uppercase tracking-widest ${isDark ? "text-[#4A4744]" : "text-gray-400"}`}>Audit Notes</label>
-                                  <p className={`mt-1 text-xs italic ${isDark ? "text-[#C8BFB4]" : "text-gray-600"}`}>{s.notes}</p>
-                                </div>
-                              )}
+
                             </div>
                           </div>
 
