@@ -20,12 +20,8 @@ import { FiltersBar } from "../components/FiltersBar";
 import { SummaryCard } from "../components/SummaryCard";
 import { ReportCard } from "../components/ReportCard";
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
+import { useGlobalFilters } from "../../../shared/context/FilterContext";
 
-type OverviewFilters = {
-  startDate: string;
-  endDate: string;
-  locationId: string;
-};
 
 type OverviewSummary = {
   revenue: number;
@@ -82,12 +78,6 @@ type InventoryOverview = {
   };
 };
 
-function formatLocalDate(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
 
 function formatCurrency(value: number | string | undefined) {
   return `\u20B9${Number(value || 0).toLocaleString("en-IN", {
@@ -128,12 +118,8 @@ function buildSuggestion(input: {
 
 export function ReportsLandingPage() {
   const { theme } = useDashboardTheme();
+  const { filters: globalFilters } = useGlobalFilters();
   const isDark = theme === "dark";
-  const [filters, setFilters] = useState<OverviewFilters>({
-    startDate: formatLocalDate(new Date()),
-    endDate: formatLocalDate(new Date()),
-    locationId: "all",
-  });
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<OverviewSummary | null>(null);
   const [salesData, setSalesData] = useState<SalesOverview | null>(null);
@@ -150,12 +136,17 @@ export function ReportsLandingPage() {
       }
 
       try {
+        const fetchParams = {
+          startDate: globalFilters.startDate,
+          endDate: globalFilters.endDate,
+          locationId: globalFilters.locationId === "all" ? undefined : globalFilters.locationId
+        };
         const [summaryRes, salesRes, staffRes, serviceRes, inventoryRes] = await Promise.all([
-          fetchReportsSummary(filters),
-          fetchSalesReport({ ...filters, paymentMethod: "all", page: 1, limit: 20, interval: "daily" }),
-          fetchStaffReport(filters),
-          fetchServiceReport(filters),
-          fetchInventoryReport({ locationId: filters.locationId }),
+          fetchReportsSummary(fetchParams),
+          fetchSalesReport({ ...fetchParams, paymentMethod: globalFilters.paymentMethod, page: 1, limit: 20, interval: "daily" }),
+          fetchStaffReport(fetchParams),
+          fetchServiceReport(fetchParams),
+          fetchInventoryReport({ locationId: fetchParams.locationId }),
         ]);
 
         if (!mounted) return;
@@ -183,7 +174,7 @@ export function ReportsLandingPage() {
       mounted = false;
       window.clearInterval(timer);
     };
-  }, [filters]);
+  }, [globalFilters.locationId, globalFilters.startDate, globalFilters.endDate, globalFilters.paymentMethod]);
 
   const staffPerformance = staffData?.staffPerformance ?? [];
   const servicePerformance = serviceData?.servicePerformance ?? [];
@@ -223,15 +214,7 @@ export function ReportsLandingPage() {
         <p className={`text-sm ${isDark ? "text-[#7A7572]" : "text-[#6B7280]"}`}>Analyze your business performance and track growth.</p>
       </div>
 
-      <FiltersBar
-        onFilterChange={(f) =>
-          setFilters({
-            startDate: f.startDate ?? formatLocalDate(new Date()),
-            endDate: f.endDate ?? formatLocalDate(new Date()),
-            locationId: f.locationId,
-          })
-        }
-      />
+      <FiltersBar />
 
       <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
         <SummaryCard

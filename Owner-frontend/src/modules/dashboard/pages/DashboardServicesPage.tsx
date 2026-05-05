@@ -14,6 +14,7 @@ import {
 } from "../../../core/api";
 import { useNotifications } from "../../../shared/components/NotificationProvider";
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
+import { useGlobalFilters } from "../../../shared/context/FilterContext";
 import { Plus, Scissors, Clock, Zap, MapPin, ChevronDown, Edit3, Trash2, X, Info } from "lucide-react";
 
 type LocationOption = { id: string; name: string; city?: string };
@@ -59,6 +60,7 @@ export function DashboardServicesPage() {
   const [form, setForm] = useState<ServiceFormState>(EMPTY_FORM);
   const [executingServiceId, setExecutingServiceId] = useState<string | null>(null);
 
+  const { filters: globalFilters, setFilters } = useGlobalFilters();
   const isManager = user?.role === "MANAGER";
   const locationOptions = ownerLocations || [];
   const defaultLocationId = useMemo(() => {
@@ -66,17 +68,8 @@ export function DashboardServicesPage() {
     return locationOptions[0]?.id || "";
   }, [isManager, user?.branchId, locationOptions]);
 
-  const [selectedLocationId, setSelectedLocationId] = useState<string>(
-    isManager ? defaultLocationId : "all"
-  );
 
-  useEffect(() => {
-    if (isManager && defaultLocationId) {
-      setSelectedLocationId(defaultLocationId);
-    }
-  }, [isManager, defaultLocationId]);
-
-  const loadData = (locationId = selectedLocationId) => {
+  const loadData = (locationId = globalFilters.locationId) => {
     setIsLoading(true);
     const apiLocationId =
       isManager ? defaultLocationId : locationId === "all" ? undefined : locationId;
@@ -96,13 +89,9 @@ export function DashboardServicesPage() {
   };
 
   useEffect(() => {
-    if (!isManager && selectedLocationId === "" && locationOptions.length) {
-      setSelectedLocationId("all");
-      return;
-    }
     if (isManager && !defaultLocationId) return;
     loadData();
-  }, [selectedLocationId, defaultLocationId, isManager, locationOptions.length]);
+  }, [globalFilters.locationId, defaultLocationId, isManager, locationOptions.length]);
 
   const openCreateModal = () => {
     setEditingService(null);
@@ -110,9 +99,9 @@ export function DashboardServicesPage() {
       ...EMPTY_FORM,
       locationId: isManager
         ? defaultLocationId
-        : selectedLocationId !== "all"
-        ? selectedLocationId
-        : defaultLocationId,
+        : globalFilters.locationId !== "all"
+        ? globalFilters.locationId
+        : (locationOptions[0]?.id || ""),
       products: [],
     });
     setIsModalOpen(true);
@@ -271,8 +260,8 @@ export function DashboardServicesPage() {
           {!isManager && (
             <div className="relative">
               <select
-                value={selectedLocationId}
-                onChange={(e) => setSelectedLocationId(e.target.value)}
+                value={globalFilters.locationId}
+                onChange={(e) => setFilters({ locationId: e.target.value })}
                 className={`appearance-none rounded-xl border px-10 py-2.5 text-sm font-semibold outline-none transition-all ${
                   isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#C8BFB4] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-700 focus:border-[#8B5E3C]"
                 }`}

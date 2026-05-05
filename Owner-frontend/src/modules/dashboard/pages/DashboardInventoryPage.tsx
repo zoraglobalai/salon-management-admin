@@ -11,6 +11,7 @@ import {
 } from "../../../core/api";
 import { useNotifications } from "../../../shared/components/NotificationProvider";
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
+import { useGlobalFilters } from "../../../shared/context/FilterContext";
 import { Plus, Package, MapPin, ChevronDown, MoveHorizontal, Edit3, Trash2, AlertTriangle, X } from "lucide-react";
 
 type LocationOption = { id: string; name: string; city?: string };
@@ -60,30 +61,18 @@ export function DashboardInventoryPage() {
   const [moveQuantity, setMoveQuantity] = useState("");
   const [isMovingStock, setIsMovingStock] = useState(false);
 
+  const { filters: globalFilters, setFilters } = useGlobalFilters();
   const isManager = user?.role === "MANAGER";
   const locationOptions = ownerLocations || [];
-  const defaultLocationId = useMemo(() => {
-    if (isManager) {
-      return user?.branchId || "";
-    }
-    return locationOptions[0]?.id || "";
-  }, [isManager, user?.branchId, locationOptions]);
-
-  const [selectedLocationId, setSelectedLocationId] = useState<string>(isManager ? defaultLocationId : "all");
   const lowStockItems = useMemo(
     () => items.filter((item) => item.stock < 5),
     [items],
   );
 
-  useEffect(() => {
-    if (isManager && defaultLocationId) {
-      setSelectedLocationId(defaultLocationId);
-    }
-  }, [isManager, defaultLocationId]);
 
-  const loadInventory = (locationId = selectedLocationId) => {
+  const loadInventory = (locationId = globalFilters.locationId) => {
     setIsLoading(true);
-    fetchInventory(isManager ? defaultLocationId : locationId === "all" ? undefined : locationId)
+    fetchInventory(isManager ? user?.branchId : locationId === "all" ? undefined : locationId)
       .then((response) => {
         setItems(response.items);
         setError(null);
@@ -100,21 +89,17 @@ export function DashboardInventoryPage() {
   };
 
   useEffect(() => {
-    if (!isManager && selectedLocationId === "" && locationOptions.length) {
-      setSelectedLocationId("all");
-      return;
-    }
-    if (isManager && !defaultLocationId) {
+    if (isManager && !user?.branchId) {
       return;
     }
     loadInventory();
-  }, [selectedLocationId, defaultLocationId, isManager, locationOptions.length]);
+  }, [globalFilters.locationId, user?.branchId, isManager]);
 
   const openCreateModal = () => {
     setEditingItem(null);
     setForm({
       ...EMPTY_FORM,
-      locationId: isManager ? defaultLocationId : selectedLocationId !== "all" ? selectedLocationId : defaultLocationId,
+      locationId: isManager ? user?.branchId || "" : globalFilters.locationId !== "all" ? globalFilters.locationId : (locationOptions[0]?.id || ""),
     });
     setIsModalOpen(true);
   };
@@ -152,7 +137,7 @@ export function DashboardInventoryPage() {
         quantity: Number(form.quantity),
         stock: Number(form.stock),
         benefits: form.benefits,
-        locationId: isManager ? defaultLocationId : form.locationId,
+        locationId: isManager ? user?.branchId || "" : form.locationId,
       };
 
       if (editingItem) {
@@ -163,8 +148,8 @@ export function DashboardInventoryPage() {
         const createdItem = response.item;
         const shouldShowItem =
           isManager ||
-          selectedLocationId === "all" ||
-          selectedLocationId === createdItem.locationId;
+          globalFilters.locationId === "all" ||
+          globalFilters.locationId === createdItem.locationId;
 
         if (shouldShowItem) {
           setItems((current) => [createdItem, ...current]);
@@ -243,8 +228,8 @@ export function DashboardInventoryPage() {
           {!isManager && (
             <div className="relative">
               <select
-                value={selectedLocationId}
-                onChange={(event) => setSelectedLocationId(event.target.value)}
+                value={globalFilters.locationId}
+                onChange={(event) => setFilters({ locationId: event.target.value })}
                 className={`appearance-none rounded-xl border px-10 py-2.5 text-sm font-semibold outline-none transition-all ${
                   isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#C8BFB4] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-700 focus:border-[#8B5E3C]"
                 }`}

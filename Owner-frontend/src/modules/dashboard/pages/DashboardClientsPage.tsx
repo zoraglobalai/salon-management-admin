@@ -12,6 +12,7 @@ import {
 } from "../../../core/api";
 import { useNotifications } from "../../../shared/components/NotificationProvider";
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
+import { useGlobalFilters } from "../../../shared/context/FilterContext";
 import { Search, Filter, Plus, X, MapPin, ChevronDown, Trash2, Edit3 } from "lucide-react";
 
 type LocationOption = { id: string; name: string; city?: string };
@@ -75,6 +76,7 @@ export function DashboardClientsPage() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [formError, setFormError] = useState<string | null>(null);
 
+  const { filters: globalFilters, setFilters } = useGlobalFilters();
   const isManager = user?.role === "MANAGER";
   const locationOptions = ownerLocations || [];
   const defaultLocationId = useMemo(() => {
@@ -82,11 +84,6 @@ export function DashboardClientsPage() {
     return locationOptions[0]?.id || "";
   }, [isManager, user?.branchId, locationOptions]);
 
-  const [selectedLocation, setSelectedLocation] = useState(isManager ? defaultLocationId : "all");
-
-  useEffect(() => {
-    if (isManager && defaultLocationId) setSelectedLocation(defaultLocationId);
-  }, [isManager, defaultLocationId]);
 
   // Debounce search
   useEffect(() => {
@@ -96,7 +93,7 @@ export function DashboardClientsPage() {
 
   const loadClients = () => {
     setIsLoading(true);
-    const locId = isManager ? defaultLocationId : selectedLocation;
+    const locId = isManager ? defaultLocationId : globalFilters.locationId;
     const filters: ClientFilters = {};
     if (debouncedSearch) filters.search = debouncedSearch;
     if (filterTag) filters.tag = filterTag;
@@ -112,15 +109,14 @@ export function DashboardClientsPage() {
 
   useEffect(() => {
     if (isManager && !defaultLocationId) return;
-    if (!isManager && !selectedLocation) return;
     loadClients();
-  }, [selectedLocation, defaultLocationId, isManager, debouncedSearch, filterTag, filterHair, filterLastVisit, filterProblems.join(",")]);
+  }, [globalFilters.locationId, defaultLocationId, isManager, debouncedSearch, filterTag, filterHair, filterLastVisit, filterProblems.join(",")]);
 
   const openCreate = () => {
     setEditingId(null);
     setForm({
       ...EMPTY_FORM,
-      locationId: isManager ? defaultLocationId : selectedLocation !== "all" ? selectedLocation : defaultLocationId,
+      locationId: isManager ? defaultLocationId : globalFilters.locationId !== "all" ? globalFilters.locationId : (locationOptions[0]?.id || ""),
     });
     setFormError(null);
     setIsModalOpen(true);
@@ -201,7 +197,7 @@ export function DashboardClientsPage() {
         <div className="flex gap-3 flex-wrap items-center">
           {!isManager && (
             <div className="relative">
-              <select value={selectedLocation} onChange={(e) => setSelectedLocation(e.target.value)}
+              <select value={globalFilters.locationId} onChange={(e) => setFilters({ locationId: e.target.value })}
                 className={`appearance-none rounded-xl border px-10 py-2.5 text-sm font-semibold outline-none transition-all ${
                   isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#C8BFB4] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-700 focus:border-[#8B5E3C]"
                 }`}>

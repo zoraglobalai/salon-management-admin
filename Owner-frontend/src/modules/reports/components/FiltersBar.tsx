@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { Calendar, ChevronDown, Download } from "lucide-react";
+import { Calendar, ChevronDown, Download, RotateCcw } from "lucide-react";
 import { cn } from "../../../shared/utils/cn";
 import { fetchOwnerProfile } from "../../../core/api";
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
+import { useGlobalFilters } from "../../../shared/context/FilterContext";
 
 export type DateRange = "Today" | "Yesterday" | "Last 7 Days" | "This Month" | "Last Month" | "Custom";
 
@@ -35,6 +36,7 @@ export function FiltersBar({
   className,
 }: FiltersBarProps) {
   const { theme } = useDashboardTheme();
+  const { filters: globalFilters, setFilters, resetFilters } = useGlobalFilters();
   const isDark = theme === "dark";
 
   const storedUser = (() => {
@@ -49,9 +51,6 @@ export function FiltersBar({
 
   const isManager = storedUser?.role === "MANAGER";
   const canChooseBranch = showBranchSelector && !isManager;
-  const [dateRange, setDateRange] = useState<DateRange>("Today");
-  const [locationId, setLocationId] = useState("all");
-  const [paymentMethod, setPaymentMethod] = useState("all");
   const [locations, setLocations] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
@@ -67,31 +66,45 @@ export function FiltersBar({
   }, [canChooseBranch]);
 
   const handleFilterChange = (updates: any) => {
-    const newFilters = { dateRange, locationId, paymentMethod, ...updates };
+    const combined = { 
+      dateRangeType: globalFilters.dateRangeType, 
+      locationId: globalFilters.locationId, 
+      paymentMethod: globalFilters.paymentMethod, 
+      ...updates 
+    };
 
-    let startDate: string | undefined;
-    let endDate: string | undefined = formatLocalDate(new Date());
+    let startDate = globalFilters.startDate;
+    let endDate = globalFilters.endDate;
 
     const today = new Date();
-    if (newFilters.dateRange === "Today") {
+    if (updates.dateRangeType === "Today") {
       startDate = formatLocalDate(today);
-    } else if (newFilters.dateRange === "Yesterday") {
+      endDate = startDate;
+    } else if (updates.dateRangeType === "Yesterday") {
       const yesterday = new Date(today);
       yesterday.setDate(today.getDate() - 1);
       startDate = formatLocalDate(yesterday);
       endDate = startDate;
-    } else if (newFilters.dateRange === "Last 7 Days") {
+    } else if (updates.dateRangeType === "Last 7 Days") {
       const last7 = new Date(today);
       last7.setDate(today.getDate() - 7);
       startDate = formatLocalDate(last7);
-    } else if (newFilters.dateRange === "This Month") {
+      endDate = formatLocalDate(today);
+    } else if (updates.dateRangeType === "This Month") {
       startDate = formatLocalDate(new Date(today.getFullYear(), today.getMonth(), 1));
-    } else if (newFilters.dateRange === "Last Month") {
+      endDate = formatLocalDate(today);
+    } else if (updates.dateRangeType === "Last Month") {
       startDate = formatLocalDate(new Date(today.getFullYear(), today.getMonth() - 1, 1));
       endDate = formatLocalDate(new Date(today.getFullYear(), today.getMonth(), 0));
     }
 
-    onFilterChange?.({ ...newFilters, startDate, endDate });
+    setFilters({ ...combined, startDate, endDate });
+    onFilterChange?.({ 
+      ...combined, 
+      dateRange: combined.dateRangeType as DateRange, 
+      startDate, 
+      endDate 
+    });
   };
 
   /* ── Shared class strings ── */
@@ -126,11 +139,9 @@ export function FiltersBar({
         {/* Date Range */}
         <div className="relative">
           <select
-            value={dateRange}
+            value={globalFilters.dateRangeType}
             onChange={(e) => {
-              const val = e.target.value as DateRange;
-              setDateRange(val);
-              handleFilterChange({ dateRange: val });
+              handleFilterChange({ dateRangeType: e.target.value });
             }}
             className={`${selectCls} pl-9 pr-8 py-2 text-sm font-medium`}
           >
@@ -148,11 +159,9 @@ export function FiltersBar({
         {canChooseBranch && (
           <div className="relative">
             <select
-              value={locationId}
+              value={globalFilters.locationId}
               onChange={(e) => {
-                const val = e.target.value;
-                setLocationId(val);
-                handleFilterChange({ locationId: val });
+                handleFilterChange({ locationId: e.target.value });
               }}
               className={`${selectCls} px-3.5 pr-8 py-2 text-sm font-medium`}
             >
@@ -178,11 +187,9 @@ export function FiltersBar({
         {showPaymentSelector && (
           <div className="relative">
             <select
-              value={paymentMethod}
+              value={globalFilters.paymentMethod}
               onChange={(e) => {
-                const val = e.target.value;
-                setPaymentMethod(val);
-                handleFilterChange({ paymentMethod: val });
+                handleFilterChange({ paymentMethod: e.target.value });
               }}
               className={`${selectCls} px-3.5 pr-8 py-2 text-sm font-medium`}
             >
@@ -194,6 +201,18 @@ export function FiltersBar({
             <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 ${chevronIconCls} pointer-events-none`} />
           </div>
         )}
+
+        {/* Reset button */}
+        <button
+          onClick={() => resetFilters()}
+          className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
+            isDark ? "text-[#C9A96E] hover:bg-white/5" : "text-[#8B5E3C] hover:bg-gray-100"
+          }`}
+          title="Reset Filters"
+        >
+          <RotateCcw className="h-3.5 w-3.5" />
+          Reset
+        </button>
       </div>
 
       {/* Export button */}
