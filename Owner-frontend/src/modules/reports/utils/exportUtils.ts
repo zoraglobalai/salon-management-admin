@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 export function exportToExcel(data: any[], fileName: string) {
   const ws = XLSX.utils.json_to_sheet(data);
@@ -20,9 +20,10 @@ export function exportToPDF(data: any[], columns: string[], fileName: string, ti
   doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
   
   // Prepare data for autotable
+  // Ensure we map the keys correctly from the columns provided
   const body = data.map(item => columns.map(col => item[col] || ''));
   
-  (doc as any).autoTable({
+  autoTable(doc, {
     head: [columns.map(c => c.toUpperCase())],
     body: body,
     startY: 40,

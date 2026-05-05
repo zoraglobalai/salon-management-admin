@@ -89,6 +89,14 @@ function str(v: unknown) {
   return String(v ?? "").trim();
 }
 
+function normalizeLocationId(locationId?: string) {
+  const normalized = str(locationId);
+  if (!normalized || normalized.toLowerCase() === "all") {
+    return undefined;
+  }
+  return normalized;
+}
+
 function validateInput(input: StaffInput) {
   if (!str(input.name)) throw createError("Name is required.", 400);
   if (!str(input.role)) throw createError("Role is required.", 400);
@@ -113,30 +121,32 @@ function validateInput(input: StaffInput) {
 
 async function resolveLocationId(user: AuthUserPayload, requestedLocationId?: string) {
   if (!user.tenant_id) throw createError("Tenant not found.", 400);
+  const normalizedLocationId = normalizeLocationId(requestedLocationId);
 
   if (user.type === "manager") {
     if (!user.branch_id) throw createError("Manager location not configured.", 400);
-    if (requestedLocationId && requestedLocationId !== user.branch_id) {
+    if (normalizedLocationId && normalizedLocationId !== user.branch_id) {
       throw createError("Cross-location access not allowed.", 403);
     }
     return user.branch_id;
   }
 
   if (user.type !== "owner") throw createError("Access denied.", 403);
-  if (!requestedLocationId) throw createError("locationId is required.", 400);
+  if (!normalizedLocationId) throw createError("locationId is required.", 400);
 
   const check = await query<{ id: string }>(
     `SELECT id FROM branches WHERE id = $1 AND "tenantId" = $2 LIMIT 1`,
-    [requestedLocationId, user.tenant_id]
+    [normalizedLocationId, user.tenant_id]
   );
   if (!check.rows[0]) throw createError("Location does not belong to your business.", 403);
-  return requestedLocationId;
+  return normalizedLocationId;
 }
 
 // ─── Service Functions ────────────────────────────────────────────────────────
 
 export async function listStaff(user: AuthUserPayload, locationId?: string) {
   if (!user.tenant_id) throw createError("Tenant not found.", 400);
+  const normalizedLocationId = normalizeLocationId(locationId);
 
   const values: unknown[] = [user.tenant_id];
   const filters = ["sm.tenant_id = $1"];
@@ -145,8 +155,8 @@ export async function listStaff(user: AuthUserPayload, locationId?: string) {
     if (!user.branch_id) throw createError("Manager location not configured.", 400);
     filters.push(`sm.location_id = $${values.length + 1}`);
     values.push(user.branch_id);
-  } else if (user.type === "owner" && locationId) {
-    const resolved = await resolveLocationId(user, locationId);
+  } else if (user.type === "owner" && normalizedLocationId) {
+    const resolved = await resolveLocationId(user, normalizedLocationId);
     filters.push(`sm.location_id = $${values.length + 1}`);
     values.push(resolved);
   } else if (user.type !== "owner") {

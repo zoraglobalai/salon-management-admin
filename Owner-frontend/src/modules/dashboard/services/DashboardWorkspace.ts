@@ -9,7 +9,6 @@ import {
   Package,
   MessageCircleMore,
   BarChart3,
-  Settings,
   UserCog,
 } from "lucide-react";
 import type { User } from "../../auth/types/auth.types";
@@ -37,7 +36,6 @@ const getBaseNavigation = (): DashboardNavigationItem[] => [
   { label: "Inventory", to: "/dashboard/inventory", icon: Package },
   { label: "WhatsApp", to: "/dashboard/automation", icon: MessageCircleMore },
   { label: "Reports", to: "/dashboard/reports", icon: BarChart3 },
-  { label: "Settings", to: "/dashboard/settings", icon: Settings },
 ];
 
 export function getDashboardWorkspaceConfig(

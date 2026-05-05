@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { fetchStaffById, type StaffMember } from "../../../core/api";
+import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
+import { ArrowLeft, User, Briefcase, Home, CreditCard, Shield, FileText } from "lucide-react";
 
 function mask(value: string, show = 4) {
   if (!value) return "—";
@@ -8,22 +10,29 @@ function mask(value: string, show = 4) {
   return "•".repeat(value.length - show) + value.slice(-show);
 }
 
-function InfoRow({ label, value }: { label: string; value: string }) {
+function InfoRow({ label, value, isDark }: { label: string; value: string; isDark: boolean }) {
   return (
-    <div className="flex flex-col gap-0.5">
-      <span className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">{label}</span>
-      <span className="text-sm font-medium text-gray-900">{value || "—"}</span>
+    <div className="flex flex-col gap-1">
+      <span className={`text-[10px] font-black uppercase tracking-[0.15em] ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>{label}</span>
+      <span className={`text-sm font-semibold ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>{value || "—"}</span>
     </div>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children, icon: Icon, isDark }: { title: string; children: React.ReactNode; icon: any; isDark: boolean }) {
   return (
-    <div className="rounded-2xl border border-[var(--line)] bg-white p-5 shadow-sm">
-      <h3 className="text-xs font-bold uppercase tracking-widest text-[var(--muted)] mb-4 pb-2 border-b border-[var(--line)]">
-        {title}
-      </h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div className={`rounded-3xl border p-6 shadow-sm transition-all hover:shadow-md ${
+      isDark ? "bg-[#151821] border-[rgba(255,255,255,0.07)]" : "bg-white border-[#E8E1D8]"
+    }`}>
+      <div className={`flex items-center gap-2 mb-5 pb-3 border-b ${
+        isDark ? "border-[rgba(255,255,255,0.05)]" : "border-[#F2EDE7]"
+      }`}>
+        <Icon size={14} className={isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"} />
+        <h3 className={`text-[11px] font-black uppercase tracking-[0.2em] ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`}>
+          {title}
+        </h3>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         {children}
       </div>
     </div>
@@ -33,6 +42,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export function StaffDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { theme } = useDashboardTheme();
+  const isDark = theme === "dark";
   const [member, setMember] = useState<StaffMember | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -48,19 +59,22 @@ export function StaffDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64 text-[var(--muted)]">
-        Loading staff details…
+      <div className={`flex items-center justify-center h-96 text-sm font-medium ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>
+        Fetching staff record…
       </div>
     );
   }
 
   if (error || !member) {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-4">
-        <p className="text-sm text-red-600">{error || "Staff member not found."}</p>
+      <div className="flex flex-col items-center justify-center h-96 gap-6">
+        <p className={`text-sm font-bold ${isDark ? "text-[#F87171]" : "text-red-600"}`}>{error || "Record not found."}</p>
         <button onClick={() => navigate(-1)} type="button"
-          className="rounded-full bg-gray-100 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-200">
-          ← Back
+          className={`flex items-center gap-2 rounded-full px-8 py-3 text-sm font-black uppercase tracking-widest transition-all ${
+            isDark ? "bg-[rgba(255,255,255,0.05)] text-[#C8BFB4] hover:bg-[rgba(255,255,255,0.1)]" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+          }`}>
+          <ArrowLeft size={16} />
+          Go Back
         </button>
       </div>
     );
@@ -71,85 +85,109 @@ export function StaffDetailPage() {
     : "—";
 
   return (
-    <div className="flex flex-col gap-5">
-      {/* Header */}
-      <div className="rounded-2xl border border-[var(--line)] bg-white p-5 shadow-sm flex flex-col md:flex-row md:items-center gap-4">
+    <div className="flex flex-col gap-6 max-w-5xl mx-auto py-2">
+      {/* Premium Header */}
+      <div className={`rounded-[32px] border p-6 shadow-sm flex flex-col md:flex-row md:items-center gap-6 transition-all ${
+        isDark ? "bg-[#151821] border-[rgba(255,255,255,0.07)]" : "bg-white border-[#E8E1D8]"
+      }`}>
         <button onClick={() => navigate(-1)} type="button"
-          className="self-start text-sm font-semibold text-[var(--muted)] hover:text-gray-900 transition-colors">
-          ← Back to Staff
+          className={`group flex items-center justify-center h-12 w-12 rounded-2xl border transition-all ${
+            isDark ? "bg-[rgba(255,255,255,0.03)] border-[rgba(255,255,255,0.06)] text-[#7A7572] hover:bg-[rgba(255,255,255,0.08)] hover:text-[#C8BFB4]" : "bg-gray-50 border-[#F2EDE7] text-gray-400 hover:text-gray-900"
+          }`}>
+          <ArrowLeft size={20} />
         </button>
-        <div className="flex-1 flex items-center gap-4">
-          <div className="h-14 w-14 shrink-0 rounded-full bg-gradient-to-br from-[#744230] to-[#4e271b] flex items-center justify-center text-white text-2xl font-bold shadow-md">
-            {member.name.charAt(0).toUpperCase()}
+        <div className="flex-1 flex items-center gap-5">
+          <div className={`h-16 w-16 shrink-0 rounded-[22px] flex items-center justify-center text-3xl font-black shadow-xl transform rotate-3 transition-transform hover:rotate-0 ${
+            isDark ? "bg-[linear-gradient(135deg,#C9A96E,#A67C3D)] text-[#0F1115]" : "bg-[linear-gradient(135deg,#8B5E3C,#4E2D1B)] text-white"
+          }`}>
+            <span className="-rotate-3">{member.name.charAt(0).toUpperCase()}</span>
           </div>
           <div>
-            <h2 className="text-2xl font-bold font-['Outfit'] text-gray-900">{member.name}</h2>
-            <p className="text-sm text-[var(--muted)]">{member.role} · {member.locationName?.split("-")[0].trim()}</p>
+            <h2 className={`text-3xl font-black font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>{member.name}</h2>
+            <div className="flex items-center gap-2 mt-1">
+              <Briefcase size={12} className={isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"} />
+              <p className={`text-xs font-bold uppercase tracking-widest ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>
+                {member.role} · <span className={isDark ? "text-[#C8BFB4]" : "text-gray-700"}>{member.locationName?.split("-")[0].trim()}</span>
+              </p>
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">Active</span>
+        <div className="flex items-center">
+          <div className={`flex items-center gap-2 rounded-full px-5 py-2 text-xs font-black uppercase tracking-widest ${
+            isDark ? "bg-[rgba(16,185,129,0.1)] text-[#10B981] border border-[rgba(16,185,129,0.2)]" : "bg-green-50 text-green-700 border border-green-100"
+          }`}>
+            <div className="h-1.5 w-1.5 rounded-full bg-current animate-pulse" />
+            Active
+          </div>
         </div>
       </div>
 
-      {/* Basic Info */}
-      <Section title="Basic Information">
-        <InfoRow label="Full Name" value={member.name} />
-        <InfoRow label="Role" value={member.role} />
-        <InfoRow label="Phone Number" value={member.phoneNumber} />
-        <InfoRow label="Joining Date" value={joiningDateFormatted} />
-        <InfoRow label="Location" value={member.locationName} />
-      </Section>
-
-      {/* Address */}
-      {(member.state || member.city || member.addressLine) && (
-        <Section title="Address">
-          <InfoRow label="State" value={member.state} />
-          <InfoRow label="City" value={member.city} />
-          <div className="sm:col-span-2">
-            <InfoRow label="Address Line" value={member.addressLine} />
-          </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Basic Info */}
+        <Section title="Employment Details" icon={User} isDark={isDark}>
+          <InfoRow label="Legal Name" value={member.name} isDark={isDark} />
+          <InfoRow label="Primary Contact" value={member.phoneNumber} isDark={isDark} />
+          <InfoRow label="Onboarding Date" value={joiningDateFormatted} isDark={isDark} />
+          <InfoRow label="Assignment" value={member.locationName} isDark={isDark} />
         </Section>
-      )}
 
-      {/* Bank Details — masked */}
-      {(member.bankName || member.accountNumber || member.ifscCode) && (
-        <Section title="Bank Details">
-          <InfoRow label="Bank Name" value={member.bankName} />
-          <InfoRow label="IFSC Code" value={member.ifscCode} />
-          <div className="sm:col-span-2">
-            <div className="flex flex-col gap-0.5">
-              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Account Number</span>
-              <span className="text-sm font-medium text-gray-900 font-mono tracking-widest">
-                {mask(member.accountNumber, 4)}
+        {/* Bank Details — masked */}
+        {(member.bankName || member.accountNumber || member.ifscCode) && (
+          <Section title="Financial Account" icon={CreditCard} isDark={isDark}>
+            <InfoRow label="Institution" value={member.bankName} isDark={isDark} />
+            <InfoRow label="IFSC Code" value={member.ifscCode} isDark={isDark} />
+            <div className="sm:col-span-2">
+              <div className="flex flex-col gap-1">
+                <span className={`text-[10px] font-black uppercase tracking-[0.15em] ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>Account Number</span>
+                <span className={`text-lg font-black tracking-[0.2em] font-mono ${isDark ? "text-[#E8C98A]" : "text-[#8B5E3C]"}`}>
+                  {mask(member.accountNumber, 4)}
+                </span>
+              </div>
+            </div>
+          </Section>
+        )}
+
+        {/* Address */}
+        {(member.state || member.city || member.addressLine) && (
+          <Section title="Residency" icon={Home} isDark={isDark}>
+            <InfoRow label="State" value={member.state} isDark={isDark} />
+            <InfoRow label="City" value={member.city} isDark={isDark} />
+            <div className="sm:col-span-2">
+              <InfoRow label="Residential Address" value={member.addressLine} isDark={isDark} />
+            </div>
+          </Section>
+        )}
+
+        {/* ID Proof — masked */}
+        {(member.idType || member.idNumber) && (
+          <Section title="Identification" icon={Shield} isDark={isDark}>
+            <InfoRow label="Credential Type" value={member.idType} isDark={isDark} />
+            <div className="flex flex-col gap-1">
+              <span className={`text-[10px] font-black uppercase tracking-[0.15em] ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>Document Number</span>
+              <span className={`text-lg font-black tracking-[0.2em] font-mono ${isDark ? "text-[#E8C98A]" : "text-[#8B5E3C]"}`}>
+                {mask(member.idNumber, 4)}
               </span>
             </div>
-          </div>
-        </Section>
-      )}
+          </Section>
+        )}
 
-      {/* ID Proof — masked */}
-      {(member.idType || member.idNumber) && (
-        <Section title="ID Proof">
-          <InfoRow label="ID Type" value={member.idType} />
-          <div className="flex flex-col gap-0.5">
-            <span className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">ID Number</span>
-            <span className="text-sm font-medium text-gray-900 font-mono tracking-widest">
-              {mask(member.idNumber, 4)}
-            </span>
+        {/* Notes */}
+        {member.notes && (
+          <div className={`lg:col-span-2 rounded-3xl border p-6 shadow-sm transition-all ${
+            isDark ? "bg-[#151821] border-[rgba(255,255,255,0.07)]" : "bg-white border-[#E8E1D8]"
+          }`}>
+            <div className={`flex items-center gap-2 mb-4 pb-3 border-b ${
+              isDark ? "border-[rgba(255,255,255,0.05)]" : "border-[#F2EDE7]"
+            }`}>
+              <FileText size={14} className={isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"} />
+              <h3 className={`text-[11px] font-black uppercase tracking-[0.2em] ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`}>
+                Personnel Remarks
+              </h3>
+            </div>
+            <p className={`text-sm whitespace-pre-line leading-loose font-medium ${isDark ? "text-[#C8BFB4]" : "text-gray-600"}`}>{member.notes}</p>
           </div>
-        </Section>
-      )}
-
-      {/* Notes */}
-      {member.notes && (
-        <div className="rounded-2xl border border-[var(--line)] bg-white p-5 shadow-sm">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-[var(--muted)] mb-3 pb-2 border-b border-[var(--line)]">
-            Notes
-          </h3>
-          <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{member.notes}</p>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

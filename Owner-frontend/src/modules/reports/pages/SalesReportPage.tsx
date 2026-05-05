@@ -1,11 +1,21 @@
+import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import { FiltersBar } from "../components/FiltersBar";
 import { SummaryCard } from "../components/SummaryCard";
 import { ReportDataTable, type Column } from "../components/Tables/ReportDataTable";
+import { useNotifications } from "../../../shared/components/NotificationProvider";
 import { fetchSalesReport } from "../../../core/api";
 import { exportToExcel, exportToPDF } from "../utils/exportUtils";
 import { useReport } from "../hooks/useReport";
+import { ExportModal } from "../components/ExportModal";
+
+function formatLocalDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 type SalesRecord = {
   id: string;
@@ -43,11 +53,13 @@ const columns: Column<SalesRecord>[] = [
 ];
 
 export function SalesReportPage() {
+  const { toast } = useNotifications();
+  const [showExportModal, setShowExportModal] = useState(false);
   const { data, loading, filters, setFilters } = useReport(
     fetchSalesReport,
     {
-      startDate: new Date().toISOString().split("T")[0],
-      endDate: new Date().toISOString().split("T")[0],
+      startDate: formatLocalDate(new Date()),
+      endDate: formatLocalDate(new Date()),
       locationId: "all",
       paymentMethod: "all",
       page: 1,
@@ -93,7 +105,16 @@ export function SalesReportPage() {
           })
         }
         onExport={() => {
-          if (!list.length) return alert("No data to export");
+          if (!list.length) return toast("No data to export", "error");
+          setShowExportModal(true);
+        }}
+      />
+
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title="Sales Report"
+        onExport={(type) => {
           const formatData = list.map((item: SalesRecord) => ({
             Date: new Date(item.date).toLocaleDateString(),
             Client: item.clientName,
@@ -103,9 +124,9 @@ export function SalesReportPage() {
             Payment: item.paymentSplit,
           }));
 
-          const choice = window.confirm("Export as Excel? (Cancel for PDF)");
-          if (choice) {
+          if (type === "excel") {
             exportToExcel(formatData, `Sales_Report_${new Date().toISOString().split("T")[0]}`);
+            toast("Exported as Excel");
           } else {
             exportToPDF(
               formatData,
@@ -113,6 +134,7 @@ export function SalesReportPage() {
               `Sales_Report_${new Date().toISOString().split("T")[0]}`,
               "Sales Report",
             );
+            toast("Exported as PDF");
           }
         }}
       />

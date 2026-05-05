@@ -10,7 +10,7 @@ import { Tenant, TenantStatus } from '../../entities/platform/Tenant';
 import { Trial, TrialStatus } from '../../entities/platform/Trial';
 import { SupportTicket, TicketStatus } from '../../entities/platform/SupportTicket';
 import { Log } from '../../entities/platform/Log';
-import { UserRole } from '../../entities/platform/User';
+import { UserRole, type OperatorUserType } from '../../entities/platform/User';
 import { createError } from '../../middleware/errorHandler';
 import { SelectQueryBuilder } from 'typeorm';
 
@@ -63,18 +63,23 @@ type OwnerUserShape = {
   id?: string;
   email?: string;
   role?: UserRole;
+  type?: OperatorUserType;
   tenant_id?: string | null;
   tenantId?: string | null;
 };
 
 const OWNER_ROLES = new Set([UserRole.OWNER, UserRole.INDEPENDENT_OWNER]);
+const LEGACY_STANDARD_PLAN = 'BASIC';
 
 function getTenantIdFromUser(user?: OwnerUserShape) {
   return user?.tenant_id || user?.tenantId || null;
 }
 
 function assertOwnerAccess(user?: OwnerUserShape) {
-  if (!user?.role || !OWNER_ROLES.has(user.role)) {
+  const hasOwnerRole = !!user?.role && OWNER_ROLES.has(user.role);
+  const hasOwnerType = user?.type === 'owner';
+
+  if (!hasOwnerRole && !hasOwnerType) {
     throw createError('Only owner accounts can manage subscriptions.', 403);
   }
 
@@ -104,16 +109,50 @@ function getPlanPrice(plan: SubscriptionPlan) {
   return match.price;
 }
 
+function normalizePlanValue(plan?: string | SubscriptionPlan | null) {
+  if (!plan) return null;
+  return plan === LEGACY_STANDARD_PLAN ? SubscriptionPlan.STANDARD : plan;
+}
+
+async function resolvePersistedPlanValue(plan: SubscriptionPlan) {
+  if (plan !== SubscriptionPlan.STANDARD) {
+    return plan;
+  }
+
+  const enumRows = await AppDataSource.query(
+    `
+      SELECT e.enumlabel
+      FROM pg_type t
+      JOIN pg_enum e ON t.oid = e.enumtypid
+      WHERE t.typname = 'subscriptions_plan_enum'
+    `,
+  );
+
+  const enumValues = new Set<string>(enumRows.map((row: { enumlabel: string }) => row.enumlabel));
+
+  if (enumValues.has(SubscriptionPlan.STANDARD)) {
+    return SubscriptionPlan.STANDARD;
+  }
+
+  if (enumValues.has(LEGACY_STANDARD_PLAN)) {
+    return LEGACY_STANDARD_PLAN;
+  }
+
+  return SubscriptionPlan.STANDARD;
+}
+
 function getEligiblePlans(currentSubscription: Subscription | null) {
+  const currentPlan = normalizePlanValue(currentSubscription?.plan);
+
   if (!currentSubscription || currentSubscription.status === SubscriptionStatus.EXPIRED) {
     return PLAN_CATALOG;
   }
 
-  if (currentSubscription.plan === SubscriptionPlan.STANDARD) {
+  if (currentPlan === SubscriptionPlan.STANDARD) {
     return PLAN_CATALOG.filter((plan) => plan.id !== SubscriptionPlan.STANDARD);
   }
 
-  if (currentSubscription.plan === SubscriptionPlan.PRO) {
+  if (currentPlan === SubscriptionPlan.PRO) {
     return PLAN_CATALOG.filter((plan) => plan.id === SubscriptionPlan.CUSTOM);
   }
 
@@ -172,7 +211,7 @@ function formatSubscriptionRecord(subscription: Subscription | null) {
 
   return {
     id: subscription.id,
-    plan: subscription.plan,
+    plan: normalizePlanValue(subscription.plan),
     status: subscription.status,
     amountPaid: Number(subscription.amountPaid || 0).toFixed(2),
     paymentMethod: subscription.paymentMethod,
@@ -370,6 +409,7 @@ export const checkoutOwnerSubscription = async (
   const endDate = new Date(now);
   endDate.setDate(endDate.getDate() + 30);
   const transactionReference = generateTransactionReference(payload.plan);
+  const persistedPlan = await resolvePersistedPlanValue(payload.plan);
   let savedSubscription: Subscription | null = null;
 
   await AppDataSource.transaction(async (manager) => {
@@ -387,7 +427,7 @@ export const checkoutOwnerSubscription = async (
 
     const subscription = manager.create(Subscription, {
       tenantId,
-      plan: payload.plan,
+      plan: persistedPlan as SubscriptionPlan,
       status: SubscriptionStatus.ACTIVE,
       amountPaid: price,
       paymentMethod: payload.paymentMethod,

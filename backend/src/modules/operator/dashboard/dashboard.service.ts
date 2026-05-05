@@ -54,6 +54,8 @@ type SchemaColumnRow = {
   column_name: string;
 };
 
+type TrendRange = "7d" | "month" | "prev_month";
+
 async function getTableColumns(tableName: string) {
   const result = await query<SchemaColumnRow>(
     `
@@ -122,7 +124,7 @@ export async function getDashboardMetrics(user: AuthUserPayload) {
 
 export async function getDashboardSummary(
   user: AuthUserPayload,
-  filters: { date?: string; branchId?: string } = {},
+  filters: { date?: string; branchId?: string; trendRange?: string } = {},
 ) {
   if (!user.tenant_id) {
     return {
@@ -165,6 +167,8 @@ export async function getDashboardSummary(
     filters.date && /^\d{4}-\d{2}-\d{2}$/.test(filters.date)
       ? filters.date
       : new Date().toISOString().slice(0, 10);
+  const selectedTrendRange: TrendRange =
+    filters.trendRange === "month" || filters.trendRange === "prev_month" ? filters.trendRange : "7d";
 
   const [branchColumns, salesColumns, appointmentColumns] = await Promise.all([
     getTableColumns("branches"),
@@ -204,12 +208,15 @@ export async function getDashboardSummary(
 
   values.push(targetDate);
   const dateParam = `$${values.length}`;
+  values.push(selectedTrendRange);
+  const trendRangeParam = `$${values.length}`;
 
   const branchScope = selectedBranchId ? `AND b.id = ${branchParam}` : "";
   const salesScopeCondition = selectedBranchId ? `AND ${salesLocationExpr} = ${branchParam}` : "";
   const serviceScopeCondition = selectedBranchId ? `AND ${salesLocationExpr} = ${branchParam}` : "";
   const appointmentScopeCondition = selectedBranchId ? `AND ${appointmentLocationExpr} = ${branchParam}` : "";
   const branchCountValues = selectedBranchId ? values.slice(0, 2) : values.slice(0, 1);
+  const summaryValues = values.slice(0, -1);
 
   const [branchCountResult, totalsResult, branchRowsResult, todayResult, trendResult, topServicesResult, recentSalesResult, yesterdaySalesResult, paymentMethodsResult, todayStatusResult] = await Promise.all([
     query<MetricRow>(
@@ -257,7 +264,7 @@ export async function getDashboardSummary(
         ) branch_metrics ON TRUE
         WHERE ${branchTenantColumn} = $1 ${branchScope}
       `,
-      values,
+      summaryValues,
     ),
     query<BranchSummaryRow>(
       `
@@ -303,7 +310,7 @@ export async function getDashboardSummary(
         WHERE ${branchTenantColumn} = $1 ${branchScope}
         ORDER BY b.name ASC
       `,
-      values,
+      summaryValues,
     ),
     query<MetricRow>(
       `
@@ -317,15 +324,32 @@ export async function getDashboardSummary(
           AND DATE(${salesDateExpr}) = ${dateParam}::date
           ${salesScopeCondition}
       `,
-      values,
+      summaryValues,
     ),
     query<TrendRow>(
       `
+        WITH trend_window AS (
+          SELECT
+            CASE
+              WHEN ${trendRangeParam} = 'month' THEN DATE_TRUNC('month', ${dateParam}::date)::date
+              WHEN ${trendRangeParam} = 'prev_month' THEN (DATE_TRUNC('month', ${dateParam}::date) - INTERVAL '1 month')::date
+              ELSE (${dateParam}::date - INTERVAL '6 days')::date
+            END AS start_date,
+            CASE
+              WHEN ${trendRangeParam} = 'month' THEN LEAST(
+                ${dateParam}::date,
+                (DATE_TRUNC('month', ${dateParam}::date) + INTERVAL '1 month' - INTERVAL '1 day')::date
+              )
+              WHEN ${trendRangeParam} = 'prev_month' THEN (DATE_TRUNC('month', ${dateParam}::date) - INTERVAL '1 day')::date
+              ELSE ${dateParam}::date
+            END AS end_date
+        )
         SELECT
           TO_CHAR(day_bucket.day, 'DD Mon') AS day,
           COALESCE(COUNT(s.id), 0)::int AS sales,
           COALESCE(SUM(${salesAmountExpr}), 0) AS revenue
-        FROM generate_series(${dateParam}::date - INTERVAL '6 days', ${dateParam}::date, INTERVAL '1 day') AS day_bucket(day)
+        FROM trend_window
+        CROSS JOIN generate_series(trend_window.start_date, trend_window.end_date, INTERVAL '1 day') AS day_bucket(day)
         LEFT JOIN sales s
           ON DATE(${salesDateExpr}) = DATE(day_bucket.day)
          AND s.tenant_id = $1
@@ -351,7 +375,7 @@ export async function getDashboardSummary(
         ORDER BY "salesCount" DESC, revenue DESC, ser.name ASC
         LIMIT 5
       `,
-      values,
+      summaryValues,
     ),
     query<RecentSaleRow>(
       `
@@ -377,7 +401,7 @@ export async function getDashboardSummary(
         ORDER BY ${salesDateExpr} DESC
         LIMIT 5
       `,
-      values,
+      summaryValues,
     ),
     query<MetricRow>(
       `
@@ -390,7 +414,7 @@ export async function getDashboardSummary(
           AND DATE(${salesDateExpr}) = ${dateParam}::date - INTERVAL '1 day'
           ${salesScopeCondition}
       `,
-      values,
+      summaryValues,
     ),
     query<PaymentMethodRow>(
       `
@@ -405,7 +429,7 @@ export async function getDashboardSummary(
         GROUP BY s.payment_method
         ORDER BY amount DESC
       `,
-      values,
+      summaryValues,
     ),
     query<TodayStatusRow>(
       `
@@ -418,7 +442,7 @@ export async function getDashboardSummary(
           AND DATE(${appointmentDateExpr}) = ${dateParam}::date
           ${appointmentScopeCondition}
       `,
-      values,
+      summaryValues,
     ),
   ]);
 

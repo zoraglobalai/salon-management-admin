@@ -2,7 +2,7 @@ import { AppDataSource } from '../../database/config';
 import { Log } from '../../entities/platform/Log';
 import { SupportTicket, TicketStatus } from '../../entities/platform/SupportTicket';
 import { Tenant } from '../../entities/platform/Tenant';
-import { UserRole } from '../../entities/platform/User';
+import { UserRole, type OperatorUserType } from '../../entities/platform/User';
 import { createError } from '../../middleware/errorHandler';
 
 const ticketRepo = () => AppDataSource.getRepository(SupportTicket);
@@ -17,6 +17,7 @@ const SUPPORT_CONTACT = {
 type OwnerUserShape = {
   email?: string;
   role?: UserRole;
+  type?: OperatorUserType;
   tenant_id?: string | null;
   tenantId?: string | null;
 };
@@ -28,7 +29,10 @@ function getTenantIdFromUser(user?: OwnerUserShape) {
 }
 
 function assertOwnerAccess(user?: OwnerUserShape) {
-  if (!user?.role || !OWNER_ROLES.has(user.role)) {
+  const hasOwnerRole = !!user?.role && OWNER_ROLES.has(user.role);
+  const hasOwnerType = user?.type === 'owner';
+
+  if (!hasOwnerRole && !hasOwnerType) {
     throw createError('Only owner accounts can manage support tickets.', 403);
   }
 

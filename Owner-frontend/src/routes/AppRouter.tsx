@@ -20,7 +20,6 @@ import { InventoryReportPage } from "../modules/reports/pages/InventoryReportPag
 import { DashboardSalesPOSPage } from "../modules/dashboard/pages/DashboardSalesPOSPage";
 import { DashboardSalesHistoryPage } from "../modules/dashboard/pages/DashboardSalesHistoryPage";
 import { DashboardServicesPage } from "../modules/dashboard/pages/DashboardServicesPage";
-import { DashboardSettingsPage } from "../modules/dashboard/pages/DashboardSettingsPage";
 import { DashboardStaffPage } from "../modules/dashboard/pages/DashboardStaffPage";
 import { StaffDetailPage } from "../modules/dashboard/pages/StaffDetailPage";
 import { ManagerList } from "../modules/manager/pages/ManagerList";
@@ -56,7 +55,6 @@ export function AppRouter() {
             <Route path="staff" element={<StaffReportPage />} />
             <Route path="inventory" element={<InventoryReportPage />} />
           </Route>
-          <Route path="settings" element={<DashboardSettingsPage />} />
           <Route path="managers" element={<ManagerList />} />
         </Route>
       </Route>

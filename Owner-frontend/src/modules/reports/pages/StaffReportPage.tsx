@@ -1,11 +1,21 @@
+import { useState } from "react";
 import { ArrowLeft, UserSquare2, Award, Briefcase } from "lucide-react";
 import { Link } from "react-router-dom";
 import { FiltersBar } from "../components/FiltersBar";
 import { SummaryCard } from "../components/SummaryCard";
 import { ReportDataTable, type Column } from "../components/Tables/ReportDataTable";
+import { useNotifications } from "../../../shared/components/NotificationProvider";
 import { fetchStaffReport } from "../../../core/api";
 import { useReport } from "../hooks/useReport";
 import { exportToExcel, exportToPDF } from "../utils/exportUtils";
+import { ExportModal } from "../components/ExportModal";
+
+function formatLocalDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 type StaffPerformance = {
   staff_id: string;
@@ -31,11 +41,14 @@ const columns: Column<StaffPerformance>[] = [
 ];
 
 export function StaffReportPage() {
+  const { toast } = useNotifications();
+  const [showExportModal, setShowExportModal] = useState(false);
+
   const { data, loading, filters, setFilters } = useReport(
     fetchStaffReport,
     {
-      startDate: new Date().toISOString().split("T")[0],
-      endDate: new Date().toISOString().split("T")[0],
+      startDate: formatLocalDate(new Date()),
+      endDate: formatLocalDate(new Date()),
       locationId: "all",
       page: 1,
       limit: 10,
@@ -75,7 +88,16 @@ export function StaffReportPage() {
           })
         }
         onExport={() => {
-          if (!staffPerformance.length) return alert("No data to export");
+          if (!staffPerformance.length) return toast("No data to export", "error");
+          setShowExportModal(true);
+        }}
+      />
+
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title="Staff Report"
+        onExport={(type) => {
           const formatData = staffPerformance.map((item: StaffPerformance) => ({
             Name: item.staff_name,
             Services: item.services_count,
@@ -83,16 +105,17 @@ export function StaffReportPage() {
             Efficiency: Math.round(Number(item.revenue) / Math.max(1, Number(item.services_count))),
           }));
 
-          const choice = window.confirm("Export as Excel? (Cancel for PDF)");
-          if (choice) {
-            exportToExcel(formatData, `Staff_Report_${new Date().toISOString().split("T")[0]}`);
+          if (type === "excel") {
+            exportToExcel(formatData, `Staff_Performance_Report_${new Date().toISOString().split("T")[0]}`);
+            toast("Exported as Excel");
           } else {
             exportToPDF(
               formatData,
               ["Name", "Services", "Revenue", "Efficiency"],
-              `Staff_Report_${new Date().toISOString().split("T")[0]}`,
-              "Staff Performance Report",
+              `Staff_Performance_Report_${new Date().toISOString().split("T")[0]}`,
+              "Staff Performance Report"
             );
+            toast("Exported as PDF");
           }
         }}
       />
