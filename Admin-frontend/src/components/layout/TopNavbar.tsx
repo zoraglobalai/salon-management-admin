@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Bell, Loader2, Menu, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { logsApi } from '../../services/api';
 
 interface TopNavbarProps {
@@ -23,10 +24,25 @@ const actionColors: Record<string, string> = {
   TRIAL_ENDED: 'bg-amber-50 text-amber-700',
 };
 
+const notificationRoutes: Record<string, string> = {
+  SUPPORT_TICKET_RAISED: '/support',
+  SUBSCRIPTION_PAYMENT: '/revenue',
+  TRIAL_ENDED: '/trials',
+};
+
 const TopNavbar: React.FC<TopNavbarProps> = ({ title, onOpenSidebar }) => {
+  const navigate = useNavigate();
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  const handleNotificationClick = (item: NotificationItem) => {
+    const route = notificationRoutes[item.action];
+    if (!route) return;
+
+    setIsDrawerOpen(false);
+    navigate(route);
+  };
 
   const fetchNotifications = async (showLoader = false) => {
     if (showLoader) {
@@ -127,7 +143,12 @@ const TopNavbar: React.FC<TopNavbarProps> = ({ title, onOpenSidebar }) => {
               ) : notifications.length ? (
                 <div className="divide-y divide-[var(--color-border)]">
                   {notifications.map((item) => (
-                    <div key={item.id} className="p-4 transition-colors hover:bg-[var(--color-surface-raised)]">
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => handleNotificationClick(item)}
+                      className="block w-full p-4 text-left transition-colors hover:bg-[var(--color-surface-raised)] focus:bg-[var(--color-surface-raised)] focus:outline-none"
+                    >
                       <div className="flex items-start gap-3">
                         <span
                           className={`mt-0.5 rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${
@@ -148,7 +169,7 @@ const TopNavbar: React.FC<TopNavbarProps> = ({ title, onOpenSidebar }) => {
                           </p>
                         </div>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               ) : (

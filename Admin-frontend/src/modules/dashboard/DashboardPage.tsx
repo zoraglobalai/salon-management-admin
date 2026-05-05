@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Users,
   UserCheck,
@@ -11,16 +12,16 @@ import {
 } from 'lucide-react';
 import StatCard from '../../components/ui/StatCard';
 import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
+  AreaChart,
+  Area,
+  PieChart,
+  Pie,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from 'recharts';
 import { usersApi, revenueApi, supportApi } from '../../services/api';
 
@@ -37,55 +38,49 @@ interface RevenueOverview {
   monthly: { month: string; amount: number }[];
 }
 
-interface TenantRecord {
-  id: string;
-  status: string;
-  createdAt: string;
-}
-
 const DashboardPage: React.FC = () => {
+  const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [revenue, setRevenue] = useState<RevenueOverview | null>(null);
   const [ticketStats, setTicketStats] = useState<any>(null);
-  const [userGrowthData, setUserGrowthData] = useState<
-    { month: string; total: number; active: number; trial: number; expired: number }[]
-  >([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const revenueChartData = revenue?.monthly || [];
+  const revenuePeak = revenueChartData.length
+    ? revenueChartData.reduce((max, item) => (item.amount > max.amount ? item : max), revenueChartData[0])
+    : null;
+  const revenueLatest = revenueChartData.length ? revenueChartData[revenueChartData.length - 1] : null;
+  const ownerSignupPieData = buildOwnerSignupPieData(stats);
 
   useEffect(() => {
     const fetchAll = async () => {
       try {
-        const [statsRes, revenueRes, supportRes, usersRes] = await Promise.all([
+        const [statsRes, revenueRes, supportRes] = await Promise.all([
           usersApi.getStats(),
           revenueApi.getOverview(),
           supportApi.getStats(),
-          usersApi.getAll(),
         ]);
-
-        const tenants = Array.isArray(usersRes.data.data) ? (usersRes.data.data as TenantRecord[]) : [];
 
         setStats(statsRes.data.data);
         setRevenue(revenueRes.data.data);
         setTicketStats(supportRes.data.data);
-        setUserGrowthData(buildUserGrowthData(tenants));
       } catch (err) {
         console.error('Dashboard fetch error:', err);
       } finally {
         setIsLoading(false);
       }
     };
+
     fetchAll();
   }, []);
 
   return (
     <div>
-      {/* Header */}
       <div className="page-header">
         <h1 className="page-title">Dashboard</h1>
         <p className="page-subtitle">Welcome back! Here's what's happening today.</p>
       </div>
 
-      {/* Stat Cards */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Users"
@@ -93,6 +88,7 @@ const DashboardPage: React.FC = () => {
           icon={<Users size={20} />}
           trend={{ value: 12, label: 'this month' }}
           color="default"
+          onClick={() => navigate('/users')}
         />
         <StatCard
           title="Active Users"
@@ -100,12 +96,14 @@ const DashboardPage: React.FC = () => {
           icon={<UserCheck size={20} />}
           trend={{ value: 8, label: 'vs last month' }}
           color="success"
+          onClick={() => navigate('/users/active')}
         />
         <StatCard
           title="Trial Users"
           value={isLoading ? '—' : stats?.trialTenants ?? 0}
           icon={<FlaskConical size={20} />}
           color="info"
+          onClick={() => navigate('/users/trial')}
         />
         <StatCard
           title="Expired Users"
@@ -113,17 +111,18 @@ const DashboardPage: React.FC = () => {
           icon={<UserX size={20} />}
           trend={{ value: -5, label: 'vs last month' }}
           color="danger"
+          onClick={() => navigate('/users/expired')}
         />
       </div>
 
-      {/* Revenue + Support Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+      <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <StatCard
           title="Total Revenue"
-          value={isLoading ? '—' : `₹${revenue?.totalRevenue?.toFixed(2) ?? '0.00'}`}
+          value={isLoading ? '—' : formatCurrency(revenue?.totalRevenue ?? 0)}
           icon={<IndianRupee size={20} />}
           trend={{ value: 18, label: 'this year' }}
           color="success"
+          onClick={() => navigate('/revenue')}
         />
         <StatCard
           title="Transactions"
@@ -136,98 +135,179 @@ const DashboardPage: React.FC = () => {
           value={isLoading ? '—' : ticketStats?.open ?? 0}
           icon={<Ticket size={20} />}
           color="warning"
+          onClick={() => navigate('/support')}
         />
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Revenue Chart */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="card p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp size={16} className="text-[var(--color-text-muted)]" />
-            <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Revenue Over Time</h3>
+          <div className="mb-4 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div>
+              <div className="mb-2 flex items-center gap-2">
+                <TrendingUp size={16} className="text-[var(--color-text-muted)]" />
+                <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Revenue Over Time</h3>
+              </div>
+              <p className="text-2xl font-semibold text-[var(--color-text-primary)]">
+                {isLoading ? '—' : formatCompactCurrency(revenueLatest?.amount ?? 0)}
+              </p>
+              <p className="text-xs text-[var(--color-text-muted)]">Latest recorded revenue</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-secondary)]/60 px-3 py-2">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Peak</p>
+                <p className="mt-1 text-sm font-semibold text-[var(--color-text-primary)]">
+                  {isLoading ? '—' : formatCompactCurrency(revenuePeak?.amount ?? 0)}
+                </p>
+                <p className="text-[11px] text-[var(--color-text-muted)]">{revenuePeak?.month ?? '—'}</p>
+              </div>
+              <div className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-secondary)]/60 px-3 py-2">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Average</p>
+                <p className="mt-1 text-sm font-semibold text-[var(--color-text-primary)]">
+                  {isLoading ? '—' : formatCompactCurrency(getAverageRevenue(revenueChartData))}
+                </p>
+                <p className="text-[11px] text-[var(--color-text-muted)]">Per period</p>
+              </div>
+            </div>
           </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={revenue?.monthly || []}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }} />
-              <YAxis tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }} tickFormatter={(v) => `₹${v}`} />
-              <Tooltip
-                formatter={(value) => [`₹${Number(value).toFixed(2)}`, 'Revenue']}
-                contentStyle={{ borderRadius: '8px', border: '1px solid var(--color-border)', fontSize: '12px' }}
-              />
-              <Line
-                type="monotone"
-                dataKey="amount"
-                stroke="#18181b"
-                strokeWidth={2}
-                dot={{ r: 4, fill: '#18181b' }}
-                activeDot={{ r: 6 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+
+          {revenueChartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={revenueChartData}>
+                <defs>
+                  <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#16a34a" stopOpacity={0.28} />
+                    <stop offset="95%" stopColor="#16a34a" stopOpacity={0.03} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }} />
+                <YAxis
+                  tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }}
+                  tickFormatter={(value) => formatAxisCurrency(Number(value))}
+                />
+                <Tooltip
+                  formatter={(value) => [formatCurrency(Number(value)), 'Revenue']}
+                  contentStyle={{ borderRadius: '8px', border: '1px solid var(--color-border)', fontSize: '12px' }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="amount"
+                  stroke="#16a34a"
+                  strokeWidth={3}
+                  fill="url(#revenueFill)"
+                  dot={{ r: 4, fill: '#16a34a', stroke: '#ffffff', strokeWidth: 2 }}
+                  activeDot={{ r: 6 }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex h-[220px] items-center justify-center rounded-2xl border border-dashed border-[var(--color-border)] text-sm text-[var(--color-text-muted)]">
+              No revenue data yet.
+            </div>
+          )}
         </div>
 
-        {/* User Growth Chart */}
         <div className="card p-5">
-          <div className="flex items-center gap-2 mb-4">
+          <div className="mb-4 flex items-center gap-2">
             <Users size={16} className="text-[var(--color-text-muted)]" />
             <h3 className="text-sm font-semibold text-[var(--color-text-primary)]">Owner Signups</h3>
           </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={userGrowthData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }} />
-              <YAxis tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }} />
-              <Tooltip
-                contentStyle={{ borderRadius: '8px', border: '1px solid var(--color-border)', fontSize: '12px' }}
-              />
-              <Legend wrapperStyle={{ fontSize: '11px' }} />
-              <Bar dataKey="total" name="Total" fill="#18181b" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="active" name="Active" fill="#16a34a" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="trial" name="Trial" fill="#2563eb" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="expired" name="Expired" fill="#dc2626" radius={[3, 3, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="grid items-center gap-4 md:grid-cols-[1.1fr_0.9fr]">
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie
+                  data={ownerSignupPieData}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={58}
+                  outerRadius={84}
+                  paddingAngle={3}
+                  stroke="#ffffff"
+                  strokeWidth={2}
+                >
+                  {ownerSignupPieData.map((entry) => (
+                    <Cell key={entry.name} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value) => [Number(value), 'Owners']}
+                  contentStyle={{ borderRadius: '8px', border: '1px solid var(--color-border)', fontSize: '12px' }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+
+            <div className="space-y-3">
+              {ownerSignupPieData.map((item) => (
+                <div
+                  key={item.name}
+                  className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-secondary)]/60 px-3 py-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                    <span className="text-sm text-[var(--color-text-secondary)]">{item.name}</span>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-[var(--color-text-primary)]">{item.value}</p>
+                    <p className="text-[11px] text-[var(--color-text-muted)]">{item.percent}%</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
-function buildUserGrowthData(tenants: TenantRecord[]) {
-  const months = Array.from({ length: 6 }, (_, index) => {
-    const date = new Date();
-    date.setMonth(date.getMonth() - (5 - index), 1);
-    const key = `${date.getFullYear()}-${date.getMonth()}`;
-    return {
-      key,
-      month: date.toLocaleString('default', { month: 'short' }),
-      total: 0,
-      active: 0,
-      trial: 0,
-      expired: 0,
-    };
-  });
+function getAverageRevenue(monthly: { month: string; amount: number }[]) {
+  if (monthly.length === 0) return 0;
 
-  const monthMap = new Map(months.map((entry) => [entry.key, entry]));
+  return monthly.reduce((sum, item) => sum + item.amount, 0) / monthly.length;
+}
 
-  tenants.forEach((tenant) => {
-    const createdAt = new Date(tenant.createdAt);
-    if (Number.isNaN(createdAt.getTime())) return;
+function buildOwnerSignupPieData(stats: DashboardStats | null) {
+  const active = stats?.activeTenants ?? 0;
+  const trial = stats?.trialTenants ?? 0;
+  const expired = stats?.expiredTenants ?? 0;
+  const total = active + trial + expired;
 
-    const key = `${createdAt.getFullYear()}-${createdAt.getMonth()}`;
-    const monthEntry = monthMap.get(key);
-    if (!monthEntry) return;
+  const items = [
+    { name: 'Active', value: active, color: '#16a34a' },
+    { name: 'Trial', value: trial, color: '#2563eb' },
+    { name: 'Expired', value: expired, color: '#dc2626' },
+  ];
 
-    monthEntry.total += 1;
+  return items.map((item) => ({
+    ...item,
+    percent: total > 0 ? Math.round((item.value / total) * 100) : 0,
+  }));
+}
 
-    if (tenant.status === 'ACTIVE') monthEntry.active += 1;
-    if (tenant.status === 'TRIAL') monthEntry.trial += 1;
-    if (tenant.status === 'EXPIRED') monthEntry.expired += 1;
-  });
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 2,
+  }).format(value);
+}
 
-  return months;
+function formatCompactCurrency(value: number) {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
+function formatAxisCurrency(value: number) {
+  if (value >= 1000) {
+    return `₹${Math.round(value / 1000)}k`;
+  }
+
+  return `₹${value}`;
 }
 
 export default DashboardPage;

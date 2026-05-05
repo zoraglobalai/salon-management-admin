@@ -46,12 +46,12 @@ const LogsPage: React.FC = () => {
 
   return (
     <div>
-      <div className="page-header flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="page-header flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="page-title">Logs & Security</h1>
           <p className="page-subtitle">Audit trail of all administrative actions</p>
         </div>
-        <button onClick={fetch} className="btn-secondary w-full gap-1.5 text-xs sm:w-auto">
+        <button onClick={fetch} className="btn-secondary ml-auto shrink-0 gap-1.5 px-3 text-xs">
           <RefreshCw size={13} /> Refresh
         </button>
       </div>

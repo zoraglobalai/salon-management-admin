@@ -143,17 +143,17 @@ const SupportPage: React.FC = () => {
 
   return (
     <div>
-      <div className="page-header flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="page-header flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="page-title">Support Tickets</h1>
           <p className="page-subtitle">Manage and resolve customer support issues</p>
         </div>
-        <button onClick={() => void fetch()} className="btn-secondary w-full gap-1.5 text-xs sm:w-auto">
+        <button onClick={() => void fetch()} className="btn-secondary ml-auto shrink-0 gap-1.5 px-3 text-xs">
           <RefreshCw size={13} /> Refresh
         </button>
       </div>
 
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
         <StatCard title="Total Tickets" value={stats?.total ?? '--'} icon={<HeadphonesIcon size={18} />} />
         <StatCard title="Open" value={stats?.open ?? '--'} icon={<HeadphonesIcon size={18} />} color="danger" />
         <StatCard title="In Progress" value={stats?.inProgress ?? '--'} icon={<HeadphonesIcon size={18} />} color="warning" />

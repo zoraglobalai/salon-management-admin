@@ -95,17 +95,17 @@ const TrialsPage: React.FC = () => {
 
   return (
     <div>
-      <div className="page-header flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="page-header flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="page-title">Trial Management</h1>
           <p className="page-subtitle">Monitor and manage salon owner trial periods</p>
         </div>
-        <button onClick={() => void fetch()} className="btn-secondary w-full gap-1.5 text-xs sm:w-auto">
+        <button onClick={() => void fetch()} className="btn-secondary ml-auto shrink-0 gap-1.5 px-3 text-xs">
           <RefreshCw size={13} /> Refresh
         </button>
       </div>
 
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatCard title="Total Trials" value={stats?.total ?? '--'} icon={<FlaskConical size={18} />} />
         <StatCard title="Active Trials" value={stats?.active ?? '--'} icon={<FlaskConical size={18} />} color="info" />
         <StatCard title="Expired" value={stats?.expired ?? '--'} icon={<FlaskConical size={18} />} color="danger" />
