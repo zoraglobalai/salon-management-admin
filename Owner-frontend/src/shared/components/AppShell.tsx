@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type PropsWithChildren } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
-import { CircleHelp, Crown, LogOut, Menu, Moon, Settings2, UserCircle2, X } from "lucide-react";
+import { Bell, CircleHelp, Crown, LogOut, Menu, Moon, Settings2, UserCircle2, X } from "lucide-react";
 import brandLogo from "../../assets/Groomvy Logo icon.png";
-import { fetchMe } from "../../core/api";
+import { fetchDashboardSummary, fetchMe } from "../../core/api";
 import { useAuth } from "../../modules/auth/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
 import { ProfileDetailsModal } from "./ProfileDetailsModal";
 import { SubscriptionPlansModal } from "./SubscriptionPlansModal";
 import { SupportTicketDrawer } from "./SupportTicketDrawer";
@@ -59,8 +60,70 @@ export function AppShell({
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
   const isManager = user?.role === "MANAGER";
   const canOpenHelpdesk = user?.role === "OWNER" || user?.role === "INDEPENDENT_OWNER";
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const activeModule = navigation.find(item => 
+    location.pathname === item.to || (item.to !== "/dashboard" && location.pathname.startsWith(item.to))
+  );
+  const moduleName = activeModule?.label || "Dashboard";
+
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notificationsRef = useRef<HTMLDivElement | null>(null);
 
   const toggleSidebar = () => setIsSidebarOpen((current) => !current);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const loadNotifications = async () => {
+      try {
+        const response = await fetchDashboardSummary({
+          date: new Date().toISOString().slice(0, 10)
+        });
+        
+        const items = [
+          {
+            id: "sales",
+            title: `${response.todayStatus.completed} appointments completed`,
+            description: `Performance summary for today at ${user.location || 'your branch'}.`,
+          },
+          {
+            id: "payments",
+            title: `₹${(response.today.revenue || 0).toLocaleString()} collected`,
+            description: "Payments are synced across the dashboard totals and reports.",
+          },
+        ];
+
+        if (response.topServices?.[0]) {
+          items.push({
+            id: "service",
+            title: `${response.topServices[0].serviceName} is leading today`,
+            description: "Top services are ranked by completed sales for today.",
+          });
+        }
+        setNotifications(items);
+      } catch (err) {
+        console.error("Failed to load notifications", err);
+      }
+    };
+
+    loadNotifications();
+    const intervalId = window.setInterval(loadNotifications, 60000);
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
+        setShowNotifications(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -134,11 +197,13 @@ export function AppShell({
   const settingsIcon    = isDark ? "text-[#C9A96E]" : "text-[#8f7e6a]";
   const closeBtnStyle   = isDark ? "border-[rgba(255,255,255,0.12)] text-[#C8BFB4]" : "border-white/20 text-white/80";
   const hamburgerStyle  = isDark 
-    ? "border-[rgba(255,255,255,0.12)] bg-[#151821]/80 backdrop-blur-md text-[#C8BFB4]" 
-    : "border-[rgba(234,223,213,0.6)] bg-white/70 backdrop-blur-md text-[#3a2a20]";
+    ? "text-[#C8BFB4]" 
+    : "text-[#3a2a20]";
+  const mobileNavbarBg = isDark ? "bg-[#1C2030] border-b border-[rgba(255,255,255,0.06)]" : "bg-white border-b border-[#E8E1D8]";
+  const notificationBadge = isDark ? "bg-[#F87171]" : "bg-red-500";
 
   return (
-    <div className={`min-h-screen p-2.5 md:h-screen md:overflow-hidden md:p-3 theme-${theme} ${isDark ? "bg-[#0F1115]" : "bg-[#f7f1ea]"}`}>
+    <div className={`h-screen overflow-hidden p-2.5 md:p-3 theme-${theme} ${isDark ? "bg-[#0F1115]" : "bg-[#f7f1ea]"}`}>
       <ProfileDetailsModal
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
@@ -311,17 +376,87 @@ export function AppShell({
         </aside>
 
         {/* ── Main workspace ── */}
-        <main className={`workspace relative flex min-h-0 flex-col overflow-hidden rounded-[30px] border md:h-[calc(100vh-24px)] ${mainBg} ${mainBorder} ${mainShadow}`}>
-          <button
-            type="button"
-            className={`fixed left-6 top-6 z-[60] flex h-11 w-11 items-center justify-center rounded-full border shadow-lg md:hidden ${hamburgerStyle}`}
-            onClick={toggleSidebar}
-            aria-label="Open navigation"
-          >
-            <Menu size={22} />
-          </button>
+        <main className={`workspace relative flex min-h-0 flex-col h-full md:overflow-hidden rounded-[30px] border md:h-[calc(100vh-24px)] ${mainBg} ${mainBorder} ${mainShadow}`}>
+          {/* Header Navbar (Mobile only) */}
+          <header className={`sticky top-0 z-[60] flex h-16 shrink-0 items-center justify-between px-4 md:hidden transition-all rounded-t-[30px] ${mobileNavbarBg}`}>
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all md:hidden ${isDark ? "hover:bg-white/5" : "hover:bg-gray-100"}`}
+                onClick={toggleSidebar}
+                aria-label="Open navigation"
+              >
+                <Menu size={22} className={hamburgerStyle} />
+              </button>
+              
+              <div className="flex flex-col">
+                <h2 className={`text-lg font-bold font-['Outfit'] leading-tight ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>
+                  {moduleName}
+                </h2>
+                <p className={`hidden md:block text-[11px] font-medium uppercase tracking-wider ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>
+                  {user?.location || "Main Branch"}
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3" ref={notificationsRef}>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className={`relative flex h-10 w-10 items-center justify-center rounded-xl transition-all ${isDark ? "bg-[#1C2030] text-[#C9A96E] hover:bg-[#222637]" : "bg-gray-50 text-[#8B5E3C] hover:bg-gray-100"}`}
+                >
+                  <Bell size={20} />
+                  {notifications.length > 0 && (
+                    <span className={`absolute right-2.5 top-2.5 flex h-2 w-2 rounded-full ring-2 ring-white dark:ring-[#1C2030] ${notificationBadge}`} />
+                  )}
+                </button>
 
-          <section className="flex-1 overflow-y-auto px-4 pb-4 pt-16 md:min-h-0 md:px-6 md:pb-5 md:pt-5 xl:px-7 xl:pb-6 xl:pt-5">
+                {showNotifications && (
+                  <div className={`absolute right-0 top-14 z-[70] w-[320px] max-w-[calc(100vw-2rem)] rounded-[22px] border p-3 shadow-[0_24px_60px_rgba(0,0,0,0.5)] ${isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)]" : "bg-white border-[#E9E1D8]"}`}>
+                    <div className="mb-3 flex items-center justify-between">
+                      <p className={`text-sm font-semibold ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>Notifications</p>
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${isDark ? "bg-[rgba(201,169,110,0.14)] text-[#E8C98A]" : "bg-[#F8E8DA] text-[#8B5E3C]"}`}>
+                        {notifications.length} new
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      {notifications.length > 0 ? notifications.map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            setShowNotifications(false);
+                            navigate("/dashboard");
+                          }}
+                          className={`w-full rounded-[16px] border border-transparent px-4 py-3 text-left transition-all ${isDark ? "bg-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.06)] hover:border-[rgba(255,255,255,0.08)]" : "bg-[#FAF8F5] hover:border-[#EAD7C5] hover:bg-[#F6EFE8]"}`}
+                        >
+                          <p className={`text-sm font-medium ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>{item.title}</p>
+                          <p className={`mt-1 text-xs ${isDark ? "text-[#7A7572]" : "text-[#6B7280]"}`}>{item.description}</p>
+                        </button>
+                      )) : (
+                        <p className={`text-center py-6 text-xs ${isDark ? "text-[#4A4744]" : "text-gray-400"}`}>No new notifications</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className={`hidden md:flex h-9 w-px ${isDark ? "bg-[rgba(255,255,255,0.06)]" : "bg-[#E8E1D8]"}`} />
+              
+              <div className="hidden md:flex items-center gap-3 pl-1">
+                <div className="text-right">
+                  <p className={`text-xs font-bold leading-none ${isDark ? "text-[#F0EBE3]" : "text-[#17181F]"}`}>{user?.name}</p>
+                  <p className={`text-[10px] font-medium mt-0.5 ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>{getRoleLabel(user?.role)}</p>
+                </div>
+                <div className={`grid h-8 w-8 place-items-center rounded-lg text-xs font-bold ${profileAvatarBg}`}>
+                  {userInitial}
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <section className="flex-1 overflow-y-auto px-4 pb-4 pt-4 md:min-h-0 md:px-6 md:pb-5 md:pt-5 xl:px-7 xl:pb-6 xl:pt-5">
             {children}
           </section>
         </main>

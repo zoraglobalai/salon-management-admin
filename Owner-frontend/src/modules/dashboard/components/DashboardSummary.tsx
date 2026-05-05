@@ -113,7 +113,6 @@ function getLocationLabel(location?: { name: string; city?: string }) {
   if (!location) return "All Branches";
   return location.name || location.city || "Branch";
 }
-
 function buildNotifications(input: {
   branchName: string;
   selectedDateLabel: string;
@@ -144,6 +143,7 @@ function buildNotifications(input: {
 
   return items;
 }
+
 
 function DashboardCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   const { theme } = useDashboardTheme();
@@ -411,7 +411,6 @@ export function DashboardSummary() {
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationsRef = useRef<HTMLDivElement | null>(null);
 
-
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (!notificationsRef.current?.contains(event.target as Node)) {
@@ -536,7 +535,6 @@ export function DashboardSummary() {
     paymentTotal,
     topServiceName: topServices[0]?.serviceName,
   });
-
   const openServiceReport = () => navigate("/dashboard/reports/services");
   const openSalesReport = () => navigate("/dashboard/reports/sales");
 
@@ -641,7 +639,7 @@ export function DashboardSummary() {
                 isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)]" : "bg-white border-[#E9E1D8]"
               }`}>
                 <div className="mb-3 flex items-center justify-between">
-                  <p className={`text-sm font-semibold ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>Notifications</p>
+                  <p className="text-sm font-semibold">Notifications</p>
                   <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${
                     isDark ? "bg-[rgba(201,169,110,0.14)] text-[#E8C98A]" : "bg-[#F8E8DA] text-[#8B5E3C]"
                   }`}>
@@ -664,7 +662,7 @@ export function DashboardSummary() {
                       }`}
                     >
                       <p className={`text-sm font-medium ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>{item.title}</p>
-                      <p className={`mt-1 text-xs ${isDark ? "text-[#7A7572]" : "text-[#6B7280]"}`}>{item.description}</p>
+                      <p className={`mt-1 text-xs ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>{item.description}</p>
                     </button>
                   ))}
                 </div>
