@@ -49,7 +49,6 @@ type FilteredSaleRow = {
   clientName: string;
   serviceName: string;
   serviceCategory: string;
-  appointmentStatus: string;
   amount: number;
 };
 
@@ -134,14 +133,6 @@ function toDateInputValue(value: string) {
   return new Date(value).toISOString().slice(0, 10);
 }
 
-function toSentenceCase(value: string) {
-  return value
-    .split(/[_\s-]+/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-    .join(" ");
-}
-
 export function DashboardDailySalesSummary() {
   const [sales, setSales] = useState<SaleRecord[]>([]);
   const [appointments, setAppointments] = useState<AppointmentRecord[]>([]);
@@ -215,7 +206,6 @@ export function DashboardDailySalesSummary() {
         clientName: client?.fullName || "Walk-in client",
         serviceName: service?.name || "General sale",
         serviceCategory: service?.category || "Unassigned",
-        appointmentStatus: appointment?.status ? toSentenceCase(appointment.status) : "Direct sale",
         amount: sale.amount,
       };
     })
@@ -235,7 +225,6 @@ export function DashboardDailySalesSummary() {
         row.serviceName,
         row.serviceCategory,
         row.paymentMethod,
-        row.appointmentStatus,
         formatCurrency(row.amount),
       ].some((value) => value.toLowerCase().includes(query));
     })
@@ -298,7 +287,6 @@ export function DashboardDailySalesSummary() {
       "Client",
       "Service",
       "Category",
-      "Appointment Status",
       "Payment Method",
       "Amount",
     ];
@@ -308,7 +296,6 @@ export function DashboardDailySalesSummary() {
       row.clientName,
       row.serviceName,
       row.serviceCategory,
-      row.appointmentStatus,
       row.paymentMethod,
       row.amount.toFixed(2),
     ]);
@@ -475,7 +462,6 @@ export function DashboardDailySalesSummary() {
                 <th>Time</th>
                 <th>Client</th>
                 <th>Service</th>
-                <th>Status</th>
                 <th>Payment</th>
                 <th>Amount</th>
               </tr>
@@ -497,14 +483,13 @@ export function DashboardDailySalesSummary() {
                         <span>{row.serviceCategory}</span>
                       </div>
                     </td>
-                    <td>{row.appointmentStatus}</td>
                     <td>{row.paymentMethod}</td>
                     <td>{formatCurrency(row.amount)}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6}>No transactions found for this date and filter combination.</td>
+                  <td colSpan={5}>No transactions found for this date and filter combination.</td>
                 </tr>
               )}
             </tbody>

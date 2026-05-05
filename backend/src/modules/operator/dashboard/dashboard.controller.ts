@@ -23,7 +23,8 @@ export async function getRoleDashboardSummary(req: Request, res: Response, next:
 
     const date = typeof req.query.date === "string" ? req.query.date : undefined;
     const branchId = typeof req.query.branchId === "string" ? req.query.branchId : undefined;
-    const summary = await getDashboardSummary(req.user, { date, branchId });
+    const trendRange = typeof req.query.trendRange === "string" ? req.query.trendRange : undefined;
+    const summary = await getDashboardSummary(req.user, { date, branchId, trendRange });
     return res.json(summary);
   } catch (error) {
     return next(error);

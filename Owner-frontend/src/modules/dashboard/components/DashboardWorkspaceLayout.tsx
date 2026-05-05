@@ -61,7 +61,9 @@ export function DashboardWorkspaceLayout() {
   );
   const workspace = getDashboardWorkspaceConfig(isManager, isMonitorView, user);
   
-  const displayTitle = isMonitorView ? workspace.title : (profile?.businessName ? `${profile.businessName} Dashboard` : workspace.title);
+  const displayTitle = !isManager && profile?.businessName
+    ? `${profile.businessName} Dashboard`
+    : workspace.title;
 
   if (isLoading) {
     return <div className="app-loading-state">Opening workspace...</div>;
@@ -76,8 +78,6 @@ export function DashboardWorkspaceLayout() {
       title={displayTitle}
       subtitle={workspace.subtitle}
       navigation={workspace.navigation}
-      ownerLocations={profile?.locations}
-      totalManagers={profile?.totalManagers}
       lowStockCount={lowStockCount}
       profileDetails={profile?.profile}
       onRefreshProfile={fetchProfile}

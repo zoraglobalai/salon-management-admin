@@ -1,11 +1,14 @@
-import { ArrowLeft, Package, AlertCircle, TrendingUp, Activity, Archive, ShoppingCart, BarChart3, ChevronRight } from "lucide-react";
+import { useState } from "react";
+import { ArrowLeft, Package, AlertCircle, TrendingUp, Archive, ShoppingCart, BarChart3, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { FiltersBar } from "../components/FiltersBar";
 import { SummaryCard } from "../components/SummaryCard";
 import { ReportDataTable, type Column } from "../components/Tables/ReportDataTable";
+import { useNotifications } from "../../../shared/components/NotificationProvider";
 import { fetchInventoryReport } from "../../../core/api";
 import { useReport } from "../hooks/useReport";
 import { exportToExcel, exportToPDF } from "../utils/exportUtils";
+import { ExportModal } from "../components/ExportModal";
 import { cn } from "../../../shared/utils/cn";
 
 type InventoryStatus = {
@@ -81,6 +84,8 @@ const columns: Column<InventoryStatus>[] = [
 ];
 
 export function InventoryReportPage() {
+  const { toast } = useNotifications();
+  const [showExportModal, setShowExportModal] = useState(false);
   const { data, loading, filters, setFilters } = useReport(
     fetchInventoryReport,
     { locationId: "all", page: 1, limit: 10 },
@@ -124,7 +129,16 @@ export function InventoryReportPage() {
         showPaymentSelector={false}
         onFilterChange={(f) => setFilters({ ...filters, ...f, page: 1 })}
         onExport={() => {
-          if (!inventoryStatus.length) return alert("No data to export");
+          if (!inventoryStatus.length) return toast("No data to export", "error");
+          setShowExportModal(true);
+        }}
+      />
+
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title="Inventory Report"
+        onExport={(type) => {
           const formatData = inventoryStatus.map((item: InventoryStatus) => ({
             Product: item.name,
             SKU: item.sku,
@@ -135,9 +149,9 @@ export function InventoryReportPage() {
             StockValue: item.stock_value,
           }));
 
-          const choice = window.confirm("Export as Excel? (Cancel for PDF)");
-          if (choice) {
+          if (type === "excel") {
             exportToExcel(formatData, `Inventory_Report_${new Date().toISOString().split("T")[0]}`);
+            toast("Exported as Excel");
           } else {
             exportToPDF(
               formatData,
@@ -145,6 +159,7 @@ export function InventoryReportPage() {
               `Inventory_Report_${new Date().toISOString().split("T")[0]}`,
               "Inventory Movement Report",
             );
+            toast("Exported as PDF");
           }
         }}
       />

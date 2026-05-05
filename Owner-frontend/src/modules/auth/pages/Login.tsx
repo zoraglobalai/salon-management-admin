@@ -17,7 +17,7 @@ export const Login: React.FC = () => {
   return (
     <AuthLayout>
       <div className="mb-6">
-        <h3 className="text-xl font-semibold text-gray-900 text-center">Owner Login</h3>
+        <h3 className="text-xl font-semibold text-gray-900 text-center">Login</h3>
       </div>
       
       <AuthForm 

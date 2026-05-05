@@ -50,7 +50,7 @@ export async function fetchDashboard() {
   return request<{ metrics: DashboardMetrics }>("/dashboard");
 }
 
-export async function fetchDashboardSummary(filters?: { date?: string; branchId?: string }) {
+export async function fetchDashboardSummary(filters?: { date?: string; branchId?: string; trendRange?: "7d" | "month" | "prev_month" }) {
   const token = sessionStorage.getItem("owner_token");
   const params = new URLSearchParams();
 
@@ -60,6 +60,10 @@ export async function fetchDashboardSummary(filters?: { date?: string; branchId?
 
   if (filters?.branchId && filters.branchId !== "all") {
     params.set("branchId", filters.branchId);
+  }
+
+  if (filters?.trendRange) {
+    params.set("trendRange", filters.trendRange);
   }
 
   const queryString = params.toString();

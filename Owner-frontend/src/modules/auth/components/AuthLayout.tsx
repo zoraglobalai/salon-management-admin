@@ -1,4 +1,5 @@
 import React from 'react';
+import logo from '../../../assets/Groomvy Logo word.png';
 
 interface AuthLayoutProps {
   children: React.ReactNode;
@@ -7,13 +8,8 @@ interface AuthLayoutProps {
 export const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          Saloon Growth Engine
-        </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          Client Portal
-        </p>
+      <div className="sm:mx-auto sm:w-full sm:max-w-md flex flex-col items-center">
+        <img src={logo} alt="Groomvy Logo" className="h-20 w-auto mb-2" />
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">

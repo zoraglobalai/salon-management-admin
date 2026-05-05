@@ -11,6 +11,39 @@ import { verifyMailerConnection } from './shared/mail/mailer';
 const DEFAULT_PORT = parseInt(process.env.PORT || '5000', 10);
 
 const ensureSchemas = async () => {
+  await query(`DO $$
+  BEGIN
+    IF EXISTS (
+      SELECT 1
+      FROM pg_type t
+      JOIN pg_enum e ON t.oid = e.enumtypid
+      WHERE t.typname = 'subscriptions_plan_enum'
+        AND e.enumlabel = 'BASIC'
+    ) AND NOT EXISTS (
+      SELECT 1
+      FROM pg_type t
+      JOIN pg_enum e ON t.oid = e.enumtypid
+      WHERE t.typname = 'subscriptions_plan_enum'
+        AND e.enumlabel = 'STANDARD'
+    ) THEN
+      ALTER TYPE "subscriptions_plan_enum" RENAME VALUE 'BASIC' TO 'STANDARD';
+    END IF;
+
+    IF EXISTS (
+      SELECT 1
+      FROM pg_type
+      WHERE typname = 'subscriptions_plan_enum'
+    ) AND NOT EXISTS (
+      SELECT 1
+      FROM pg_type t
+      JOIN pg_enum e ON t.oid = e.enumtypid
+      WHERE t.typname = 'subscriptions_plan_enum'
+        AND e.enumlabel = 'CUSTOM'
+    ) THEN
+      ALTER TYPE "subscriptions_plan_enum" ADD VALUE 'CUSTOM';
+    END IF;
+  END $$`);
+
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(20)`);
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "shopName" VARCHAR(255)`);
   await query(`ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS amount_paid NUMERIC(10,2) NOT NULL DEFAULT 0`);

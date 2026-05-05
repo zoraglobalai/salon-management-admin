@@ -23,6 +23,24 @@ type ScopeOptions = {
   paymentExpr?: string;
 };
 
+function normalizeLocationId(locationId?: string | null) {
+  const normalized = locationId?.trim();
+  if (!normalized || normalized.toLowerCase() === "all") {
+    return null;
+  }
+  return normalized;
+}
+
+function remapCombinedScope(whereClause: string, sharedParamCount: number, scopedParamOffset: number) {
+  return whereClause.replace(/\$(\d+)/g, (_, num) => {
+    const parameterIndex = Number(num);
+    if (parameterIndex <= sharedParamCount) {
+      return `$${parameterIndex}`;
+    }
+    return `$${parameterIndex + scopedParamOffset}`;
+  });
+}
+
 function buildEntityScope(
   user: AuthUserPayload,
   filters: ReportFilters,
@@ -31,7 +49,7 @@ function buildEntityScope(
 ) {
   const values: Array<string | number | null> = [user.tenant_id];
   const conditions = [`${alias}.tenant_id = $1`];
-  const selectedLocationId = user.type === "manager" ? user.branch_id : filters.locationId?.trim() || null;
+  const selectedLocationId = user.type === "manager" ? user.branch_id : normalizeLocationId(filters.locationId);
 
   if (selectedLocationId && locationExpr) {
     conditions.push(`${locationExpr} = $${values.length + 1}`);
@@ -66,7 +84,7 @@ function buildScopedFilters(
   const values: Array<string | number | null> = [user.tenant_id];
   const conditions = [`${alias}.tenant_id = $1`];
 
-  const selectedLocationId = user.type === "manager" ? user.branch_id : filters.locationId?.trim() || null;
+  const selectedLocationId = user.type === "manager" ? user.branch_id : normalizeLocationId(filters.locationId);
 
   if (selectedLocationId && locationExpr) {
     conditions.push(`${locationExpr} = $${values.length + 1}`);
@@ -291,7 +309,7 @@ export async function getStaffReport(user: AuthUserPayload, filters: ReportFilte
   const salesJoinPredicate = salesScope.whereClause.replace(/\bs\./g, "sales_filter.");
   const combinedValues = [...entityScope.values, ...salesScope.values.slice(1)];
   const salesParamOffset = entityScope.values.length - 1;
-  const salesJoinScoped = salesJoinPredicate.replace(/\$(\d+)/g, (_, num) => `$${Number(num) + salesParamOffset}`);
+  const salesJoinScoped = remapCombinedScope(salesJoinPredicate, 1, salesParamOffset);
 
   const staffPerformance = await query<any>(
     `SELECT 
@@ -341,7 +359,7 @@ export async function getServiceReport(user: AuthUserPayload, filters: ReportFil
   const salesJoinPredicate = salesScope.whereClause.replace(/\bs\./g, "sales_filter.");
   const combinedValues = [...entityScope.values, ...salesScope.values.slice(1)];
   const salesParamOffset = entityScope.values.length - 1;
-  const salesJoinScoped = salesJoinPredicate.replace(/\$(\d+)/g, (_, num) => `$${Number(num) + salesParamOffset}`);
+  const salesJoinScoped = remapCombinedScope(salesJoinPredicate, 1, salesParamOffset);
 
   const servicePerformance = await query<any>(
     `SELECT 
