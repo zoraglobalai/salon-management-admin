@@ -22,7 +22,7 @@ type InventoryOutletContext = {
 type InventoryFormState = {
   name: string;
   costPrice: string;
-  unit: "ml" | "L" | "pcs";
+  unit: "ml" | "pcs";
   quantity: string;
   stock: string;
   benefits: string;
@@ -502,7 +502,6 @@ export function DashboardInventoryPage() {
                       isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
                     }`}>
                     <option value="ml">ml</option>
-                    <option value="L">L</option>
                     <option value="pcs">pcs</option>
                   </select>
                   <ChevronDown size={16} className={`absolute right-4 top-3.5 pointer-events-none ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`} />

@@ -123,20 +123,20 @@ const UsersListPage: React.FC<UsersListPageProps> = ({ statusFilter, title = 'Us
 
   return (
     <div>
-      <div className="page-header flex items-start justify-between">
+      <div className="page-header flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="page-title">{title}</h1>
           {subtitle && <p className="page-subtitle">{subtitle}</p>}
         </div>
-        <button onClick={fetch} className="btn-secondary gap-1.5 text-xs">
+        <button onClick={fetch} className="btn-secondary w-full gap-1.5 text-xs sm:w-auto">
           <RefreshCw size={13} />
           Refresh
         </button>
       </div>
 
       <div className="card">
-        <div className="flex items-center gap-3 p-4 border-b border-[var(--color-border)]">
-          <div className="relative flex-1 max-w-sm">
+        <div className="flex flex-col gap-3 border-b border-[var(--color-border)] p-4 sm:flex-row sm:items-center">
+          <div className="relative flex-1 sm:max-w-sm">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
             <input
               type="text"
@@ -146,7 +146,7 @@ const UsersListPage: React.FC<UsersListPageProps> = ({ statusFilter, title = 'Us
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
+          <div className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)] sm:ml-auto">
             <Users size={13} />
             {filtered.length} records
           </div>

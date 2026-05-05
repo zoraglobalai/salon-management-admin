@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Bell, Loader2, X } from 'lucide-react';
+import { Bell, Loader2, Menu, X } from 'lucide-react';
 import { logsApi } from '../../services/api';
 
 interface TopNavbarProps {
   title?: string;
+  onOpenSidebar: () => void;
 }
 
 interface NotificationItem {
@@ -22,7 +23,7 @@ const actionColors: Record<string, string> = {
   TRIAL_ENDED: 'bg-amber-50 text-amber-700',
 };
 
-const TopNavbar: React.FC<TopNavbarProps> = ({ title }) => {
+const TopNavbar: React.FC<TopNavbarProps> = ({ title, onOpenSidebar }) => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -68,16 +69,19 @@ const TopNavbar: React.FC<TopNavbarProps> = ({ title }) => {
     <>
       <header
         id="topnav"
-        className="fixed top-0 right-0 flex items-center justify-between border-b border-[var(--color-border)] bg-surface px-6"
-        style={{
-          left: 'var(--sidebar-width)',
-          height: 'var(--navbar-height)',
-          zIndex: 30,
-        }}
+        className="fixed left-0 right-0 top-0 z-30 flex h-[var(--navbar-height)] items-center justify-between border-b border-[var(--color-border)] bg-surface px-4 sm:px-6 lg:left-64"
       >
         <div className="flex items-center gap-4">
+          <button
+            type="button"
+            onClick={onOpenSidebar}
+            className="rounded-full border border-[var(--color-border)] p-2 text-[var(--color-text-secondary)] transition hover:bg-[var(--color-surface-raised)] lg:hidden"
+            aria-label="Open navigation"
+          >
+            <Menu size={16} />
+          </button>
           {title && (
-            <h1 className="text-sm font-semibold text-[var(--color-text-primary)]">{title}</h1>
+            <h1 className="truncate text-sm font-semibold text-[var(--color-text-primary)]">{title}</h1>
           )}
         </div>
 

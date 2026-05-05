@@ -131,17 +131,17 @@ const RevenuePage: React.FC = () => {
 
   return (
     <div>
-      <div className="page-header flex items-start justify-between">
+      <div className="page-header flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="page-title">Revenue</h1>
           <p className="page-subtitle">Track income and payment transactions</p>
         </div>
-        <button onClick={() => void fetch()} className="btn-secondary gap-1.5 text-xs">
+        <button onClick={() => void fetch()} className="btn-secondary w-full gap-1.5 text-xs sm:w-auto">
           <RefreshCw size={13} /> Refresh
         </button>
       </div>
 
-      <div className="mb-6 grid grid-cols-2 gap-4">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <StatCard
           title="Total Revenue"
           value={`Rs ${overview?.totalRevenue?.toFixed(2) ?? '0.00'}`}

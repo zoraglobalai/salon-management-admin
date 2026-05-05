@@ -143,17 +143,17 @@ const SupportPage: React.FC = () => {
 
   return (
     <div>
-      <div className="page-header flex items-start justify-between">
+      <div className="page-header flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="page-title">Support Tickets</h1>
           <p className="page-subtitle">Manage and resolve customer support issues</p>
         </div>
-        <button onClick={() => void fetch()} className="btn-secondary gap-1.5 text-xs">
+        <button onClick={() => void fetch()} className="btn-secondary w-full gap-1.5 text-xs sm:w-auto">
           <RefreshCw size={13} /> Refresh
         </button>
       </div>
 
-      <div className="mb-6 grid grid-cols-5 gap-4">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard title="Total Tickets" value={stats?.total ?? '--'} icon={<HeadphonesIcon size={18} />} />
         <StatCard title="Open" value={stats?.open ?? '--'} icon={<HeadphonesIcon size={18} />} color="danger" />
         <StatCard title="In Progress" value={stats?.inProgress ?? '--'} icon={<HeadphonesIcon size={18} />} color="warning" />
@@ -162,7 +162,7 @@ const SupportPage: React.FC = () => {
       </div>
 
       <div className="card">
-        <div className="flex items-center gap-2 border-b border-[var(--color-border)] p-4">
+        <div className="flex flex-wrap items-center gap-2 border-b border-[var(--color-border)] p-4">
           {['', 'OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'].map((s) => (
             <button
               key={s}

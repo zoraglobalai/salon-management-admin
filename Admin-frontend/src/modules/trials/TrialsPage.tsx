@@ -95,17 +95,17 @@ const TrialsPage: React.FC = () => {
 
   return (
     <div>
-      <div className="page-header flex items-start justify-between">
+      <div className="page-header flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="page-title">Trial Management</h1>
           <p className="page-subtitle">Monitor and manage salon owner trial periods</p>
         </div>
-        <button onClick={() => void fetch()} className="btn-secondary gap-1.5 text-xs">
+        <button onClick={() => void fetch()} className="btn-secondary w-full gap-1.5 text-xs sm:w-auto">
           <RefreshCw size={13} /> Refresh
         </button>
       </div>
 
-      <div className="mb-6 grid grid-cols-4 gap-4">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard title="Total Trials" value={stats?.total ?? '--'} icon={<FlaskConical size={18} />} />
         <StatCard title="Active Trials" value={stats?.active ?? '--'} icon={<FlaskConical size={18} />} color="info" />
         <StatCard title="Expired" value={stats?.expired ?? '--'} icon={<FlaskConical size={18} />} color="danger" />
@@ -113,7 +113,7 @@ const TrialsPage: React.FC = () => {
       </div>
 
       <div className="card">
-        <div className="flex items-center gap-2 border-b border-[var(--color-border)] p-4">
+        <div className="flex flex-wrap items-center gap-2 border-b border-[var(--color-border)] p-4">
           {['', 'ACTIVE', 'EXPIRED', 'CONVERTED'].map((s) => (
             <button
               key={s}

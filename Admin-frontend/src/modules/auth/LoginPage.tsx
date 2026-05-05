@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from './authStore';
-import { Eye, EyeOff, Scissors } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
+import groovmyLogo from '../../assets/groovmy-logo.png';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -32,10 +33,12 @@ const LoginPage: React.FC = () => {
       <div className="relative w-full max-w-md fade-in">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[var(--color-primary)] shadow-lg mb-4">
-            <Scissors className="text-white" size={24} />
-          </div>
-          <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">Salon Growth Engine</h1>
+          <img
+            src={groovmyLogo}
+            alt="Groomvy logo"
+            className="mx-auto mb-4 h-20 w-20 rounded-full border border-[var(--color-border)] object-cover shadow-lg"
+          />
+          <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">Groomvy</h1>
           <p className="text-sm text-[var(--color-text-muted)] mt-1">Super Admin Panel</p>
         </div>
 

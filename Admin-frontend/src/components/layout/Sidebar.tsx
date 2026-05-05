@@ -10,14 +10,15 @@ import {
   ShieldCheck,
   ChevronDown,
   ChevronRight,
-  Scissors,
   UserPlus,
   UserCheck,
   UserX,
   List,
   LogOut,
+  X,
 } from 'lucide-react';
 import { useAuthStore } from '../../modules/auth/authStore';
+import groovmyLogo from '../../assets/groovmy-logo.png';
 
 interface NavItem {
   label: string;
@@ -46,7 +47,12 @@ const navItems: NavItem[] = [
   { label: 'Logs & Security', icon: <ShieldCheck size={18} />, to: '/logs' },
 ];
 
-const Sidebar: React.FC = () => {
+interface SidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const [openMenus, setOpenMenus] = useState<string[]>(['Users']);
@@ -63,101 +69,124 @@ const Sidebar: React.FC = () => {
   };
 
   return (
-    <aside
-      id="sidebar"
-      className="fixed top-0 left-0 h-full bg-surface border-r border-[var(--color-border)] flex flex-col"
-      style={{ width: 'var(--sidebar-width)', zIndex: 40 }}
-    >
-      {/* Logo */}
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-[var(--color-border)]">
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[var(--color-primary)]">
-          <Scissors size={16} className="text-white" />
-        </div>
-        <div>
-          <p className="text-sm font-bold text-[var(--color-text-primary)] leading-none">Salon Growth</p>
-          <p className="text-[10px] text-[var(--color-text-muted)] mt-0.5">Admin Panel</p>
-        </div>
-      </div>
+    <>
+      {isOpen ? (
+        <div
+          className="fixed inset-0 z-40 bg-black/30 lg:hidden"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      ) : null}
 
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-        {navItems.map((item) => {
-          if (item.to) {
-            return (
-              <NavLink
-                key={item.label}
-                to={item.to}
-                className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
-              >
-                <span className="shrink-0">{item.icon}</span>
-                <span>{item.label}</span>
-              </NavLink>
-            );
-          }
+      <aside
+        id="sidebar"
+        className={`fixed left-0 top-0 z-50 flex h-full w-64 flex-col border-r border-[var(--color-border)] bg-surface transition-transform duration-200 ease-out lg:translate-x-0 ${
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        {/* Logo */}
+        <div className="flex items-center gap-3 border-b border-[var(--color-border)] px-5 py-4">
+          <img
+            src={groovmyLogo}
+            alt="Groomvy logo"
+            className="h-10 w-10 shrink-0 rounded-full border border-[var(--color-border)] object-cover"
+          />
+          <div className="min-w-0">
+            <p className="text-sm font-bold leading-none text-[var(--color-text-primary)]">Groomvy</p>
+            <p className="mt-0.5 text-[10px] text-[var(--color-text-muted)]">Admin Panel</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="ml-auto rounded-full border border-[var(--color-border)] p-2 text-[var(--color-text-muted)] transition hover:bg-[var(--color-surface-raised)] lg:hidden"
+            aria-label="Close navigation"
+          >
+            <X size={14} />
+          </button>
+        </div>
 
-          const isOpen = openMenus.includes(item.label);
-          return (
-            <div key={item.label}>
-              <button
-                onClick={() => toggleMenu(item.label)}
-                className="sidebar-link w-full flex items-center justify-between"
-              >
-                <div className="flex items-center gap-3">
+        {/* Navigation */}
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+          {navItems.map((item) => {
+            if (item.to) {
+              return (
+                <NavLink
+                  key={item.label}
+                  to={item.to}
+                  onClick={onClose}
+                  className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+                >
                   <span className="shrink-0">{item.icon}</span>
                   <span>{item.label}</span>
-                </div>
-                {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-              </button>
+                </NavLink>
+              );
+            }
 
-              {isOpen && (
-                <div className="ml-4 mt-1 space-y-1 border-l border-[var(--color-border)] pl-3 slide-in">
-                  {item.children?.map((child) => (
-                    <NavLink
-                      key={child.to}
-                      to={child.to}
-                      end
-                      className={({ isActive }) =>
-                        `flex items-center gap-2 px-2 py-1.5 rounded text-xs font-medium transition-colors ${
-                          isActive
-                            ? 'text-[var(--color-primary)] bg-[var(--color-primary-light)]'
-                            : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
-                        }`
-                      }
-                    >
-                      {child.icon && <span>{child.icon}</span>}
-                      {child.label}
-                    </NavLink>
-                  ))}
-                </div>
-              )}
+            const isMenuOpen = openMenus.includes(item.label);
+            return (
+              <div key={item.label}>
+                <button
+                  onClick={() => toggleMenu(item.label)}
+                  className="sidebar-link flex w-full items-center justify-between"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="shrink-0">{item.icon}</span>
+                    <span>{item.label}</span>
+                  </div>
+                  {isMenuOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                </button>
+
+                {isMenuOpen && (
+                  <div className="slide-in ml-4 mt-1 space-y-1 border-l border-[var(--color-border)] pl-3">
+                    {item.children?.map((child) => (
+                      <NavLink
+                        key={child.to}
+                        to={child.to}
+                        end
+                        onClick={onClose}
+                        className={({ isActive }) =>
+                          `flex items-center gap-2 rounded px-2 py-1.5 text-xs font-medium transition-colors ${
+                            isActive
+                              ? 'bg-[var(--color-primary-light)] text-[var(--color-primary)]'
+                              : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
+                          }`
+                        }
+                      >
+                        {child.icon && <span>{child.icon}</span>}
+                        {child.label}
+                      </NavLink>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </nav>
+
+        {/* User Footer */}
+        <div className="border-t border-[var(--color-border)] p-3">
+          <div className="mb-1 flex items-center gap-3 rounded-lg px-2 py-2">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)]">
+              <span className="text-xs font-bold text-white">
+                {user?.name?.charAt(0).toUpperCase() || 'A'}
+              </span>
             </div>
-          );
-        })}
-      </nav>
-
-      {/* User Footer */}
-      <div className="border-t border-[var(--color-border)] p-3">
-        <div className="flex items-center gap-3 px-2 py-2 rounded-lg mb-1">
-          <div className="w-7 h-7 rounded-full bg-[var(--color-primary)] flex items-center justify-center shrink-0">
-            <span className="text-white text-xs font-bold">
-              {user?.name?.charAt(0).toUpperCase() || 'A'}
-            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-semibold text-[var(--color-text-primary)]">{user?.name || 'Admin'}</p>
+              <p className="truncate text-[10px] text-[var(--color-text-muted)]">{user?.email}</p>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-[var(--color-text-primary)] truncate">{user?.name || 'Admin'}</p>
-            <p className="text-[10px] text-[var(--color-text-muted)] truncate">{user?.email}</p>
-          </div>
+          <button
+            id="logout-btn"
+            onClick={handleLogout}
+            className="btn-ghost w-full justify-start gap-2 py-1.5 text-xs"
+          >
+            <LogOut size={14} />
+            Sign out
+          </button>
         </div>
-        <button
-          id="logout-btn"
-          onClick={handleLogout}
-          className="btn-ghost w-full text-xs justify-start gap-2 py-1.5"
-        >
-          <LogOut size={14} />
-          Sign out
-        </button>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 };
 

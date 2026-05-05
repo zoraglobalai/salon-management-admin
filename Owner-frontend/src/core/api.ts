@@ -81,7 +81,7 @@ export type InventoryItem = {
   id: string;
   name: string;
   costPrice: number;
-  unit: "ml" | "L" | "pcs";
+  unit: "ml" | "pcs";
   quantity: number;
   stock: number;
   serviceQuantity: number;
