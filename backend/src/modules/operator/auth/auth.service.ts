@@ -38,9 +38,12 @@ async function resolveMode(user: LoginResultRow): Promise<UserMode | null> {
       SELECT EXISTS (
         SELECT 1
         FROM users
-        WHERE tenant_id = $1
-          AND type = 'manager'
-          AND is_active = TRUE
+        WHERE COALESCE(tenant_id, "tenantId") = $1
+          AND (
+            type = 'manager'
+            OR (type IS NULL AND role = 'MANAGER')
+          )
+          AND COALESCE(is_active, "isActive", TRUE) = TRUE
       ) AS exists
     `,
     [user.tenant_id],
@@ -71,11 +74,27 @@ export function signToken(user: LoginResultRow, role: BusinessRole | null, mode:
 export async function loginUser(email: string, password: string) {
   const result = await query<LoginResultRow>(
     `
-      SELECT u.*, t.name AS tenant_name, b.name AS branch_name
+      SELECT
+        u.id,
+        COALESCE(u.tenant_id, u."tenantId") AS tenant_id,
+        COALESCE(u.branch_id, u."branchId") AS branch_id,
+        CASE
+          WHEN u.type IS NOT NULL THEN u.type
+          WHEN u.role = 'SUPER_ADMIN' THEN 'admin'
+          WHEN u.role = 'MANAGER' THEN 'manager'
+          ELSE 'owner'
+        END AS type,
+        u.email,
+        COALESCE(u.full_name, u.name) AS full_name,
+        COALESCE(u.password_hash, u.password) AS password_hash,
+        COALESCE(u.is_active, u."isActive", TRUE) AS is_active,
+        t.name AS tenant_name,
+        b.name AS branch_name
       FROM users u
-      LEFT JOIN tenants t ON t.id = u.tenant_id
-      LEFT JOIN branches b ON b.id = u.branch_id
-      WHERE u.email = $1 AND u.is_active = TRUE
+      LEFT JOIN tenants t ON t.id = COALESCE(u.tenant_id, u."tenantId")
+      LEFT JOIN branches b ON b.id = COALESCE(u.branch_id, u."branchId")
+      WHERE u.email = $1
+        AND COALESCE(u.is_active, u."isActive", TRUE) = TRUE
     `,
     [email.toLowerCase()],
   );
