@@ -7,21 +7,25 @@ export interface AppError extends Error {
 
 export const errorHandler = (
   err: AppError,
-  _req: Request,
+  req: Request,
   res: Response,
   _next: NextFunction
 ): void => {
-  const statusCode = err.statusCode || 500;
-  const message = err.isOperational ? err.message : 'Internal Server Error';
+  const statusCode = err.statusCode ?? 500;
+  const isOperational = err.isOperational === true;
+  const message = isOperational ? err.message : 'Internal Server Error';
 
-  if (process.env.NODE_ENV !== 'production') {
-    console.error('[Error]', err.message, err.stack);
-  }
+  // Always log full details server-side to help debug production 500s
+  console.error(
+    `[${new Date().toISOString()}] ${req.method} ${req.path} → ${statusCode}`,
+    '\nMessage:', err.message,
+    '\nStack:', err.stack,
+  );
 
   res.status(statusCode).json({
     success: false,
     message,
-    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack }),
+    ...(process.env.NODE_ENV !== 'production' && { debug: err.message, stack: err.stack }),
   });
 };
 

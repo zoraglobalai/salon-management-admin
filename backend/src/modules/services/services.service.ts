@@ -156,7 +156,7 @@ async function getAccessibleLocationId(user: AuthUserPayload, requestedLocationI
   }
 
   const branchCheck = await query<{ id: string }>(
-    `SELECT id FROM branches WHERE id = $1 AND "tenantId" = $2 LIMIT 1`,
+    `SELECT id FROM branches WHERE id = $1 AND tenant_id = $2 LIMIT 1`,
     [requestedLocationId, user.tenant_id],
   );
 
@@ -167,28 +167,33 @@ async function getAccessibleLocationId(user: AuthUserPayload, requestedLocationI
   return requestedLocationId;
 }
 
-async function getServiceById(serviceId: string, serviceColumns: Set<string>) {
+async function getServiceById(
+  serviceId: string,
+  serviceColumns: Set<string>,
+  client?: import("../../database/pool").PoolClient,
+) {
   const sql = getServiceSql(serviceColumns, "services");
-  const result = await query<ServiceRow>(
-    `
-      SELECT
-        services.id,
-        services.name,
-        services.price,
-        ${sql.durationExpr} AS duration,
-        ${sql.benefitsExpr} AS benefits,
-        ${sql.locationExpr} AS location_id,
-        services.created_at,
-        ${sql.updatedAtExpr} AS updated_at
-      FROM services
-      WHERE services.id = $1
-      LIMIT 1
-    `,
-    [serviceId],
-  );
+  const SELECT_SQL = `
+    SELECT
+      services.id,
+      services.name,
+      services.price,
+      ${sql.durationExpr} AS duration,
+      ${sql.benefitsExpr} AS benefits,
+      ${sql.locationExpr} AS location_id,
+      services.created_at,
+      ${sql.updatedAtExpr} AS updated_at
+    FROM services
+    WHERE services.id = $1
+    LIMIT 1
+  `;
+  const result = client
+    ? await client.query<ServiceRow>(SELECT_SQL, [serviceId])
+    : await query<ServiceRow>(SELECT_SQL, [serviceId]);
 
   return result.rows[0] ?? null;
 }
+
 
 async function validateInventoryProducts(
   user: AuthUserPayload,
@@ -196,7 +201,7 @@ async function validateInventoryProducts(
   productIds: string[],
   inventoryColumns: Set<string>,
 ) {
-  const inventorySql = getInventorySql(inventoryColumns);
+  const inventorySql = getInventorySql(inventoryColumns, "inventory");
   const inventoryCheck = await query<{ id: string }>(
     `
       SELECT id
@@ -346,7 +351,10 @@ export async function createServiceItem(user: AuthUserPayload, input: ServiceInp
       insertValues,
     );
 
-    const serviceId = serviceResult.rows[0].id;
+    const serviceId = serviceResult.rows[0]?.id;
+    if (!serviceId) {
+      throw createError("Service could not be created. Insert returned no ID.", 500);
+    }
 
     for (const product of normalized.products) {
       await client.query(
@@ -358,7 +366,7 @@ export async function createServiceItem(user: AuthUserPayload, input: ServiceInp
       );
     }
 
-    const service = await getServiceById(serviceId, serviceColumns);
+    const service = await getServiceById(serviceId, serviceColumns, client);
     if (!service) {
       throw createError("Service could not be loaded after creation.", 500);
     }
@@ -376,8 +384,8 @@ export async function executeServiceUsage(user: AuthUserPayload, serviceId: stri
     getTableColumns("services"),
     getTableColumns("inventory"),
   ]);
-  const serviceSql = getServiceSql(serviceColumns);
-  const inventorySql = getInventorySql(inventoryColumns);
+  const serviceSql = getServiceSql(serviceColumns, "services");
+  const inventorySql = getInventorySql(inventoryColumns, "inventory");
 
   return withTransaction(async (client) => {
     const serviceResult = await client.query<{ id: string; location_id: string }>(
@@ -399,7 +407,7 @@ export async function executeServiceUsage(user: AuthUserPayload, serviceId: stri
 
     const productsResult = await client.query<{ product_id: string; quantity_used: string; name: string }>(
       `
-        SELECT sp.product_id, sp.quantity_used, ${inventorySql.nameExpr} AS name
+        SELECT sp.product_id, sp.quantity_used, ${getInventorySql(inventoryColumns, "i").nameExpr} AS name
         FROM service_products sp
         JOIN inventory i ON i.id = sp.product_id
         WHERE sp.service_id = $1
@@ -425,7 +433,7 @@ export async function executeServiceUsage(user: AuthUserPayload, serviceId: stri
           UPDATE inventory
           SET ${setClause}
           WHERE id = $2
-            AND ${inventorySql.locationExpr} = $3
+            AND ${getInventorySql(inventoryColumns, "inventory").locationExpr} = $3
             AND ${stockExpr} >= $1
           RETURNING id
         `,
@@ -443,7 +451,7 @@ export async function executeServiceUsage(user: AuthUserPayload, serviceId: stri
 
 export async function deleteServiceItem(user: AuthUserPayload, serviceId: string) {
   const serviceColumns = await getTableColumns("services");
-  const serviceSql = getServiceSql(serviceColumns);
+  const serviceSql = getServiceSql(serviceColumns, "services");
   const result = await query<{ id: string }>(
     `
       DELETE FROM services
@@ -473,7 +481,7 @@ export async function updateServiceItem(user: AuthUserPayload, serviceId: string
     getTableColumns("services"),
     getTableColumns("inventory"),
   ]);
-  const serviceSql = getServiceSql(serviceColumns);
+  const serviceSql = getServiceSql(serviceColumns, "services");
   await validateInventoryProducts(user, locationId, productIds, inventoryColumns);
 
   return withTransaction(async (client) => {
@@ -528,7 +536,7 @@ export async function updateServiceItem(user: AuthUserPayload, serviceId: string
       );
     }
 
-    const service = await getServiceById(updatedServiceId, serviceColumns);
+    const service = await getServiceById(updatedServiceId, serviceColumns, client);
     if (!service) {
       throw createError("Service could not be loaded after update.", 500);
     }

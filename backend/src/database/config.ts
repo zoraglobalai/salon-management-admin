@@ -13,6 +13,7 @@ import { CreatePlatformCoreTables1714300000000 } from './migrations/171430000000
 import { SyncSubscriptionPlanEnum1714400000000 } from './migrations/1714400000000-SyncSubscriptionPlanEnum';
 import { CreateOperationalSchema1714500000000 } from './migrations/1714500000000-CreateOperationalSchema';
 import { AddDeploymentCompatibilitySchema1714600000000 } from './migrations/1714600000000-AddDeploymentCompatibilitySchema';
+import { FixSchemaAndLogicBugs1714700000000 } from './migrations/1714700000000-FixSchemaAndLogicBugs';
 
 export const databaseConfig = {
   host: ENV.DB_HOST,
@@ -34,5 +35,6 @@ export const AppDataSource = new DataSource({
     SyncSubscriptionPlanEnum1714400000000,
     CreateOperationalSchema1714500000000,
     AddDeploymentCompatibilitySchema1714600000000,
+    FixSchemaAndLogicBugs1714700000000,
   ],
 });

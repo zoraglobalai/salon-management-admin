@@ -173,7 +173,7 @@ async function getAccessibleLocationId(user: AuthUserPayload, requestedLocationI
   }
 
   const branchCheck = await query<{ id: string }>(
-    `SELECT id FROM branches WHERE id = $1 AND "tenantId" = $2 LIMIT 1`,
+    `SELECT id FROM branches WHERE id = $1 AND tenant_id = $2 LIMIT 1`,
     [requestedLocationId, user.tenant_id],
   );
 
@@ -315,7 +315,7 @@ export async function updateInventoryItem(user: AuthUserPayload, inventoryId: st
   const locationId = await getAccessibleLocationId(user, normalized.locationId);
   const legacyReorderLevel = Math.max(Math.floor(normalized.stock), 0);
   const columns = await getTableColumns("inventory");
-  const sql = getInventorySql(columns);
+  const sql = getInventorySql(columns, "inventory");
 
   const existing = await query<{ id: string }>(
     `
@@ -368,6 +368,10 @@ export async function updateInventoryItem(user: AuthUserPayload, inventoryId: st
     values,
   );
 
+  if (!result.rows[0]) {
+    throw createError("Inventory item not found or update failed.", 404);
+  }
+
   const item = await getInventoryItemById(columns, result.rows[0].id);
   if (!item) {
     throw createError("Inventory item could not be loaded after update.", 500);
@@ -378,7 +382,7 @@ export async function updateInventoryItem(user: AuthUserPayload, inventoryId: st
 
 export async function deleteInventoryItem(user: AuthUserPayload, inventoryId: string) {
   const columns = await getTableColumns("inventory");
-  const sql = getInventorySql(columns);
+  const sql = getInventorySql(columns, "inventory");
   const result = await query<{ id: string }>(
     `
       DELETE FROM inventory
@@ -401,7 +405,7 @@ export async function moveStockToService(user: AuthUserPayload, inventoryId: str
   }
 
   const columns = await getTableColumns("inventory");
-  const sql = getInventorySql(columns);
+  const sql = getInventorySql(columns, "inventory");
   const existing = await query<{ stock: string; quantity: string }>(
     `
       SELECT ${sql.stockExpr} AS stock, ${sql.quantityExpr} AS quantity
@@ -430,9 +434,8 @@ export async function moveStockToService(user: AuthUserPayload, inventoryId: str
   if (columns.has("stock")) {
     mutations.push(`stock = COALESCE(stock, 0) - $4`);
   }
-  if (columns.has("reorder_level")) {
-    mutations.push(`reorder_level = COALESCE(reorder_level, 0) - $4`);
-  }
+  // NOTE: reorder_level is a low-stock threshold, NOT a stock counter.
+  // Do NOT decrement it during stock transfers.
   if (columns.has("service_quantity")) {
     mutations.push(`service_quantity = COALESCE(service_quantity, 0) + $5`);
   }
@@ -452,6 +455,10 @@ export async function moveStockToService(user: AuthUserPayload, inventoryId: str
     `,
     [inventoryId, user.tenant_id, user.type === "manager" ? user.branch_id : null, quantityToMove, volumeToAdd],
   );
+
+  if (result.rows.length === 0) {
+    throw createError("Inventory item not found or insufficient stock.", 404);
+  }
 
   const item = await getInventoryItemById(columns, result.rows[0].id);
   if (!item) {
