@@ -146,7 +146,7 @@ export function AssignManagerModal({
               <select
                 required
                 className={`w-full appearance-none pl-11 pr-4 py-3 rounded-2xl border outline-none transition-all text-sm font-bold ${
-                  isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
+                  isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E] [color-scheme:dark]" : "bg-gray-50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C] [color-scheme:light]"
                 } disabled:opacity-50`}
                 value={formData.branchId}
                 onChange={(e) => setFormData({ ...formData, branchId: e.target.value })}

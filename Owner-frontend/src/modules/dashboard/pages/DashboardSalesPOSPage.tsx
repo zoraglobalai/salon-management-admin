@@ -271,7 +271,7 @@ export function DashboardSalesPOSPage() {
                       setSelectedProducts([]);
                     }}
                     className={`w-full appearance-none px-4 py-3 rounded-2xl border outline-none transition-all text-sm font-bold ${
-                      isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#C8BFB4] focus:border-[#C9A96E]" : "bg-gray-50 border-[#E8E1D8] text-gray-700 focus:border-[#8B5E3C]"
+                      isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#C8BFB4] focus:border-[#C9A96E] [color-scheme:dark]" : "bg-gray-50 border-[#E8E1D8] text-gray-700 focus:border-[#8B5E3C] [color-scheme:light]"
                     }`}
                   >
                     {ownerLocations.map((location) => (
@@ -451,7 +451,7 @@ export function DashboardSalesPOSPage() {
                     value={s.staffId}
                     onChange={(e) => handleAssignStaff(idx, e.target.value)}
                     className={`w-full appearance-none text-[10px] font-black uppercase tracking-widest px-4 py-2.5 rounded-xl border outline-none transition-all ${
-                      isDark ? "bg-[#151821] border-[rgba(255,255,255,0.05)] text-[#C8BFB4] focus:border-[#C9A96E]" : "bg-white border-[#E8E1D8] text-gray-700"
+                      isDark ? "bg-[#151821] border-[rgba(255,255,255,0.05)] text-[#C8BFB4] focus:border-[#C9A96E] [color-scheme:dark]" : "bg-white border-[#E8E1D8] text-gray-700"
                     }`}
                   >
                     <option value="">Assign Specialist</option>
@@ -515,7 +515,7 @@ export function DashboardSalesPOSPage() {
                   <select 
                     value={discountType}
                     onChange={(e) => setDiscountType(e.target.value as any)}
-                    className={`bg-transparent text-[10px] font-black uppercase outline-none border-l pl-2 ${isDark ? "border-[rgba(255,255,255,0.1)] text-[#C9A96E]" : "border-gray-200 text-[#8B5E3C]"}`}
+                    className={`bg-transparent text-[10px] font-black uppercase outline-none border-l pl-2 ${isDark ? "border-[rgba(255,255,255,0.1)] text-[#C9A96E] [color-scheme:dark]" : "border-gray-200 text-[#8B5E3C]"}`}
                   >
                     <option value="flat">₹</option>
                     <option value="percent">%</option>

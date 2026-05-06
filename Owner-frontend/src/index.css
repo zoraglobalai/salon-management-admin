@@ -113,6 +113,12 @@
   --theme-toggle-icon: #E8C98A;
   --theme-action-chip: #C9A96E;
   --theme-shadow-strong: var(--dk-shadow-modal);
+  color-scheme: dark;
+}
+
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] option {
+  color-scheme: dark;
 }
 
 * {

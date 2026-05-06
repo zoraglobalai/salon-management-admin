@@ -178,7 +178,7 @@ export function DashboardSalesHistoryPage() {
                   onChange={(e) => setSelectedLocationId(e.target.value)}
                   disabled={isManager}
                   className={`w-full h-10 pl-10 pr-10 rounded-xl border appearance-none text-xs font-bold outline-none transition-all disabled:opacity-50 ${
-                    isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3]" : "bg-gray-50 border-[#F2EDE7] text-gray-900"
+                    isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3] [color-scheme:dark]" : "bg-gray-50 border-[#F2EDE7] text-gray-900 [color-scheme:light]"
                   }`}
                 >
                   <option value="all">All Locations</option>
@@ -197,7 +197,7 @@ export function DashboardSalesHistoryPage() {
                   value={filters.startDate}
                   onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
                   className={`flex-1 h-10 px-3 rounded-xl border text-xs font-bold outline-none transition-all ${
-                    isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50 border-[#F2EDE7] text-gray-900 focus:border-[#8B5E3C]"
+                    isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3] focus:border-[#C9A96E] [color-scheme:dark]" : "bg-gray-50 border-[#F2EDE7] text-gray-900 focus:border-[#8B5E3C] [color-scheme:light]"
                   }`}
                 />
                 <span className={`text-[10px] font-black uppercase opacity-40 ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>to</span>
@@ -206,7 +206,7 @@ export function DashboardSalesHistoryPage() {
                   value={filters.endDate}
                   onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
                   className={`flex-1 h-10 px-3 rounded-xl border text-xs font-bold outline-none transition-all ${
-                    isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50 border-[#F2EDE7] text-gray-900 focus:border-[#8B5E3C]"
+                    isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3] focus:border-[#C9A96E] [color-scheme:dark]" : "bg-gray-50 border-[#F2EDE7] text-gray-900 focus:border-[#8B5E3C] [color-scheme:light]"
                   }`}
                 />
               </div>
@@ -219,7 +219,7 @@ export function DashboardSalesHistoryPage() {
                   value={filters.paymentMethod}
                   onChange={(e) => setFilters(prev => ({ ...prev, paymentMethod: e.target.value }))}
                   className={`w-full h-10 pl-10 pr-10 rounded-xl border appearance-none text-xs font-bold outline-none transition-all ${
-                    isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3]" : "bg-gray-50 border-[#F2EDE7] text-gray-900"
+                    isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3] [color-scheme:dark]" : "bg-gray-50 border-[#F2EDE7] text-gray-900 [color-scheme:light]"
                   }`}
                 >
                   <option value="all">All Channels</option>
@@ -239,7 +239,7 @@ export function DashboardSalesHistoryPage() {
                   value={filters.staffId}
                   onChange={(e) => setFilters(prev => ({ ...prev, staffId: e.target.value }))}
                   className={`w-full h-10 pl-10 pr-10 rounded-xl border appearance-none text-xs font-bold outline-none transition-all ${
-                    isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3]" : "bg-gray-50 border-[#F2EDE7] text-gray-900"
+                    isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3] [color-scheme:dark]" : "bg-gray-50 border-[#F2EDE7] text-gray-900 [color-scheme:light]"
                   }`}
                 >
                   <option value="all">All Personnel</option>
@@ -257,7 +257,7 @@ export function DashboardSalesHistoryPage() {
                   value={filters.serviceId}
                   onChange={(e) => setFilters(prev => ({ ...prev, serviceId: e.target.value }))}
                   className={`w-full h-10 pl-10 pr-10 rounded-xl border appearance-none text-xs font-bold outline-none transition-all ${
-                    isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3]" : "bg-gray-50 border-[#F2EDE7] text-gray-900"
+                    isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3] [color-scheme:dark]" : "bg-gray-50 border-[#F2EDE7] text-gray-900 [color-scheme:light]"
                   }`}
                 >
                   <option value="all">All Services</option>

@@ -244,7 +244,7 @@ export function DashboardServicesPage() {
                 value={globalFilters.locationId}
                 onChange={(e) => setFilters({ locationId: e.target.value })}
                 className={`appearance-none rounded-xl border px-10 py-2.5 text-sm font-semibold outline-none transition-all ${
-                  isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#C8BFB4] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-700 focus:border-[#8B5E3C]"
+                  isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#C8BFB4] focus:border-[#C9A96E] [color-scheme:dark]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-700 focus:border-[#8B5E3C] [color-scheme:light]"
                 }`}
               >
                 <option value="all">All Locations</option>
@@ -431,7 +431,7 @@ export function DashboardServicesPage() {
                       <select required disabled={!!editingService} value={form.locationId}
                         onChange={(e) => setForm({ ...form, locationId: e.target.value, products: [] })}
                         className={`w-full appearance-none rounded-xl border px-4 py-3 text-sm outline-none transition-all disabled:opacity-50 ${
-                          isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
+                          isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E] [color-scheme:dark]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C] [color-scheme:light]"
                         }`}>
                         <option value="" disabled>Select Branch</option>
                         {locationOptions.map((loc) => (
@@ -515,7 +515,7 @@ export function DashboardServicesPage() {
                           <div className="flex-1 relative">
                             <select required value={product.productId} onChange={(e) => handleProductChange(index, "productId", e.target.value)}
                               className={`w-full appearance-none rounded-xl border px-3 py-2 text-xs outline-none transition-all ${
-                                isDark ? "bg-[#151821] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
+                                isDark ? "bg-[#151821] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E] [color-scheme:dark]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C] [color-scheme:light]"
                               }`}>
                               <option value="" disabled>Item</option>
                               {availableInventory.map((item) => (

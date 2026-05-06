@@ -113,8 +113,8 @@ export function FiltersBar({
     : "bg-white border-[#E8E1D8] shadow-sm";
 
   const selectCls = isDark
-    ? "appearance-none rounded-xl border border-[rgba(255,255,255,0.1)] bg-[#1C2030] text-[#C8BFB4] transition focus:outline-none focus:border-[rgba(201,169,110,0.4)] focus:ring-2 focus:ring-[rgba(201,169,110,0.15)] hover:border-[rgba(255,255,255,0.18)]"
-    : "appearance-none rounded-xl border border-[#E5E7EB] bg-white text-[#4B5563] transition hover:bg-[#F9FAFB] focus:outline-none focus:ring-2 focus:ring-[#8B5E3C]/20";
+    ? "appearance-none rounded-xl border border-[rgba(255,255,255,0.1)] bg-[#1C2030] text-[#C8BFB4] transition focus:outline-none focus:border-[rgba(201,169,110,0.4)] focus:ring-2 focus:ring-[rgba(201,169,110,0.15)] hover:border-[rgba(255,255,255,0.18)] [color-scheme:dark]"
+    : "appearance-none rounded-xl border border-[#E5E7EB] bg-white text-[#4B5563] transition hover:bg-[#F9FAFB] focus:outline-none focus:ring-2 focus:ring-[#8B5E3C]/20 [color-scheme:light]";
 
   const calendarIconCls = isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]";
   const chevronIconCls = isDark ? "text-[#7A7572]" : "text-gray-400";

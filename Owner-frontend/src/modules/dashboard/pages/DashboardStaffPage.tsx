@@ -162,7 +162,7 @@ export function DashboardStaffPage() {
             <div className="relative">
               <select value={globalFilters.locationId} onChange={(e) => setFilters({ locationId: e.target.value })}
                 className={`appearance-none rounded-xl border px-10 py-2.5 text-sm font-semibold outline-none transition-all ${
-                  isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#C8BFB4] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-700 focus:border-[#8B5E3C]"
+                  isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#C8BFB4] focus:border-[#C9A96E] [color-scheme:dark]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-700 focus:border-[#8B5E3C] [color-scheme:light]"
                 }`}>
                 <option value="all">All Locations</option>
                 {locationOptions.map((l) => <option key={l.id} value={l.id}>{l.city || l.name}</option>)}
@@ -325,7 +325,7 @@ export function DashboardStaffPage() {
                         <div className="relative">
                           <select required name="locationId" value={form.locationId} onChange={f}
                             className={`w-full appearance-none rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
-                              isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
+                              isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E] [color-scheme:dark]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C] [color-scheme:light]"
                             }`}>
                             <option value="" disabled>Select Branch</option>
                             {locationOptions.map((l) => <option key={l.id} value={l.id}>{l.city || l.name}</option>)}
@@ -355,7 +355,7 @@ export function DashboardStaffPage() {
                       <div className="relative">
                         <select required name="role" value={form.role} onChange={f}
                           className={`w-full appearance-none rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
-                            isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
+                            isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E] [color-scheme:dark]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C] [color-scheme:light]"
                           }`}>
                           <option value="" disabled>Select Role</option>
                           {ROLE_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
@@ -387,7 +387,7 @@ export function DashboardStaffPage() {
                       <div className="relative">
                         <input type="date" name="joiningDate" value={form.joiningDate} onChange={f}
                           className={`w-full rounded-xl border pl-10 pr-4 py-3 text-sm outline-none transition-all ${
-                            isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E] [color-scheme:dark]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
+                            isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E] [color-scheme:dark]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C] [color-scheme:light]"
                           }`} />
                         <Calendar size={14} className={`absolute left-3.5 top-3.5 ${isDark ? "text-[#7A7572]" : "text-gray-400"}`} />
                       </div>
@@ -469,7 +469,7 @@ export function DashboardStaffPage() {
                       <div className="relative">
                         <select name="idType" value={form.idType} onChange={f}
                           className={`w-full appearance-none rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
-                            isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
+                            isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E] [color-scheme:dark]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C] [color-scheme:light]"
                           }`}>
                           <option value="">Select ID Type</option>
                           {ID_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}

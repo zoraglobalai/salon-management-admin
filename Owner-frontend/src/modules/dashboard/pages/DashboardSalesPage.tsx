@@ -250,8 +250,8 @@ export function DashboardSalesPage() {
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
             placeholder="Search by ID, client or amount…"
-            className={`w-full rounded-2xl border pl-12 pr-4 py-3 text-sm outline-none transition-all ${
-              isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E] placeholder:text-[#4A4744]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
+            className={`w-full appearance-none pl-11 pr-4 py-3 rounded-2xl border outline-none transition-all text-sm font-bold ${
+              isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E] [color-scheme:dark]" : "bg-gray-50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C] [color-scheme:light]"
             }`}
           />
           <Search size={18} className={`absolute left-4 top-3.5 ${isDark ? "text-[#7A7572]" : "text-gray-400"}`} />
@@ -276,7 +276,7 @@ export function DashboardSalesPage() {
         <div className="relative">
           <select value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value)}
             className={`appearance-none rounded-2xl border pl-10 pr-10 py-3 text-sm font-bold outline-none transition-all ${
-              isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#C8BFB4] focus:border-[#C9A96E]" : "bg-white border-[#E8E1D8] text-gray-700 focus:border-[#8B5E3C]"
+              isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#C8BFB4] focus:border-[#C9A96E] [color-scheme:dark]" : "bg-white border-[#E8E1D8] text-gray-700 focus:border-[#8B5E3C] [color-scheme:light]"
             }`}>
             <option value="all">All Channels</option>
             {paymentMethods.map((method) => (
@@ -290,7 +290,7 @@ export function DashboardSalesPage() {
         <div className="relative">
           <select value={sortBy} onChange={(event) => setSortBy(event.target.value as SortOption)}
             className={`appearance-none rounded-2xl border pl-5 pr-10 py-3 text-sm font-bold outline-none transition-all ${
-              isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#C8BFB4] focus:border-[#C9A96E]" : "bg-white border-[#E8E1D8] text-gray-700 focus:border-[#8B5E3C]"
+              isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#C8BFB4] focus:border-[#C9A96E] [color-scheme:dark]" : "bg-white border-[#E8E1D8] text-gray-700 focus:border-[#8B5E3C] [color-scheme:light]"
             }`}>
             <option value="newest">Newest First</option>
             <option value="oldest">Oldest First</option>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { fetchResource } from "../../../core/api";
 import type { ResourceItem } from "../../../core/types";
 import { SectionCard } from "../../../shared/components/SectionCard";
+import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
 
 type SaleRecord = {
   id: string;
@@ -134,6 +135,8 @@ function toDateInputValue(value: string) {
 }
 
 export function DashboardDailySalesSummary() {
+  const { theme } = useDashboardTheme();
+  const isDark = theme === "dark";
   const [sales, setSales] = useState<SaleRecord[]>([]);
   const [appointments, setAppointments] = useState<AppointmentRecord[]>([]);
   const [services, setServices] = useState<ServiceRecord[]>([]);
@@ -354,7 +357,7 @@ export function DashboardDailySalesSummary() {
 
         <label className="filter-field">
           <span>Date</span>
-          <input type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} />
+          <input type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} className={isDark ? "bg-[#1C2030] text-[#F0EBE3] [color-scheme:dark]" : "bg-white text-gray-900 [color-scheme:light]"} />
         </label>
 
         <label className="filter-field filter-field-search">
@@ -369,7 +372,7 @@ export function DashboardDailySalesSummary() {
 
         <label className="filter-field">
           <span>Payment</span>
-          <select value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value)}>
+          <select value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value)} className={isDark ? "bg-[#1C2030] text-[#F0EBE3] [color-scheme:dark]" : "bg-white text-gray-900 [color-scheme:light]"}>
             <option value="all">All methods</option>
             {availablePaymentMethods.map((method) => (
               <option key={method} value={method}>

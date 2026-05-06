@@ -231,7 +231,7 @@ export function DashboardInventoryPage() {
                 value={globalFilters.locationId}
                 onChange={(event) => setFilters({ locationId: event.target.value })}
                 className={`appearance-none rounded-xl border px-10 py-2.5 text-sm font-semibold outline-none transition-all ${
-                  isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#C8BFB4] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-700 focus:border-[#8B5E3C]"
+                  isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#C8BFB4] focus:border-[#C9A96E] [color-scheme:dark]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-700 focus:border-[#8B5E3C] [color-scheme:light]"
                 }`}
               >
                 <option value="all">All Locations</option>
@@ -468,7 +468,7 @@ export function DashboardInventoryPage() {
                   <div className="relative">
                     <select required value={form.locationId} onChange={(event) => setForm((current) => ({ ...current, locationId: event.target.value }))}
                       className={`w-full appearance-none rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
-                        isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
+                        isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E] [color-scheme:dark]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C] [color-scheme:light]"
                       }`}>
                       <option value="" disabled>Select a location</option>
                       {locationOptions.map((location) => (
@@ -491,7 +491,7 @@ export function DashboardInventoryPage() {
                 <div className="relative">
                   <select value={form.unit} onChange={(event) => setForm((current) => ({ ...current, unit: event.target.value as InventoryFormState["unit"] }))}
                     className={`w-full appearance-none rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
-                      isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
+                      isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E] [color-scheme:dark]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
                     }`}>
                     <option value="ml">ml</option>
                     <option value="pcs">pcs</option>

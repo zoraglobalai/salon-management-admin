@@ -183,7 +183,7 @@ function ToolbarChip({
 
   return (
     <div
-      className={`inline-flex h-10 items-center gap-2 rounded-[14px] border px-3.5 text-[13px] font-medium transition-all ${
+      className={`relative inline-flex h-10 items-center gap-2 rounded-[14px] border px-3.5 text-[13px] font-medium transition-all ${
         isDark
           ? "border-[rgba(255,255,255,0.08)] bg-[#1C2030] text-[#C8BFB4] shadow-[0_4px_12px_rgba(0,0,0,0.25)]"
           : "border-[#eadfd4] bg-white px-3.5 text-[13px] font-medium text-[#2b241e] shadow-[0_8px_20px_rgba(84,62,45,0.05)]"
@@ -269,8 +269,8 @@ function LineAreaChart({
             onChange={(event) => onTrendRangeChange(event.target.value as TrendRange)}
             className={`inline-flex h-9 appearance-none items-center justify-between rounded-[12px] border px-4 pr-10 text-[13px] outline-none transition-all ${
               isDark
-                ? "border-[rgba(255,255,255,0.1)] bg-[#1C2030] text-[#C8BFB4] focus:border-[#C9A96E]"
-                : "border-[#eadfd4] bg-[#fbf7f3] text-[#2A2A32]"
+                ? "border-[rgba(255,255,255,0.1)] bg-[#1C2030] text-[#C8BFB4] focus:border-[#C9A96E] [color-scheme:dark]"
+                : "border-[#eadfd4] bg-[#fbf7f3] text-[#2A2A32] [color-scheme:light]"
             }`}
             aria-label="Select revenue chart range"
           >
@@ -570,13 +570,16 @@ export function DashboardSummary() {
 
         <div className="flex flex-wrap items-center gap-3">
           {!isManager ? (
-            <label className="relative">
+            <label className="relative cursor-pointer group">
               <ToolbarChip className="pr-9">
                 <MapPin size={15} className={isDark ? "text-[#C9A96E]" : "text-[#5A5049]"} />
+                <span className="text-[14px]">
+                  {globalFilters.locationId === "all" ? "All Branches" : getLocationLabel(selectedLocation)}
+                </span>
                 <select
                   value={globalFilters.locationId}
                   onChange={(event) => setFilters({ locationId: event.target.value })}
-                  className="appearance-none bg-transparent pr-1 text-[14px] outline-none"
+                  className={`absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 ${isDark ? "[color-scheme:dark]" : "[color-scheme:light]"}`}
                   aria-label="Select branch"
                 >
                   <option value="all">All Branches</option>
@@ -586,8 +589,8 @@ export function DashboardSummary() {
                     </option>
                   ))}
                 </select>
+                <ChevronDown size={16} className={`absolute right-3 top-3 transition-transform group-hover:translate-y-0.5 ${isDark ? "text-[#C9A96E]" : "text-[#5A5049]"}`} />
               </ToolbarChip>
-              <ChevronDown size={16} className={`pointer-events-none absolute right-3 top-3 ${isDark ? "text-[#C9A96E]" : "text-[#5A5049]"}`} />
             </label>
           ) : (
             <ToolbarChip>
@@ -597,7 +600,7 @@ export function DashboardSummary() {
           )}
 
           <label className="relative">
-            <ToolbarChip className="pr-9">
+            <ToolbarChip className="pr-4">
               <CalendarDays size={15} className={isDark ? "text-[#C9A96E]" : "text-[#5A5049]"} />
               <input
                 type="date"
@@ -608,7 +611,6 @@ export function DashboardSummary() {
                 aria-label="Select dashboard date"
               />
             </ToolbarChip>
-            <ChevronDown size={16} className={`pointer-events-none absolute right-3 top-3 ${isDark ? "text-[#C9A96E]" : "text-[#5A5049]"}`} />
           </label>
 
           <button
