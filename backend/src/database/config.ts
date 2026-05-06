@@ -25,5 +25,5 @@ export const AppDataSource = new DataSource({
   type: 'postgres',
   ...databaseConfig,
   entities: [User, Tenant, Branch, Subscription, Trial, RevenueTransaction, SupportTicket, Log],
-  migrations: ['src/database/migrations/*.ts', 'dist/database/migrations/*.js'],
+  migrations: ['src/database/migrations/*.ts'],
 });

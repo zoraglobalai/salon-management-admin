@@ -40,6 +40,10 @@ type InventoryInput = {
   locationId?: string;
 };
 
+type SchemaColumnRow = {
+  column_name: string;
+};
+
 const ALLOWED_UNITS = new Set(["ml", "L", "pcs"]);
 
 function mapInventoryRow(row: InventoryRow): InventoryRecord {
@@ -98,6 +102,51 @@ function normalizeInput(input: InventoryInput) {
   };
 }
 
+async function getTableColumns(tableName: string) {
+  const result = await query<SchemaColumnRow>(
+    `
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = $1
+    `,
+    [tableName],
+  );
+
+  return new Set(result.rows.map((row) => row.column_name));
+}
+
+function getInventorySql(columns: Set<string>, alias = "i") {
+  const nameExpr = columns.has("name") ? `${alias}.name` : `${alias}.item_name`;
+  const costExpr = columns.has("cost_price")
+    ? `COALESCE(${alias}.cost_price, 0)`
+    : columns.has("unit_cost")
+      ? `COALESCE(${alias}.unit_cost, 0)`
+      : "0";
+  const unitExpr = columns.has("unit") ? `COALESCE(${alias}.unit, 'pcs')` : `'pcs'`;
+  const quantityExpr = columns.has("quantity") ? `COALESCE(${alias}.quantity, 0)` : "0";
+  const stockExpr = columns.has("stock")
+    ? `COALESCE(${alias}.stock, 0)`
+    : columns.has("reorder_level")
+      ? `COALESCE(${alias}.reorder_level, 0)`
+      : "0";
+  const serviceQuantityExpr = columns.has("service_quantity") ? `COALESCE(${alias}.service_quantity, 0)` : "0";
+  const benefitsExpr = columns.has("benefits") ? `COALESCE(${alias}.benefits, '')` : `''`;
+  const locationExpr = columns.has("location_id")
+    ? (columns.has("branch_id") ? `COALESCE(${alias}.location_id, ${alias}.branch_id)` : `${alias}.location_id`)
+    : `${alias}.branch_id`;
+
+  return {
+    nameExpr,
+    costExpr,
+    unitExpr,
+    quantityExpr,
+    stockExpr,
+    serviceQuantityExpr,
+    benefitsExpr,
+    locationExpr,
+  };
+}
+
 async function getAccessibleLocationId(user: AuthUserPayload, requestedLocationId?: string) {
   if (!user.tenant_id) {
     throw createError("Tenant not found for current user.", 400);
@@ -135,11 +184,43 @@ async function getAccessibleLocationId(user: AuthUserPayload, requestedLocationI
   return requestedLocationId;
 }
 
+async function getInventoryItemById(columns: Set<string>, inventoryId: string) {
+  const sql = getInventorySql(columns, "inventory");
+  const result = await query<InventoryRow>(
+    `
+      SELECT
+        inventory.id,
+        ${sql.nameExpr} AS name,
+        ${sql.costExpr} AS cost_price,
+        ${sql.unitExpr} AS unit,
+        ${sql.quantityExpr} AS quantity,
+        ${sql.stockExpr} AS stock,
+        ${sql.serviceQuantityExpr} AS service_quantity,
+        ${sql.benefitsExpr} AS benefits,
+        ${sql.locationExpr} AS location_id,
+        (
+          SELECT name
+          FROM branches
+          WHERE id = ${sql.locationExpr}
+        ) AS location_name,
+        inventory.created_at
+      FROM inventory
+      WHERE inventory.id = $1
+      LIMIT 1
+    `,
+    [inventoryId],
+  );
+
+  return result.rows[0] ?? null;
+}
+
 export async function listInventory(user: AuthUserPayload, locationId?: string) {
   if (!user.tenant_id) {
     throw createError("Tenant not found for current user.", 400);
   }
 
+  const columns = await getTableColumns("inventory");
+  const sql = getInventorySql(columns);
   const values: unknown[] = [user.tenant_id];
   const filters = ["i.tenant_id = $1"];
 
@@ -148,11 +229,11 @@ export async function listInventory(user: AuthUserPayload, locationId?: string) 
       throw createError("Manager location is not configured.", 400);
     }
 
-    filters.push(`i.location_id = $${values.length + 1}`);
+    filters.push(`${sql.locationExpr} = $${values.length + 1}`);
     values.push(user.branch_id);
   } else if (user.type === "owner" && locationId) {
     const resolvedLocationId = await getAccessibleLocationId(user, locationId);
-    filters.push(`i.location_id = $${values.length + 1}`);
+    filters.push(`${sql.locationExpr} = $${values.length + 1}`);
     values.push(resolvedLocationId);
   } else if (user.type !== "owner") {
     throw createError("Only owners and managers can access inventory.", 403);
@@ -162,18 +243,18 @@ export async function listInventory(user: AuthUserPayload, locationId?: string) 
     `
       SELECT
         i.id,
-        COALESCE(i.name, i.item_name) AS name,
-        COALESCE(i.cost_price, i.unit_cost, 0) AS cost_price,
-        COALESCE(i.unit, 'pcs') AS unit,
-        i.quantity,
-        COALESCE(i.stock, i.reorder_level, 0) AS stock,
-        COALESCE(i.service_quantity, 0) AS service_quantity,
-        COALESCE(i.benefits, '') AS benefits,
-        COALESCE(i.location_id, i.branch_id) AS location_id,
+        ${sql.nameExpr} AS name,
+        ${sql.costExpr} AS cost_price,
+        ${sql.unitExpr} AS unit,
+        ${sql.quantityExpr} AS quantity,
+        ${sql.stockExpr} AS stock,
+        ${sql.serviceQuantityExpr} AS service_quantity,
+        ${sql.benefitsExpr} AS benefits,
+        ${sql.locationExpr} AS location_id,
         b.name AS location_name,
         i.created_at
       FROM inventory i
-      INNER JOIN branches b ON b.id = COALESCE(i.location_id, i.branch_id)
+      INNER JOIN branches b ON b.id = ${sql.locationExpr}
       WHERE ${filters.join(" AND ")}
       ORDER BY i.created_at DESC
     `,
@@ -186,68 +267,55 @@ export async function listInventory(user: AuthUserPayload, locationId?: string) 
 export async function createInventoryItem(user: AuthUserPayload, input: InventoryInput) {
   const normalized = normalizeInput(input);
   const locationId = await getAccessibleLocationId(user, normalized.locationId);
+  const columns = await getTableColumns("inventory");
+  const insertColumns: string[] = [];
+  const insertValues: unknown[] = [];
 
-  const result = await query<InventoryRow>(
+  const pushValue = (column: string, value: unknown) => {
+    insertColumns.push(column);
+    insertValues.push(value);
+  };
+
+  pushValue("tenant_id", user.tenant_id);
+  if (columns.has("branch_id")) pushValue("branch_id", locationId);
+  if (columns.has("location_id")) pushValue("location_id", locationId);
+  if (columns.has("user_id")) pushValue("user_id", user.user_id);
+  if (columns.has("item_name")) pushValue("item_name", normalized.name);
+  if (columns.has("name")) pushValue("name", normalized.name);
+  if (columns.has("sku")) pushValue("sku", buildLegacySku(normalized.name));
+  if (columns.has("reorder_level")) pushValue("reorder_level", normalized.stock);
+  if (columns.has("unit_cost")) pushValue("unit_cost", normalized.costPrice);
+  if (columns.has("cost_price")) pushValue("cost_price", normalized.costPrice);
+  if (columns.has("unit")) pushValue("unit", normalized.unit);
+  if (columns.has("quantity")) pushValue("quantity", normalized.quantity);
+  if (columns.has("stock")) pushValue("stock", normalized.stock);
+  if (columns.has("benefits")) pushValue("benefits", normalized.benefits);
+
+  const result = await query<{ id: string }>(
     `
       INSERT INTO inventory (
-        tenant_id,
-        branch_id,
-        user_id,
-        item_name,
-        sku,
-        reorder_level,
-        unit_cost,
-        name,
-        cost_price,
-        unit,
-        quantity,
-        stock,
-        benefits,
-        location_id
+        ${insertColumns.join(", ")}
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-      RETURNING
-        id,
-        COALESCE(name, item_name) AS name,
-        COALESCE(cost_price, unit_cost, 0) AS cost_price,
-        COALESCE(unit, 'pcs') AS unit,
-        quantity,
-        COALESCE(stock, reorder_level, 0) AS stock,
-        COALESCE(service_quantity, 0) AS service_quantity,
-        COALESCE(benefits, '') AS benefits,
-        COALESCE(location_id, branch_id) AS location_id,
-        created_at,
-        (
-          SELECT name
-          FROM branches
-          WHERE id = COALESCE(inventory.location_id, inventory.branch_id)
-        ) AS location_name
+      VALUES (${insertValues.map((_, index) => `$${index + 1}`).join(", ")})
+      RETURNING id
     `,
-    [
-      user.tenant_id,
-      locationId,
-      user.user_id,
-      normalized.name,
-      buildLegacySku(normalized.name),
-      normalized.stock,
-      normalized.costPrice,
-      normalized.name,
-      normalized.costPrice,
-      normalized.unit,
-      normalized.quantity,
-      normalized.stock,
-      normalized.benefits,
-      locationId,
-    ],
+    insertValues,
   );
 
-  return mapInventoryRow(result.rows[0]);
+  const item = await getInventoryItemById(columns, result.rows[0].id);
+  if (!item) {
+    throw createError("Inventory item could not be loaded after creation.", 500);
+  }
+
+  return mapInventoryRow(item);
 }
 
 export async function updateInventoryItem(user: AuthUserPayload, inventoryId: string, input: InventoryInput) {
   const normalized = normalizeInput(input);
   const locationId = await getAccessibleLocationId(user, normalized.locationId);
   const legacyReorderLevel = Math.max(Math.floor(normalized.stock), 0);
+  const columns = await getTableColumns("inventory");
+  const sql = getInventorySql(columns);
 
   const existing = await query<{ id: string }>(
     `
@@ -255,7 +323,7 @@ export async function updateInventoryItem(user: AuthUserPayload, inventoryId: st
       FROM inventory
       WHERE id = $1
         AND tenant_id = $2
-        AND ($3::uuid IS NULL OR location_id = $3)
+        AND ($3::uuid IS NULL OR ${sql.locationExpr} = $3)
       LIMIT 1
     `,
     [inventoryId, user.tenant_id, user.type === "manager" ? user.branch_id : null],
@@ -265,65 +333,58 @@ export async function updateInventoryItem(user: AuthUserPayload, inventoryId: st
     throw createError("Inventory item not found.", 404);
   }
 
-  const result = await query<InventoryRow>(
+  const updates: string[] = [];
+  const values: unknown[] = [inventoryId, user.tenant_id];
+
+  const pushUpdate = (column: string, value: unknown) => {
+    updates.push(`${column} = $${values.length + 1}`);
+    values.push(value);
+  };
+
+  if (columns.has("item_name")) pushUpdate("item_name", normalized.name);
+  if (columns.has("unit_cost")) pushUpdate("unit_cost", normalized.costPrice);
+  if (columns.has("reorder_level")) pushUpdate("reorder_level", legacyReorderLevel);
+  if (columns.has("name")) pushUpdate("name", normalized.name);
+  if (columns.has("cost_price")) pushUpdate("cost_price", normalized.costPrice);
+  if (columns.has("unit")) pushUpdate("unit", normalized.unit);
+  if (columns.has("quantity")) pushUpdate("quantity", normalized.quantity);
+  if (columns.has("stock")) pushUpdate("stock", normalized.stock);
+  if (columns.has("benefits")) pushUpdate("benefits", normalized.benefits);
+  if (columns.has("location_id")) pushUpdate("location_id", locationId);
+  if (columns.has("branch_id")) pushUpdate("branch_id", locationId);
+  if (columns.has("user_id")) pushUpdate("user_id", user.user_id);
+
+  if (updates.length === 0) {
+    throw createError("Inventory schema does not support updates.", 500);
+  }
+
+  const result = await query<{ id: string }>(
     `
       UPDATE inventory
-      SET
-        item_name = $3,
-        unit_cost = $4,
-        reorder_level = $7,
-        name = $3,
-        cost_price = $4,
-        unit = $5,
-        quantity = $6,
-        stock = $8,
-        benefits = $9,
-        location_id = $10,
-        branch_id = $10,
-        user_id = $11
+      SET ${updates.join(", ")}
       WHERE id = $1 AND tenant_id = $2
-      RETURNING
-        id,
-        COALESCE(name, item_name) AS name,
-        COALESCE(cost_price, unit_cost, 0) AS cost_price,
-        COALESCE(unit, 'pcs') AS unit,
-        quantity,
-        COALESCE(stock, reorder_level, 0) AS stock,
-        COALESCE(service_quantity, 0) AS service_quantity,
-        COALESCE(benefits, '') AS benefits,
-        COALESCE(location_id, branch_id) AS location_id,
-        created_at,
-        (
-          SELECT name
-          FROM branches
-          WHERE id = COALESCE(inventory.location_id, inventory.branch_id)
-        ) AS location_name
+      RETURNING id
     `,
-    [
-      inventoryId,
-      user.tenant_id,
-      normalized.name,
-      normalized.costPrice,
-      normalized.unit,
-      normalized.quantity,
-      legacyReorderLevel,
-      normalized.stock,
-      normalized.benefits,
-      locationId,
-      user.user_id,
-    ],
+    values,
   );
 
-  return mapInventoryRow(result.rows[0]);
+  const item = await getInventoryItemById(columns, result.rows[0].id);
+  if (!item) {
+    throw createError("Inventory item could not be loaded after update.", 500);
+  }
+
+  return mapInventoryRow(item);
 }
 
 export async function deleteInventoryItem(user: AuthUserPayload, inventoryId: string) {
+  const columns = await getTableColumns("inventory");
+  const sql = getInventorySql(columns);
   const result = await query<{ id: string }>(
     `
       DELETE FROM inventory
       WHERE id = $1
         AND tenant_id = $2
-        AND ($3::uuid IS NULL OR location_id = $3)
+        AND ($3::uuid IS NULL OR ${sql.locationExpr} = $3)
       RETURNING id
     `,
     [inventoryId, user.tenant_id, user.type === "manager" ? user.branch_id : null],
@@ -339,16 +400,18 @@ export async function moveStockToService(user: AuthUserPayload, inventoryId: str
     throw createError("Quantity to move must be greater than 0.", 400);
   }
 
+  const columns = await getTableColumns("inventory");
+  const sql = getInventorySql(columns);
   const existing = await query<{ stock: string; quantity: string }>(
     `
-      SELECT stock, quantity
+      SELECT ${sql.stockExpr} AS stock, ${sql.quantityExpr} AS quantity
       FROM inventory
       WHERE id = $1
         AND tenant_id = $2
-        AND ($3::uuid IS NULL OR location_id = $3)
+        AND ($3::uuid IS NULL OR ${sql.locationExpr} = $3)
       LIMIT 1
     `,
-    [inventoryId, user.tenant_id, user.type === "manager" ? user.branch_id : null]
+    [inventoryId, user.tenant_id, user.type === "manager" ? user.branch_id : null],
   );
 
   if (!existing.rows[0]) {
@@ -360,37 +423,40 @@ export async function moveStockToService(user: AuthUserPayload, inventoryId: str
     throw createError("Insufficient stock to move to service.", 400);
   }
 
-  // Compute the actual volume to add: e.g. 3 bottles × 500 ml = 1500 ml
   const perUnitVolume = Number(existing.rows[0].quantity) || 1;
   const volumeToAdd = quantityToMove * perUnitVolume;
+  const mutations: string[] = [];
 
-  const result = await query<InventoryRow>(
+  if (columns.has("stock")) {
+    mutations.push(`stock = COALESCE(stock, 0) - $4`);
+  }
+  if (columns.has("reorder_level")) {
+    mutations.push(`reorder_level = COALESCE(reorder_level, 0) - $4`);
+  }
+  if (columns.has("service_quantity")) {
+    mutations.push(`service_quantity = COALESCE(service_quantity, 0) + $5`);
+  }
+
+  if (mutations.length === 0) {
+    throw createError("Inventory stock columns are not available in the current schema.", 500);
+  }
+
+  const result = await query<{ id: string }>(
     `
       UPDATE inventory
-      SET
-        stock = stock - $4,
-        reorder_level = reorder_level - $4,
-        service_quantity = COALESCE(service_quantity, 0) + $5
-      WHERE id = $1 AND tenant_id = $2 AND ($3::uuid IS NULL OR location_id = $3)
-      RETURNING
-        id,
-        COALESCE(name, item_name) AS name,
-        COALESCE(cost_price, unit_cost, 0) AS cost_price,
-        COALESCE(unit, 'pcs') AS unit,
-        quantity,
-        COALESCE(stock, reorder_level, 0) AS stock,
-        COALESCE(service_quantity, 0) AS service_quantity,
-        COALESCE(benefits, '') AS benefits,
-        COALESCE(location_id, branch_id) AS location_id,
-        created_at,
-        (
-          SELECT name
-          FROM branches
-          WHERE id = COALESCE(inventory.location_id, inventory.branch_id)
-        ) AS location_name
+      SET ${mutations.join(", ")}
+      WHERE id = $1
+        AND tenant_id = $2
+        AND ($3::uuid IS NULL OR ${sql.locationExpr} = $3)
+      RETURNING id
     `,
-    [inventoryId, user.tenant_id, user.type === "manager" ? user.branch_id : null, quantityToMove, volumeToAdd]
+    [inventoryId, user.tenant_id, user.type === "manager" ? user.branch_id : null, quantityToMove, volumeToAdd],
   );
 
-  return mapInventoryRow(result.rows[0]);
+  const item = await getInventoryItemById(columns, result.rows[0].id);
+  if (!item) {
+    throw createError("Inventory item could not be loaded after stock transfer.", 500);
+  }
+
+  return mapInventoryRow(item);
 }
