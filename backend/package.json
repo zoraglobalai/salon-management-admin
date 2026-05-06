@@ -13,7 +13,8 @@
     "typeorm": "node -r ts-node/register -r reflect-metadata ./node_modules/typeorm/cli.js",
     "migration:run": "npm run typeorm -- migration:run -d .\\src\\database\\config.ts",
     "migration:show": "npm run typeorm -- migration:show -d .\\src\\database\\config.ts",
-    "migration:revert": "npm run typeorm -- migration:revert -d .\\src\\database\\config.ts"
+    "migration:revert": "npm run typeorm -- migration:revert -d .\\src\\database\\config.ts",
+    "migration:create": "npm run typeorm -- migration:create .\\src\\database\\migrations\\NewMigration"
   },
   "keywords": [],
   "author": "",

@@ -47,6 +47,9 @@ export const ENV = {
   SMTP_USER: requireEnvWhen(IS_PRODUCTION, 'SMTP_USER'),
   SMTP_PASS: requireEnvWhen(IS_PRODUCTION, 'SMTP_PASS'),
   SMTP_FROM: requireEnvWhen(IS_PRODUCTION, 'SMTP_FROM') || 'noreply@salongrowth.com',
+  SUPER_ADMIN_EMAIL: getOptionalEnv('SUPER_ADMIN_EMAIL'),
+  SUPER_ADMIN_PASSWORD: getOptionalEnv('SUPER_ADMIN_PASSWORD'),
+  SUPER_ADMIN_NAME: getOptionalEnv('SUPER_ADMIN_NAME') || 'Super Admin',
 };
 
 export const env = ENV;

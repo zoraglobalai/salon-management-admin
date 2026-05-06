@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import bcrypt from 'bcryptjs';
 import { AppDataSource } from '../../database/config';
+import { ENV } from '../../config/env';
 import { User, UserRole } from '../../entities/platform/User';
 
 type CliArgs = {
@@ -31,12 +32,14 @@ function parseArgs(argv: string[]) {
 
 async function createSuperUser() {
   const args = parseArgs(process.argv.slice(2));
-  const email = args.email?.trim().toLowerCase();
-  const password = args.password?.trim();
-  const name = args.name?.trim() || 'Super Admin';
+  const email = (args.email?.trim() || ENV.SUPER_ADMIN_EMAIL).trim().toLowerCase();
+  const password = (args.password?.trim() || ENV.SUPER_ADMIN_PASSWORD).trim();
+  const name = args.name?.trim() || ENV.SUPER_ADMIN_NAME;
 
   if (!email || !password) {
-    throw new Error('Usage: npm run create-super-user -- --email=<email> --password=<password> [--name=<name>]');
+    throw new Error(
+      'Missing super admin credentials. Set SUPER_ADMIN_EMAIL and SUPER_ADMIN_PASSWORD in the environment, or pass --email and --password.'
+    );
   }
 
   await AppDataSource.initialize();

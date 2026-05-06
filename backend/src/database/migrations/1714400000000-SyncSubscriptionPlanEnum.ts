@@ -44,13 +44,22 @@ export class SyncSubscriptionPlanEnum1714400000000 implements MigrationInterface
       $$;
     `);
 
-    await queryRunner.query(`
-      ALTER TABLE "subscriptions"
-      ALTER COLUMN "plan" SET DEFAULT 'STANDARD'
-    `);
+    if (await queryRunner.hasTable('subscriptions')) {
+      await queryRunner.query(`
+        ALTER TABLE "subscriptions"
+        ALTER COLUMN "plan" SET DEFAULT 'STANDARD'
+      `);
+    }
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    if (!(await queryRunner.hasTable('subscriptions'))) {
+      await queryRunner.query(`
+        DROP TYPE IF EXISTS "subscriptions_plan_enum"
+      `);
+      return;
+    }
+
     await queryRunner.query(`
       DO $$
       BEGIN
