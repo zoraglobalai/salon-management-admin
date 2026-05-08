@@ -268,6 +268,11 @@ export function SubscriptionPlansModal({ isOpen, onClose }: SubscriptionPlansMod
                     <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
                     <span>{currentMeta}</span>
                   </div>
+                  {!overview?.currentSubscription && overview?.currentTrial ? (
+                    <div className="rounded-[18px] bg-[var(--theme-card-soft)] px-4 py-3 text-sm text-[var(--theme-body)]">
+                      Your free trial runs for {overview.trialPeriodDays} days from the activation date.
+                    </div>
+                  ) : null}
                   {overview?.currentSubscription ? (
                     <div className="rounded-[18px] bg-[var(--theme-card-soft)] px-4 py-3 text-sm text-[var(--theme-body)]">
                       Paid {formatMoney(overview.currentSubscription.amountPaid)} via {overview.currentSubscription.paymentMethod || "manual"}.

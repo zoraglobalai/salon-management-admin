@@ -13,6 +13,7 @@ import { Log } from '../../entities/platform/Log';
 import { UserRole, type OperatorUserType } from '../../entities/platform/User';
 import { createError } from '../../middleware/errorHandler';
 import { SelectQueryBuilder } from 'typeorm';
+import { getTrialPeriodDays } from '../../shared/utils/trialSettings';
 
 const subRepo = () => AppDataSource.getRepository(Subscription);
 const revenueRepo = () => AppDataSource.getRepository(RevenueTransaction);
@@ -315,6 +316,7 @@ async function buildOwnerSubscriptionOverview(
   currentTrial: Trial | null,
   options?: { persistTenantStatus?: boolean }
 ) {
+  const trialPeriodDays = await getTrialPeriodDays();
   let tenantStatus = tenant.status;
   if (currentSubscription?.status === SubscriptionStatus.ACTIVE) {
     tenantStatus = TenantStatus.ACTIVE;
@@ -333,6 +335,7 @@ async function buildOwnerSubscriptionOverview(
     businessName: tenant.businessName,
     currentSubscription: formatSubscriptionRecord(currentSubscription),
     currentTrial: formatTrialRecord(currentTrial),
+    trialPeriodDays,
     tenantStatus,
     supportContact: SUPPORT_CONTACT,
     plans: getEligiblePlans(currentSubscription),
@@ -477,10 +480,13 @@ export const requestOwnerCustomSubscription = async (user: OwnerUserShape | unde
     throw createError('Custom subscription requirements are required.', 400);
   }
 
+  const description = trimmedMessage.replace(/\s+/g, ' ').trim();
+
   await supportTicketRepo().save(
     supportTicketRepo().create({
       tenantId,
-      issue: `Custom subscription request: ${trimmedMessage}`,
+      issue: 'Custom subscription request',
+      description,
       status: TicketStatus.OPEN,
       resolution: null,
     })
@@ -490,7 +496,7 @@ export const requestOwnerCustomSubscription = async (user: OwnerUserShape | unde
     logRepo().create({
       action: 'UPDATE_SUBSCRIPTION',
       performedBy: user?.email || 'unknown',
-      details: `Created custom subscription request for tenant ${tenantId}`,
+      details: `Created custom subscription request for tenant ${tenantId}: ${description}`,
     })
   );
 

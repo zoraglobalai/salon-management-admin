@@ -43,7 +43,7 @@ export function DashboardWorkspaceLayout() {
 
     fetchInventory(isManager ? user.branchId : undefined)
       .then((response) => {
-        setLowStockCount(response.items.filter((item) => item.stock < 5).length);
+        setLowStockCount(response.items.filter((item) => item.stock <= item.lowStockThreshold).length);
       })
       .catch(() => {
         setLowStockCount(0);

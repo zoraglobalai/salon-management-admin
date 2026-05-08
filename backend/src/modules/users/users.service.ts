@@ -6,6 +6,7 @@ import { Log } from '../../entities/platform/Log';
 import { Trial, TrialStatus } from '../../entities/platform/Trial';
 import bcrypt from 'bcryptjs';
 import { createError } from '../../middleware/errorHandler';
+import { calculateTrialEndDate, getTrialPeriodDays } from '../../shared/utils/trialSettings';
 
 const tenantRepo = () => AppDataSource.getRepository(Tenant);
 const userRepo = () => AppDataSource.getRepository(User);
@@ -86,9 +87,9 @@ export const createOwner = async (input: CreateOwnerInput) => {
   });
   const savedTenant = await tenantRepo().save(tenant);
 
+  const trialDurationDays = await getTrialPeriodDays();
   const trialStartDate = new Date();
-  const trialEndDate = new Date(trialStartDate);
-  trialEndDate.setDate(trialEndDate.getDate() + 7);
+  const trialEndDate = calculateTrialEndDate(trialStartDate, trialDurationDays);
 
   await trialRepo().save(
     trialRepo().create({

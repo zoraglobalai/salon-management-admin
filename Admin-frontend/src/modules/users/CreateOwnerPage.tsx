@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { usersApi } from '../../services/api';
+import React, { useEffect, useState } from 'react';
+import { trialsApi, usersApi } from '../../services/api';
 import { UserPlus, Eye, EyeOff, Copy, Check, RefreshCw } from 'lucide-react';
 
 interface CreatedCredential {
@@ -47,6 +47,14 @@ const CreateOwnerPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<CreatedCredential | null>(null);
   const [copied, setCopied] = useState(false);
+  const [trialPeriodDays, setTrialPeriodDays] = useState<number>(7);
+
+  useEffect(() => {
+    void trialsApi
+      .getSettings()
+      .then((response) => setTrialPeriodDays(response.data.data.trialPeriodDays))
+      .catch(() => undefined);
+  }, []);
 
   const syncBranchCount = (value: number) => {
     const normalizedCount = Number.isNaN(value) || value < 1 ? 1 : Math.floor(value);
@@ -202,6 +210,9 @@ const CreateOwnerPage: React.FC = () => {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-xs text-blue-700">
+              New owner accounts will start with a <strong>{trialPeriodDays}-day</strong> trial period based on the global admin setting.
+            </div>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <div>
                 <label className="mb-1.5 block text-xs font-semibold text-[var(--color-text-secondary)]">Full Name *</label>
@@ -210,7 +221,7 @@ const CreateOwnerPage: React.FC = () => {
                   type="text"
                   required
                   className="input"
-                  placeholder="Jane Doe"
+                  placeholder="Enter Full Name"
                   value={form.name}
                   maxLength={30}
                   onChange={(e) => setForm({ ...form, name: sanitizeName(e.target.value) })}
@@ -223,7 +234,7 @@ const CreateOwnerPage: React.FC = () => {
                   id="owner-phone"
                   type="tel"
                   className="input"
-                  placeholder="9876543210"
+                  placeholder="Enter Phn No"
                   value={form.phone}
                   inputMode="numeric"
                   maxLength={10}
@@ -240,7 +251,7 @@ const CreateOwnerPage: React.FC = () => {
                   type="email"
                   required
                   className="input"
-                  placeholder="owner@salon.com"
+                  placeholder="Enter Email Address"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: removeAllSpaces(e.target.value) })}
                   onBlur={() =>
@@ -254,7 +265,7 @@ const CreateOwnerPage: React.FC = () => {
                   id="owner-alt-phone"
                   type="tel"
                   className="input"
-                  placeholder="9876543210"
+                  placeholder="Enter Altr Phn No"
                   value={form.alternativePhone}
                   inputMode="numeric"
                   maxLength={10}
@@ -270,7 +281,7 @@ const CreateOwnerPage: React.FC = () => {
                 type="text"
                 required
                 className="input"
-                placeholder="The Style Studio"
+                placeholder="Enter Business Name"
                 value={form.businessName}
                 maxLength={40}
                 onChange={(e) => setForm({ ...form, businessName: sanitizeBusinessName(e.target.value) })}
@@ -286,7 +297,7 @@ const CreateOwnerPage: React.FC = () => {
                 id="owner-main-branch-location"
                 required
                 className="input min-h-[96px] resize-y"
-                placeholder="Enter the main branch address"
+                placeholder="Enter main branch address"
                 value={form.mainBranchLocation}
                 onChange={(e) => setForm({ ...form, mainBranchLocation: sanitizeText(e.target.value) })}
                 onBlur={() =>
@@ -401,6 +412,9 @@ const CreateOwnerPage: React.FC = () => {
                 </div>
                 <p className="text-xs text-green-600">
                   Share these credentials with the owner. The password will <strong>not</strong> be shown again.
+                </p>
+                <p className="mt-2 text-xs text-green-700">
+                  This owner will use the current <strong>{trialPeriodDays}-day</strong> global trial period.
                 </p>
               </div>
 

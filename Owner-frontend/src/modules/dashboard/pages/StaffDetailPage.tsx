@@ -1,20 +1,20 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft, User, Briefcase, Home, CreditCard, Shield } from "lucide-react";
 import { fetchStaffById, type StaffMember } from "../../../core/api";
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
-import { ArrowLeft, User, Briefcase, Home, CreditCard, Shield, FileText } from "lucide-react";
 
 function mask(value: string, show = 4) {
-  if (!value) return "—";
+  if (!value) return "-";
   if (value.length <= show) return value;
-  return "•".repeat(value.length - show) + value.slice(-show);
+  return "*".repeat(value.length - show) + value.slice(-show);
 }
 
 function InfoRow({ label, value, isDark }: { label: string; value: string; isDark: boolean }) {
   return (
     <div className="flex flex-col gap-1">
       <span className={`text-[10px] font-black uppercase tracking-[0.15em] ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>{label}</span>
-      <span className={`text-sm font-semibold ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>{value || "—"}</span>
+      <span className={`text-sm font-semibold ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>{value || "-"}</span>
     </div>
   );
 }
@@ -35,6 +35,16 @@ function Section({ title, children, icon: Icon, isDark }: { title: string; child
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         {children}
       </div>
+    </div>
+  );
+}
+
+function EmptySectionNote({ message, isDark }: { message: string; isDark: boolean }) {
+  return (
+    <div className={`sm:col-span-2 rounded-2xl border border-dashed px-4 py-5 text-sm font-medium ${
+      isDark ? "border-[rgba(255,255,255,0.08)] bg-[#1C2030] text-[#7A7572]" : "border-[#E8E1D8] bg-[#FCFAF7] text-gray-500"
+    }`}>
+      {message}
     </div>
   );
 }
@@ -60,7 +70,7 @@ export function StaffDetailPage() {
   if (isLoading) {
     return (
       <div className={`flex items-center justify-center h-96 text-sm font-medium ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>
-        Fetching staff record…
+        Fetching staff record...
       </div>
     );
   }
@@ -82,11 +92,17 @@ export function StaffDetailPage() {
 
   const joiningDateFormatted = member.joiningDate
     ? new Date(member.joiningDate).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" })
-    : "—";
+    : "-";
+
+  const identificationDetails =
+    member.identificationDetails?.filter((item) => item.idType || item.idNumber).length
+      ? member.identificationDetails.filter((item) => item.idType || item.idNumber)
+      : member.idType || member.idNumber
+        ? [{ idType: member.idType, idNumber: member.idNumber }]
+        : [];
 
   return (
     <div className="flex flex-col gap-6 max-w-5xl mx-auto py-2">
-      {/* Premium Header */}
       <div className={`rounded-[32px] border p-6 shadow-sm flex flex-col md:flex-row md:items-center gap-6 transition-all ${
         isDark ? "bg-[#151821] border-[rgba(255,255,255,0.07)]" : "bg-white border-[#E8E1D8]"
       }`}>
@@ -107,7 +123,7 @@ export function StaffDetailPage() {
             <div className="flex items-center gap-2 mt-1">
               <Briefcase size={12} className={isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"} />
               <p className={`text-xs font-bold uppercase tracking-widest ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>
-                {member.role} · <span className={isDark ? "text-[#C8BFB4]" : "text-gray-700"}>{member.locationName?.split("-")[0].trim()}</span>
+                {member.role} . <span className={isDark ? "text-[#C8BFB4]" : "text-gray-700"}>{member.locationName?.split("-")[0].trim()}</span>
               </p>
             </div>
           </div>
@@ -123,7 +139,6 @@ export function StaffDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Basic Info */}
         <Section title="Employment Details" icon={User} isDark={isDark}>
           <InfoRow label="Legal Name" value={member.name} isDark={isDark} />
           <InfoRow label="Primary Contact" value={member.phoneNumber} isDark={isDark} />
@@ -131,62 +146,72 @@ export function StaffDetailPage() {
           <InfoRow label="Assignment" value={member.locationName} isDark={isDark} />
         </Section>
 
-        {/* Bank Details — masked */}
-        {(member.bankName || member.accountNumber || member.ifscCode) && (
-          <Section title="Financial Account" icon={CreditCard} isDark={isDark}>
-            <InfoRow label="Institution" value={member.bankName} isDark={isDark} />
-            <InfoRow label="IFSC Code" value={member.ifscCode} isDark={isDark} />
-            <div className="sm:col-span-2">
-              <div className="flex flex-col gap-1">
-                <span className={`text-[10px] font-black uppercase tracking-[0.15em] ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>Account Number</span>
-                <span className={`text-lg font-black tracking-[0.2em] font-mono ${isDark ? "text-[#E8C98A]" : "text-[#8B5E3C]"}`}>
-                  {mask(member.accountNumber, 4)}
-                </span>
+        <Section title="Financial Account" icon={CreditCard} isDark={isDark}>
+          {member.bankName || member.accountNumber || member.ifscCode ? (
+            <>
+              <InfoRow label="Institution" value={member.bankName} isDark={isDark} />
+              <InfoRow label="IFSC Code" value={member.ifscCode} isDark={isDark} />
+              <div className="sm:col-span-2">
+                <div className="flex flex-col gap-1">
+                  <span className={`text-[10px] font-black uppercase tracking-[0.15em] ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>Account Number</span>
+                  <span className={`text-lg font-black tracking-[0.2em] font-mono ${isDark ? "text-[#E8C98A]" : "text-[#8B5E3C]"}`}>
+                    {mask(member.accountNumber, 4)}
+                  </span>
+                </div>
               </div>
-            </div>
-          </Section>
-        )}
+            </>
+          ) : (
+            <EmptySectionNote message="Bank details have not been added for this staff member yet." isDark={isDark} />
+          )}
+        </Section>
 
-        {/* Address */}
-        {(member.state || member.city || member.addressLine) && (
+        {(member.currentState || member.currentCity || member.currentAddressLine || member.state || member.city || member.addressLine) && (
           <Section title="Residency" icon={Home} isDark={isDark}>
-            <InfoRow label="State" value={member.state} isDark={isDark} />
-            <InfoRow label="City" value={member.city} isDark={isDark} />
-            <div className="sm:col-span-2">
-              <InfoRow label="Residential Address" value={member.addressLine} isDark={isDark} />
-            </div>
+            {(member.currentState || member.currentCity || member.currentAddressLine) ? (
+              <>
+                <InfoRow label="Current State" value={member.currentState} isDark={isDark} />
+                <InfoRow label="Current City" value={member.currentCity} isDark={isDark} />
+                <div className="sm:col-span-2">
+                  <InfoRow label="Current Address" value={member.currentAddressLine} isDark={isDark} />
+                </div>
+              </>
+            ) : null}
+            {(member.state || member.city || member.addressLine) ? (
+              <>
+                <InfoRow label="Permanent State" value={member.state} isDark={isDark} />
+                <InfoRow label="Permanent City" value={member.city} isDark={isDark} />
+                <div className="sm:col-span-2">
+                  <InfoRow label="Permanent Address" value={member.addressLine} isDark={isDark} />
+                </div>
+              </>
+            ) : null}
           </Section>
         )}
 
-        {/* ID Proof — masked */}
-        {(member.idType || member.idNumber) && (
-          <Section title="Identification" icon={Shield} isDark={isDark}>
-            <InfoRow label="Credential Type" value={member.idType} isDark={isDark} />
-            <div className="flex flex-col gap-1">
-              <span className={`text-[10px] font-black uppercase tracking-[0.15em] ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>Document Number</span>
-              <span className={`text-lg font-black tracking-[0.2em] font-mono ${isDark ? "text-[#E8C98A]" : "text-[#8B5E3C]"}`}>
-                {mask(member.idNumber, 4)}
-              </span>
-            </div>
-          </Section>
-        )}
-
-        {/* Notes */}
-        {member.notes && (
-          <div className={`lg:col-span-2 rounded-3xl border p-6 shadow-sm transition-all ${
-            isDark ? "bg-[#151821] border-[rgba(255,255,255,0.07)]" : "bg-white border-[#E8E1D8]"
-          }`}>
-            <div className={`flex items-center gap-2 mb-4 pb-3 border-b ${
-              isDark ? "border-[rgba(255,255,255,0.05)]" : "border-[#F2EDE7]"
-            }`}>
-              <FileText size={14} className={isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"} />
-              <h3 className={`text-[11px] font-black uppercase tracking-[0.2em] ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`}>
-                Personnel Remarks
-              </h3>
-            </div>
-            <p className={`text-sm whitespace-pre-line leading-loose font-medium ${isDark ? "text-[#C8BFB4]" : "text-gray-600"}`}>{member.notes}</p>
-          </div>
-        )}
+        <Section title="Identification" icon={Shield} isDark={isDark}>
+          {identificationDetails.length > 0 ? (
+            identificationDetails.map((item, index) => (
+              <div
+                key={`${item.idType}-${item.idNumber}-${index}`}
+                className={`sm:col-span-2 rounded-2xl border p-4 ${
+                  isDark ? "border-[rgba(255,255,255,0.08)] bg-[#1C2030]" : "border-[#F2EDE7] bg-[#FCFAF7]"
+                }`}
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <InfoRow label={`ID Type ${index + 1}`} value={item.idType} isDark={isDark} />
+                  <div className="flex flex-col gap-1">
+                    <span className={`text-[10px] font-black uppercase tracking-[0.15em] ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>Document Number</span>
+                    <span className={`text-lg font-black tracking-[0.2em] font-mono ${isDark ? "text-[#E8C98A]" : "text-[#8B5E3C]"}`}>
+                      {mask(item.idNumber, 4)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <EmptySectionNote message="No identification documents have been added for this staff member yet." isDark={isDark} />
+          )}
+        </Section>
       </div>
     </div>
   );

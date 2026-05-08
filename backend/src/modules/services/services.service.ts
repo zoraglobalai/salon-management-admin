@@ -17,6 +17,14 @@ export type ServiceInput = {
   products: ServiceProductInput[];
 };
 
+export type ComboServiceInput = {
+  name: string;
+  price: number;
+  duration: number;
+  locationId?: string;
+  serviceIds: string[];
+};
+
 export type ServiceProductRow = {
   id: string;
   service_id: string;
@@ -39,6 +47,40 @@ export type ServiceRow = {
   products?: ServiceProductRow[];
 };
 
+export type ComboServiceRow = {
+  id: string;
+  name: string;
+  price: string | number;
+  duration: number;
+  location_id: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ComboServiceItemRow = {
+  combo_service_id: string;
+  service_id: string;
+  service_name: string;
+  service_price: string | number;
+  service_duration: number;
+};
+
+export type ComboServiceListItem = {
+  id: string;
+  name: string;
+  price: number;
+  duration: number;
+  location_id: string;
+  created_at: string;
+  updated_at: string;
+  services: Array<{
+    serviceId: string;
+    serviceName: string;
+    price: number;
+    duration: number;
+  }>;
+};
+
 type SchemaColumnRow = {
   column_name: string;
 };
@@ -59,8 +101,6 @@ function normalizeInput(input: ServiceInput) {
     throw createError("Duration must be a positive number.", 400);
   }
 
-
-
   return {
     name: input.name.trim(),
     price,
@@ -78,6 +118,43 @@ function normalizeInput(input: ServiceInput) {
         unit: p.unit || "pcs",
       };
     }),
+  };
+}
+
+function normalizeComboInput(input: ComboServiceInput) {
+  if (!input.name?.trim()) {
+    throw createError("Combo service name is required.", 400);
+  }
+
+  const price = Number(input.price);
+  const duration = Number(input.duration);
+
+  if (Number.isNaN(price) || price < 0) {
+    throw createError("Combo price must be a non-negative number.", 400);
+  }
+
+  if (Number.isNaN(duration) || duration <= 0) {
+    throw createError("Combo duration must be a positive number.", 400);
+  }
+
+  const serviceIds = Array.isArray(input.serviceIds)
+    ? input.serviceIds.map((id) => String(id || "").trim()).filter(Boolean)
+    : [];
+
+  if (serviceIds.length === 0) {
+    throw createError("At least one service is required for a combo.", 400);
+  }
+
+  if (new Set(serviceIds).size !== serviceIds.length) {
+    throw createError("Duplicate services are not allowed in a combo.", 400);
+  }
+
+  return {
+    name: input.name.trim(),
+    price,
+    duration,
+    locationId: input.locationId,
+    serviceIds,
   };
 }
 
@@ -173,7 +250,7 @@ async function getServiceById(
   client?: import("../../database/pool").PoolClient,
 ) {
   const sql = getServiceSql(serviceColumns, "services");
-  const SELECT_SQL = `
+  const selectSql = `
     SELECT
       services.id,
       services.name,
@@ -188,12 +265,38 @@ async function getServiceById(
     LIMIT 1
   `;
   const result = client
-    ? await client.query<ServiceRow>(SELECT_SQL, [serviceId])
-    : await query<ServiceRow>(SELECT_SQL, [serviceId]);
+    ? await client.query<ServiceRow>(selectSql, [serviceId])
+    : await query<ServiceRow>(selectSql, [serviceId]);
 
   return result.rows[0] ?? null;
 }
 
+async function getComboServiceById(
+  comboServiceId: string,
+  client?: import("../../database/pool").PoolClient,
+) {
+  const result = client
+    ? await client.query<ComboServiceRow>(
+      `
+        SELECT id, name, price, duration, location_id, created_at, updated_at
+        FROM combo_services
+        WHERE id = $1
+        LIMIT 1
+      `,
+      [comboServiceId],
+    )
+    : await query<ComboServiceRow>(
+      `
+        SELECT id, name, price, duration, location_id, created_at, updated_at
+        FROM combo_services
+        WHERE id = $1
+        LIMIT 1
+      `,
+      [comboServiceId],
+    );
+
+  return result.rows[0] ?? null;
+}
 
 async function validateInventoryProducts(
   user: AuthUserPayload,
@@ -218,14 +321,109 @@ async function validateInventoryProducts(
   }
 }
 
+async function validateComboServices(
+  user: AuthUserPayload,
+  locationId: string,
+  serviceIds: string[],
+  serviceColumns: Set<string>,
+) {
+  const serviceSql = getServiceSql(serviceColumns, "services");
+  const serviceCheck = await query<{ id: string }>(
+    `
+      SELECT id
+      FROM services
+      WHERE id = ANY($1::uuid[])
+        AND tenant_id = $2
+        AND ${serviceSql.locationExpr} = $3
+    `,
+    [serviceIds, user.tenant_id, locationId],
+  );
+
+  if (serviceCheck.rows.length !== serviceIds.length) {
+    throw createError("One or more combo services are invalid for the selected location.", 400);
+  }
+}
+
+async function listComboServicesInternal(user: AuthUserPayload, locationId?: string) {
+  if (!user.tenant_id) {
+    throw createError("Tenant not found for current user.", 400);
+  }
+
+  const values: unknown[] = [user.tenant_id];
+  const filters = ["cs.tenant_id = $1"];
+
+  if (user.type === "manager") {
+    if (!user.branch_id) {
+      throw createError("Manager location is not configured.", 400);
+    }
+    filters.push(`cs.location_id = $${values.length + 1}`);
+    values.push(user.branch_id);
+  } else if (user.type === "owner" && locationId) {
+    const resolvedLocationId = await getAccessibleLocationId(user, locationId);
+    filters.push(`cs.location_id = $${values.length + 1}`);
+    values.push(resolvedLocationId);
+  } else if (user.type !== "owner") {
+    throw createError("Only owners and managers can access combo services.", 403);
+  }
+
+  const combosResult = await query<ComboServiceRow>(
+    `
+      SELECT id, name, price, duration, location_id, created_at, updated_at
+      FROM combo_services cs
+      WHERE ${filters.join(" AND ")}
+      ORDER BY cs.created_at DESC
+    `,
+    values,
+  );
+
+  const combos = combosResult.rows;
+  if (combos.length === 0) return [];
+
+  const comboIds = combos.map((combo) => combo.id);
+  const itemsResult = await query<ComboServiceItemRow>(
+    `
+      SELECT
+        csi.combo_service_id,
+        csi.service_id,
+        s.name AS service_name,
+        s.price AS service_price,
+        COALESCE(s.duration, s.duration_minutes, 0) AS service_duration
+      FROM combo_service_items csi
+      INNER JOIN services s ON s.id = csi.service_id
+      WHERE csi.combo_service_id = ANY($1::uuid[])
+      ORDER BY s.created_at ASC
+    `,
+    [comboIds],
+  );
+
+  const itemsByCombo = itemsResult.rows.reduce<Record<string, ComboServiceListItem["services"]>>((acc, item) => {
+    if (!acc[item.combo_service_id]) acc[item.combo_service_id] = [];
+    acc[item.combo_service_id].push({
+      serviceId: item.service_id,
+      serviceName: item.service_name,
+      price: Number(item.service_price),
+      duration: Number(item.service_duration),
+    });
+    return acc;
+  }, {});
+
+  return combos.map((combo) => ({
+    ...combo,
+    price: Number(combo.price),
+    duration: Number(combo.duration),
+    services: itemsByCombo[combo.id] || [],
+  }));
+}
+
 export async function listServices(user: AuthUserPayload, locationId?: string) {
   if (!user.tenant_id) {
     throw createError("Tenant not found for current user.", 400);
   }
 
-  const [serviceColumns, inventoryColumns] = await Promise.all([
+  const [serviceColumns, inventoryColumns, comboServices] = await Promise.all([
     getTableColumns("services"),
     getTableColumns("inventory"),
+    listComboServicesInternal(user, locationId),
   ]);
   const serviceSql = getServiceSql(serviceColumns);
   const inventorySql = getInventorySql(inventoryColumns);
@@ -265,7 +463,7 @@ export async function listServices(user: AuthUserPayload, locationId?: string) {
   );
 
   const services = servicesResult.rows;
-  if (services.length === 0) return [];
+  if (services.length === 0) return { services: [], comboServices };
 
   const serviceIds = services.map((s) => s.id);
   const productsResult = await query<ServiceProductRow>(
@@ -291,18 +489,21 @@ export async function listServices(user: AuthUserPayload, locationId?: string) {
     return acc;
   }, {} as Record<string, ServiceProductRow[]>);
 
-  return services.map((service) => ({
-    ...service,
-    price: Number(service.price),
-    products: (productsByService[service.id] || []).map((product) => ({
-      id: product.id,
-      productId: product.product_id,
-      quantityUsed: Number(product.quantity_used),
-      unit: product.unit,
-      productName: product.product_name || "Unknown Product",
-      productStock: Number(product.product_stock ?? 0),
+  return {
+    services: services.map((service) => ({
+      ...service,
+      price: Number(service.price),
+      products: (productsByService[service.id] || []).map((product) => ({
+        id: product.id,
+        productId: product.product_id,
+        quantityUsed: Number(product.quantity_used),
+        unit: product.unit,
+        productName: product.product_name || "Unknown Product",
+        productStock: Number(product.product_stock ?? 0),
+      })),
     })),
-  }));
+    comboServices,
+  };
 }
 
 export async function createServiceItem(user: AuthUserPayload, input: ServiceInput) {
@@ -342,9 +543,7 @@ export async function createServiceItem(user: AuthUserPayload, input: ServiceInp
 
     const serviceResult = await client.query<{ id: string }>(
       `
-        INSERT INTO services (
-          ${insertColumns.join(", ")}
-        )
+        INSERT INTO services (${insertColumns.join(", ")})
         VALUES (${insertValues.map((_, index) => `$${index + 1}`).join(", ")})
         RETURNING id
       `,
@@ -375,6 +574,51 @@ export async function createServiceItem(user: AuthUserPayload, input: ServiceInp
   });
 }
 
+export async function createComboServiceItem(user: AuthUserPayload, input: ComboServiceInput) {
+  const normalized = normalizeComboInput(input);
+  const locationId = await getAccessibleLocationId(user, normalized.locationId);
+  const serviceColumns = await getTableColumns("services");
+  await validateComboServices(user, locationId, normalized.serviceIds, serviceColumns);
+
+  return withTransaction(async (client) => {
+    const comboResult = await client.query<{ id: string }>(
+      `
+        INSERT INTO combo_services (tenant_id, location_id, name, price, duration)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id
+      `,
+      [user.tenant_id, locationId, normalized.name, normalized.price, normalized.duration],
+    );
+
+    const comboServiceId = comboResult.rows[0]?.id;
+    if (!comboServiceId) {
+      throw createError("Combo service could not be created.", 500);
+    }
+
+    for (const serviceId of normalized.serviceIds) {
+      await client.query(
+        `
+          INSERT INTO combo_service_items (combo_service_id, service_id)
+          VALUES ($1, $2)
+        `,
+        [comboServiceId, serviceId],
+      );
+    }
+
+    const combo = await getComboServiceById(comboServiceId, client);
+    if (!combo) {
+      throw createError("Combo service could not be loaded after creation.", 500);
+    }
+
+    return {
+      ...combo,
+      price: Number(combo.price),
+      duration: Number(combo.duration),
+      services: [],
+    };
+  });
+}
+
 export async function executeServiceUsage(user: AuthUserPayload, serviceId: string) {
   if (!user.tenant_id) {
     throw createError("Tenant not found for current user.", 400);
@@ -385,7 +629,6 @@ export async function executeServiceUsage(user: AuthUserPayload, serviceId: stri
     getTableColumns("inventory"),
   ]);
   const serviceSql = getServiceSql(serviceColumns, "services");
-  const inventorySql = getInventorySql(inventoryColumns, "inventory");
 
   return withTransaction(async (client) => {
     const serviceResult = await client.query<{ id: string; location_id: string }>(
@@ -468,6 +711,23 @@ export async function deleteServiceItem(user: AuthUserPayload, serviceId: string
   }
 }
 
+export async function deleteComboServiceItem(user: AuthUserPayload, comboServiceId: string) {
+  const result = await query<{ id: string }>(
+    `
+      DELETE FROM combo_services
+      WHERE id = $1
+        AND tenant_id = $2
+        AND ($3::uuid IS NULL OR location_id = $3)
+      RETURNING id
+    `,
+    [comboServiceId, user.tenant_id, user.type === "manager" ? user.branch_id : null],
+  );
+
+  if (!result.rows[0]) {
+    throw createError("Combo service not found.", 404);
+  }
+}
+
 export async function updateServiceItem(user: AuthUserPayload, serviceId: string, input: ServiceInput) {
   const normalized = normalizeInput(input);
   const locationId = await getAccessibleLocationId(user, normalized.locationId);
@@ -542,5 +802,66 @@ export async function updateServiceItem(user: AuthUserPayload, serviceId: string
     }
 
     return { ...service, price: Number(service.price), products: [] };
+  });
+}
+
+export async function updateComboServiceItem(user: AuthUserPayload, comboServiceId: string, input: ComboServiceInput) {
+  const normalized = normalizeComboInput(input);
+  const locationId = await getAccessibleLocationId(user, normalized.locationId);
+  const serviceColumns = await getTableColumns("services");
+  await validateComboServices(user, locationId, normalized.serviceIds, serviceColumns);
+
+  return withTransaction(async (client) => {
+    const comboResult = await client.query<{ id: string }>(
+      `
+        UPDATE combo_services
+        SET name = $1,
+            price = $2,
+            duration = $3,
+            location_id = $4,
+            updated_at = NOW()
+        WHERE id = $5
+          AND tenant_id = $6
+          AND ($7::uuid IS NULL OR location_id = $7)
+        RETURNING id
+      `,
+      [
+        normalized.name,
+        normalized.price,
+        normalized.duration,
+        locationId,
+        comboServiceId,
+        user.tenant_id,
+        user.type === "manager" ? user.branch_id : null,
+      ],
+    );
+
+    if (comboResult.rows.length === 0) {
+      throw createError("Combo service not found.", 404);
+    }
+
+    await client.query(`DELETE FROM combo_service_items WHERE combo_service_id = $1`, [comboServiceId]);
+
+    for (const serviceId of normalized.serviceIds) {
+      await client.query(
+        `
+          INSERT INTO combo_service_items (combo_service_id, service_id)
+          VALUES ($1, $2)
+        `,
+        [comboServiceId, serviceId],
+      );
+    }
+
+    const combo = await getComboServiceById(comboServiceId, client);
+    if (!combo) {
+      throw createError("Combo service could not be loaded after update.", 500);
+    }
+
+    return {
+      ...combo,
+      price: Number(combo.price),
+      duration: Number(combo.duration),
+      services: [],
+    };
   });
 }

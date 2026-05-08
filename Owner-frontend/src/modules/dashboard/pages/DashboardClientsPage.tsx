@@ -103,7 +103,7 @@ export function DashboardClientsPage() {
 
     fetchClients(locId === "all" ? undefined : locId, filters)
       .then((r) => { setClients(r.clients || []); setError(null); })
-      .catch((e: Error) => setError(e.message || "Failed to load clients."))
+      .catch((e: Error) => setError(e.message || "Failed to load customers."))
       .finally(() => setIsLoading(false));
   };
 
@@ -160,19 +160,19 @@ export function DashboardClientsPage() {
       closeModal();
       loadClients();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Failed to save client.");
+      setFormError(err instanceof Error ? err.message : "Failed to save customer.");
     } finally { setIsSubmitting(false); }
   };
 
   const handleDelete = (client: ClientRecord) => {
     confirm({
-      title: "Delete Client",
+      title: "Delete Customer",
       message: `Are you sure you want to delete ${client.name}? This action cannot be undone.`,
       onConfirm: async () => {
         try {
           await deleteClient(client.id);
           loadClients();
-          toast("Client deleted successfully.");
+          toast("Customer deleted successfully.");
         } catch (err) {
           const errorMessage = err instanceof Error ? err.message : "Failed to delete.";
           setError(errorMessage);
@@ -191,8 +191,8 @@ export function DashboardClientsPage() {
         isDark ? "bg-[#151821] border-[rgba(255,255,255,0.07)]" : "bg-white border-[#E8E1D8]"
       }`}>
         <div>
-          <h2 className={`text-2xl font-bold font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>Client Records</h2>
-          <p className={`mt-1 text-sm ${isDark ? "text-[#7A7572]" : "text-[#6B7280]"}`}>{clients.length} clients · manage profiles, visits & follow-ups.</p>
+          <h2 className={`text-2xl font-bold font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>Customer Records</h2>
+          <p className={`mt-1 text-sm ${isDark ? "text-[#7A7572]" : "text-[#6B7280]"}`}>{clients.length} customers · manage profiles, visits & follow-ups.</p>
         </div>
         <div className="flex gap-3 flex-wrap items-center">
           {!isManager && (
@@ -213,7 +213,7 @@ export function DashboardClientsPage() {
               isDark ? "bg-[linear-gradient(135deg,#C9A96E_0%,#A67C3D_100%)] shadow-[0_8px_20px_rgba(201,169,110,0.15)]" : "bg-[#8B5E3C] hover:bg-[#744A2E]"
             }`}>
             <Plus size={18} />
-            Add Client
+            Add Customer
           </button>
         </div>
       </div>
@@ -336,14 +336,14 @@ export function DashboardClientsPage() {
               <tr className={`border-b transition-all ${
                 isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.05)]" : "bg-gray-50/50 border-[#E8E1D8]"
               }`}>
-                {["Client", "Phone", "Tag", "Hair Type", "Visits", "Last Visit", "Actions"].map((h) => (
+                {["Customer", "Phone", "Tag", "Hair Type", "Visits", "Last Visit", "Actions"].map((h) => (
                   <th key={h} className={`p-4 text-xs font-bold uppercase tracking-wider ${isDark ? "text-[#7A7572]" : "text-gray-500"} ${h === "Actions" ? "text-right" : ""}`}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {isLoading && (
-                <tr><td colSpan={7} className={`p-8 text-center text-sm ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>Loading clients…</td></tr>
+                <tr><td colSpan={7} className={`p-8 text-center text-sm ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>Loading customers…</td></tr>
               )}
               {!isLoading && clients.map((c) => (
                 <tr key={c.id} className={`border-b cursor-pointer transition-all last:border-0 ${
@@ -372,13 +372,13 @@ export function DashboardClientsPage() {
                       <button onClick={() => openEdit(c)} type="button"
                         className={`p-2 rounded-lg transition-all ${
                           isDark ? "bg-[rgba(255,255,255,0.04)] text-[#C9A96E] hover:bg-[rgba(255,255,255,0.08)]" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                        }`} aria-label="Edit client">
+                        }`} aria-label="Edit customer">
                         <Edit3 size={14} />
                       </button>
                       <button onClick={() => handleDelete(c)} type="button"
                         className={`p-2 rounded-lg transition-all ${
                           isDark ? "bg-[rgba(248,113,113,0.1)] text-[#F87171] hover:bg-[rgba(248,113,113,0.2)]" : "bg-red-50 text-red-600 hover:bg-red-100"
-                        }`} aria-label="Delete client">
+                        }`} aria-label="Delete customer">
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -386,7 +386,7 @@ export function DashboardClientsPage() {
                 </tr>
               ))}
               {!isLoading && clients.length === 0 && (
-                <tr><td colSpan={7} className={`p-12 text-center text-sm ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>No clients found. Try adjusting your filters.</td></tr>
+                <tr><td colSpan={7} className={`p-12 text-center text-sm ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>No customers found. Try adjusting your filters.</td></tr>
               )}
             </tbody>
           </table>
@@ -432,7 +432,7 @@ export function DashboardClientsPage() {
               </div>
             </div>
           ))}
-          {!isLoading && clients.length === 0 && <div className={`text-center py-8 text-sm ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>No clients found.</div>}
+          {!isLoading && clients.length === 0 && <div className={`text-center py-8 text-sm ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>No customers found.</div>}
         </div>
       </div>
 
@@ -445,7 +445,7 @@ export function DashboardClientsPage() {
             <div className={`flex items-center justify-between border-b px-6 py-5 ${
               isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.06)]" : "bg-gray-50/50 border-[#E8E1D8]"
             }`}>
-              <h2 className={`text-xl font-bold font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>{editingId ? "Edit Client" : "Add Client"}</h2>
+              <h2 className={`text-xl font-bold font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>{editingId ? "Edit Customer" : "Add Customer"}</h2>
               <button type="button" onClick={closeModal} className={`p-2 rounded-full transition-all hover:bg-[rgba(255,255,255,0.05)] ${isDark ? "text-[#7A7572] hover:text-[#C8BFB4]" : "text-gray-400 hover:text-gray-600"}`}>
                 <X size={20} />
               </button>
@@ -485,7 +485,7 @@ export function DashboardClientsPage() {
                           const val = e.target.value.replace(/^\s+/, "").replace(/[^a-zA-Z\s]/g, "").replace(/\s{2,}/g, " ").slice(0, 35);
                           setForm((c) => ({ ...c, name: val }));
                         }}
-                        placeholder="Meena Kumari"
+                        placeholder="Enter Customer Name"
                         className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
                           isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] placeholder:text-[#4A4744] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
                         }`} />
@@ -501,7 +501,7 @@ export function DashboardClientsPage() {
                           const val = e.target.value.replace(/\D/g, "").slice(0, 10);
                           setForm((c) => ({ ...c, phoneNumber: val }));
                         }}
-                        placeholder="9876543210"
+                        placeholder="Enter Phn No"
                         className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
                           isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] placeholder:text-[#4A4744] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
                         }`} />
@@ -519,7 +519,7 @@ export function DashboardClientsPage() {
                       </div>
                     </div>
                     <div>
-                      <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>Client Segment (Tag)</label>
+                      <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>Customer Segment (Tag)</label>
                       <div className="relative">
                         <select value={form.tag} onChange={(e) => setForm((c) => ({ ...c, tag: e.target.value }))}
                           className={`w-full appearance-none rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
@@ -554,7 +554,7 @@ export function DashboardClientsPage() {
                 <section>
                   <h3 className={`text-[10px] font-bold uppercase tracking-[0.2em] mb-4 ${isDark ? "text-[#4A4744]" : "text-gray-400"}`}>Consultation Notes</h3>
                   <textarea rows={3} value={form.notes} onChange={(e) => setForm((c) => ({ ...c, notes: e.target.value }))}
-                    placeholder="Any remarks about this client's preferences or history…"
+                    placeholder="Any remarks about this customer's preferences or history…"
                     className={`w-full rounded-2xl border px-4 py-3 text-sm outline-none transition-all ${
                       isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] placeholder:text-[#4A4744] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
                     }`} />
@@ -573,7 +573,7 @@ export function DashboardClientsPage() {
                   className={`rounded-full px-6 py-2.5 text-sm font-semibold text-white shadow-lg transition-all hover:-translate-y-0.5 disabled:opacity-60 ${
                     isDark ? "bg-[linear-gradient(135deg,#C9A96E_0%,#A67C3D_100%)] shadow-[0_8px_20px_rgba(201,169,110,0.15)]" : "bg-[#8B5E3C] shadow-[0_8px_20px_rgba(139,94,60,0.15)] hover:bg-[#744A2E]"
                   }`}>
-                  {isSubmitting ? "Saving…" : editingId ? "Update Client" : "Create Profile"}
+                  {isSubmitting ? "Saving…" : editingId ? "Update Customer" : "Create Customer"}
                 </button>
               </div>
             </form>

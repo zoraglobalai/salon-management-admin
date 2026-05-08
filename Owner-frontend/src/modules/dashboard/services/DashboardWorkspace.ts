@@ -30,7 +30,7 @@ const getBaseNavigation = (): DashboardNavigationItem[] => [
   { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
   { label: "Sales", to: "/dashboard/sales/pos", icon: Wallet },
   { label: "Sales History", to: "/dashboard/sales/history", icon: ReceiptText },
-  { label: "Clients", to: "/dashboard/clients", icon: Users },
+  { label: "Customers", to: "/dashboard/clients", icon: Users },
   { label: "Staff", to: "/dashboard/staff", icon: UserRound },
   { label: "Services", to: "/dashboard/services", icon: Scissors },
   { label: "Inventory", to: "/dashboard/inventory", icon: Package },

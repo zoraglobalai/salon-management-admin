@@ -90,6 +90,8 @@ export const trialsApi = {
   getAll: (status?: string) =>
     api.get('/trials', { params: status ? { status } : {} }),
   getStats: () => api.get('/trials/stats'),
+  getSettings: () => api.get('/trials/settings'),
+  updateSettings: (trialPeriodDays: number) => api.put('/trials/settings', { trialPeriodDays }),
 };
 
 // ── Support ───────────────────────────────────────────────────

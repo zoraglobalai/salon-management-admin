@@ -21,6 +21,28 @@ export type ClientRecord = {
   createdAt: string;
 };
 
+export type ClientVisitHistoryItem = {
+  saleId: string;
+  saleDate: string;
+  totalAmount: number;
+  paymentMethod: string;
+  locationName: string;
+  services: Array<{
+    serviceName: string;
+    staffName: string | null;
+    price: number;
+  }>;
+  products: Array<{
+    productName: string;
+    quantity: number;
+    price: number;
+  }>;
+};
+
+export type ClientDetailRecord = ClientRecord & {
+  recentVisits: ClientVisitHistoryItem[];
+};
+
 type ClientRow = {
   id: string;
   name: string;
@@ -35,6 +57,28 @@ type ClientRow = {
   location_id: string;
   location_name: string;
   created_at: string;
+};
+
+type ClientSaleRow = {
+  sale_id: string;
+  sale_date: string;
+  total_amount: string | number;
+  payment_method: string;
+  location_name: string;
+};
+
+type ClientSaleServiceRow = {
+  sale_id: string;
+  price: string | number;
+  service_name: string;
+  staff_name: string | null;
+};
+
+type ClientSaleProductRow = {
+  sale_id: string;
+  quantity: string | number;
+  price: string | number;
+  product_name: string;
 };
 
 export type ClientInput = {
@@ -81,6 +125,96 @@ function mapRow(row: ClientRow, problems: string[] = []): ClientRecord {
     problems,
     createdAt: row.created_at,
   };
+}
+
+async function fetchRecentVisits(
+  clientId: string,
+  tenantId: string,
+  locationId: string | null,
+): Promise<ClientVisitHistoryItem[]> {
+  const saleResult = await query<ClientSaleRow>(
+    `SELECT s.id AS sale_id,
+            COALESCE(s.sale_date, s.created_at)::text AS sale_date,
+            COALESCE(s.total_amount, s.amount, 0) AS total_amount,
+            s.payment_method,
+            b.name AS location_name
+     FROM sales s
+     INNER JOIN branches b ON b.id = s.location_id
+     WHERE s.client_id = $1
+       AND s.tenant_id = $2
+       AND ($3::uuid IS NULL OR s.location_id = $3)
+     ORDER BY COALESCE(s.sale_date, s.created_at) DESC
+     LIMIT 10`,
+    [clientId, tenantId, locationId]
+  );
+
+  if (saleResult.rows.length === 0) {
+    return [];
+  }
+
+  const saleIds = saleResult.rows.map((row) => row.sale_id);
+
+  const [serviceResult, productResult] = await Promise.all([
+    query<ClientSaleServiceRow>(
+      `SELECT ss.sale_id,
+              ss.price,
+              ser.name AS service_name,
+              sm.name AS staff_name
+       FROM sale_services ss
+       INNER JOIN services ser ON ser.id = ss.service_id
+       LEFT JOIN staff_members sm ON sm.id = ss.staff_id
+       WHERE ss.sale_id = ANY($1::uuid[])`,
+      [saleIds]
+    ),
+    query<ClientSaleProductRow>(
+      `SELECT sp.sale_id,
+              sp.quantity,
+              sp.price,
+              inv.name AS product_name
+       FROM sale_products sp
+       INNER JOIN inventory inv ON inv.id = sp.product_id
+       WHERE sp.sale_id = ANY($1::uuid[])`,
+      [saleIds]
+    ),
+  ]);
+
+  const servicesBySale = serviceResult.rows.reduce<Record<string, ClientVisitHistoryItem["services"]>>((acc, row) => {
+    if (!acc[row.sale_id]) {
+      acc[row.sale_id] = [];
+    }
+
+    acc[row.sale_id].push({
+      serviceName: row.service_name,
+      staffName: row.staff_name,
+      price: Number(row.price),
+    });
+
+    return acc;
+  }, {});
+
+  const productsBySale = productResult.rows.reduce<Record<string, ClientVisitHistoryItem["products"]>>((acc, row) => {
+    if (!acc[row.sale_id]) {
+      acc[row.sale_id] = [];
+    }
+
+    acc[row.sale_id].push({
+      productName: row.product_name,
+      quantity: Number(row.quantity),
+      price: Number(row.price),
+    });
+
+    return acc;
+  }, {});
+
+  return saleResult.rows.map((row) => ({
+    saleId: row.sale_id,
+    saleDate: row.sale_date,
+    totalAmount: Number(row.total_amount),
+    paymentMethod: row.payment_method,
+    locationName: row.location_name,
+    services: servicesBySale[row.sale_id] || [],
+    products: productsBySale[row.sale_id] || [],
+  }));
 }
 
 function validateInput(input: ClientInput) {
@@ -242,7 +376,7 @@ export async function listClients(user: AuthUserPayload, locationId?: string, fi
   return filtered.map((r) => mapRow(r, problemsMap[r.id] || []));
 }
 
-export async function getClient(user: AuthUserPayload, clientId: string) {
+export async function getClient(user: AuthUserPayload, clientId: string): Promise<ClientDetailRecord> {
   if (!user.tenant_id) throw createError("Tenant not found.", 400);
 
   const result = await query<ClientRow>(
@@ -261,8 +395,15 @@ export async function getClient(user: AuthUserPayload, clientId: string) {
 
   if (!result.rows[0]) throw createError("Client not found.", 404);
 
-  const problems = await fetchProblems([clientId]);
-  return mapRow(result.rows[0], problems[clientId] || []);
+  const [problems, recentVisits] = await Promise.all([
+    fetchProblems([clientId]),
+    fetchRecentVisits(clientId, user.tenant_id, user.type === "manager" ? user.branch_id : null),
+  ]);
+
+  return {
+    ...mapRow(result.rows[0], problems[clientId] || []),
+    recentVisits,
+  };
 }
 
 export async function createClient(user: AuthUserPayload, input: ClientInput) {

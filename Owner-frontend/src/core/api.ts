@@ -84,6 +84,7 @@ export type InventoryItem = {
   unit: "ml" | "pcs";
   quantity: number;
   stock: number;
+  lowStockThreshold: number;
   serviceQuantity: number;
   benefits: string;
   locationId: string;
@@ -182,6 +183,7 @@ export type OwnerSubscriptionOverview = {
   businessName: string;
   currentSubscription: OwnerSubscriptionRecord | null;
   currentTrial: OwnerTrialRecord | null;
+  trialPeriodDays: number;
   tenantStatus: "ACTIVE" | "TRIAL" | "EXPIRED";
   supportContact: SupportContact;
   plans: SubscriptionPlanOption[];
@@ -261,6 +263,7 @@ export async function createInventoryItem(payload: {
   unit: string;
   quantity: number;
   stock: number;
+  lowStockThreshold: number;
   benefits: string;
   locationId?: string;
 }) {
@@ -278,6 +281,7 @@ export async function updateInventoryItem(id: string, payload: {
   unit: string;
   quantity: number;
   stock: number;
+  lowStockThreshold: number;
   benefits: string;
   locationId?: string;
 }) {
@@ -326,6 +330,22 @@ export type ServiceItem = {
   created_at: string;
 };
 
+export type ComboServiceItem = {
+  id: string;
+  name: string;
+  price: number;
+  duration: number;
+  location_id: string;
+  created_at: string;
+  updated_at: string;
+  services: Array<{
+    serviceId: string;
+    serviceName: string;
+    price: number;
+    duration: number;
+  }>;
+};
+
 export async function fetchServices(locationId?: string) {
   const token = sessionStorage.getItem("owner_token");
   const params = new URLSearchParams();
@@ -335,7 +355,7 @@ export async function fetchServices(locationId?: string) {
   }
 
   const queryString = params.toString();
-  return request<{ services: ServiceItem[] }>(`/services${queryString ? `?${queryString}` : ""}`, {
+  return request<{ services: ServiceItem[]; comboServices?: ComboServiceItem[] }>(`/services${queryString ? `?${queryString}` : ""}`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
 }
@@ -372,9 +392,47 @@ export async function updateService(id: string, payload: {
   });
 }
 
+export async function createComboService(payload: {
+  name: string;
+  price: number;
+  duration: number;
+  locationId?: string;
+  serviceIds: string[];
+}) {
+  const token = sessionStorage.getItem("owner_token");
+  return request<{ comboService: ComboServiceItem }>("/services/combos", {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateComboService(id: string, payload: {
+  name: string;
+  price: number;
+  duration: number;
+  locationId?: string;
+  serviceIds: string[];
+}) {
+  const token = sessionStorage.getItem("owner_token");
+  return request<{ comboService: ComboServiceItem }>(`/services/combos/${id}`, {
+    method: "PUT",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function deleteService(id: string) {
   const token = sessionStorage.getItem("owner_token");
   return request<{ success: boolean; message: string }>(`/services/${id}`, {
+    method: "DELETE",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+}
+
+export async function deleteComboService(id: string) {
+  const token = sessionStorage.getItem("owner_token");
+  return request<{ success: boolean; message: string }>(`/services/combos/${id}`, {
     method: "DELETE",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
@@ -441,6 +499,9 @@ export type StaffMember = {
   name: string;
   role: string;
   phoneNumber: string;
+  currentState: string;
+  currentCity: string;
+  currentAddressLine: string;
   state: string;
   city: string;
   addressLine: string;
@@ -449,6 +510,10 @@ export type StaffMember = {
   ifscCode: string;
   idType: string;
   idNumber: string;
+  identificationDetails: Array<{
+    idType: string;
+    idNumber: string;
+  }>;
   joiningDate: string | null;
   notes: string;
   locationId: string;
@@ -460,6 +525,9 @@ export type StaffInput = {
   name: string;
   role: string;
   phoneNumber: string;
+  currentState?: string;
+  currentCity?: string;
+  currentAddressLine?: string;
   state?: string;
   city?: string;
   addressLine?: string;
@@ -468,6 +536,10 @@ export type StaffInput = {
   ifscCode?: string;
   idType?: string;
   idNumber?: string;
+  identificationDetails?: Array<{
+    idType?: string;
+    idNumber?: string;
+  }>;
   joiningDate?: string | null;
   notes?: string;
   locationId?: string;
@@ -478,35 +550,134 @@ function getStaffAuthHeaders() {
   return token ? ({ Authorization: `Bearer ${token}` } as Record<string, string>) : {};
 }
 
+type StaffResponseShape = Partial<StaffMember> & {
+  phone_number?: string;
+  current_state?: string;
+  current_city?: string;
+  current_address_line?: string;
+  address_line?: string;
+  bank_name?: string;
+  account_number?: string;
+  ifsc_code?: string;
+  id_type?: string;
+  id_number?: string;
+  joining_date?: string | null;
+  location_id?: string;
+  location_name?: string;
+  created_at?: string;
+  identification_details?: Array<{
+    idType?: string;
+    idNumber?: string;
+    id_type?: string;
+    id_number?: string;
+  }>;
+  financialAccount?: {
+    bankName?: string;
+    accountNumber?: string;
+    ifscCode?: string;
+    bank_name?: string;
+    account_number?: string;
+    ifsc_code?: string;
+  };
+};
+
+type StaffIdentificationItem = {
+  idType?: string;
+  idNumber?: string;
+  id_type?: string;
+  id_number?: string;
+};
+
+function normalizeText(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeIdentificationDetails(raw: StaffResponseShape) {
+  const collection: StaffIdentificationItem[] = Array.isArray(raw.identificationDetails)
+    ? raw.identificationDetails
+    : Array.isArray(raw.identification_details)
+      ? raw.identification_details
+      : [];
+
+  const normalized = collection
+    .map((item) => ({
+      idType: normalizeText(item?.idType ?? item?.id_type),
+      idNumber: normalizeText(item?.idNumber ?? item?.id_number),
+    }))
+    .filter((item) => item.idType || item.idNumber);
+
+  if (normalized.length > 0) return normalized;
+
+  const fallbackIdType = normalizeText(raw.idType ?? raw.id_type);
+  const fallbackIdNumber = normalizeText(raw.idNumber ?? raw.id_number);
+
+  return fallbackIdType || fallbackIdNumber
+    ? [{ idType: fallbackIdType, idNumber: fallbackIdNumber }]
+    : [];
+}
+
+function normalizeStaffMember(raw: StaffResponseShape): StaffMember {
+  const financialAccount = raw.financialAccount ?? {};
+  const identificationDetails = normalizeIdentificationDetails(raw);
+
+  return {
+    id: normalizeText(raw.id),
+    name: normalizeText(raw.name),
+    role: normalizeText(raw.role),
+    phoneNumber: normalizeText(raw.phoneNumber ?? raw.phone_number),
+    currentState: normalizeText(raw.currentState ?? raw.current_state ?? raw.state),
+    currentCity: normalizeText(raw.currentCity ?? raw.current_city ?? raw.city),
+    currentAddressLine: normalizeText(raw.currentAddressLine ?? raw.current_address_line ?? raw.addressLine ?? raw.address_line),
+    state: normalizeText(raw.state),
+    city: normalizeText(raw.city),
+    addressLine: normalizeText(raw.addressLine ?? raw.address_line),
+    bankName: normalizeText(raw.bankName ?? raw.bank_name ?? financialAccount.bankName ?? financialAccount.bank_name),
+    accountNumber: normalizeText(raw.accountNumber ?? raw.account_number ?? financialAccount.accountNumber ?? financialAccount.account_number),
+    ifscCode: normalizeText(raw.ifscCode ?? raw.ifsc_code ?? financialAccount.ifscCode ?? financialAccount.ifsc_code),
+    idType: identificationDetails[0]?.idType ?? normalizeText(raw.idType ?? raw.id_type),
+    idNumber: identificationDetails[0]?.idNumber ?? normalizeText(raw.idNumber ?? raw.id_number),
+    identificationDetails,
+    joiningDate: raw.joiningDate ?? raw.joining_date ?? null,
+    notes: normalizeText(raw.notes),
+    locationId: normalizeText(raw.locationId ?? raw.location_id),
+    locationName: normalizeText(raw.locationName ?? raw.location_name),
+    createdAt: normalizeText(raw.createdAt ?? raw.created_at),
+  };
+}
+
 export async function fetchStaff(locationId?: string) {
   const params = new URLSearchParams();
   if (locationId && locationId !== "all") params.set("locationId", locationId);
   const qs = params.toString();
-  return request<{ staff: StaffMember[] }>(`/staff${qs ? `?${qs}` : ""}`, {
+  const response = await request<{ staff: StaffResponseShape[] }>(`/staff${qs ? `?${qs}` : ""}`, {
     headers: getStaffAuthHeaders(),
   });
+  return { staff: (response.staff || []).map(normalizeStaffMember) };
 }
 
 export async function fetchStaffById(id: string) {
-  return request<{ staff: StaffMember }>(`/staff/${id}`, {
+  const response = await request<{ staff: StaffResponseShape }>(`/staff/${id}`, {
     headers: getStaffAuthHeaders(),
   });
+  return { staff: normalizeStaffMember(response.staff || {}) };
 }
 
 export async function createStaffMember(payload: StaffInput) {
-  return request<{ staff: StaffMember }>("/staff", {
+  const response = await request<{ staff: StaffResponseShape }>("/staff", {
     method: "POST",
     headers: getStaffAuthHeaders(),
     body: JSON.stringify(payload),
   });
+  return { staff: normalizeStaffMember(response.staff || {}) };
 }
 
 export async function updateStaffMember(id: string, payload: StaffInput) {
-  return request<{ staff: StaffMember }>(`/staff/${id}`, {
+  const response = await request<{ staff: StaffResponseShape }>(`/staff/${id}`, {
     method: "PUT",
     headers: getStaffAuthHeaders(),
     body: JSON.stringify(payload),
   });
+  return { staff: normalizeStaffMember(response.staff || {}) };
 }
 
 export async function deleteStaffMember(id: string) {
@@ -533,6 +704,28 @@ export type ClientRecord = {
   locationName: string;
   problems: string[];
   createdAt: string;
+};
+
+export type CustomerVisitHistoryItem = {
+  saleId: string;
+  saleDate: string;
+  totalAmount: number;
+  paymentMethod: string;
+  locationName: string;
+  services: Array<{
+    serviceName: string;
+    staffName: string | null;
+    price: number;
+  }>;
+  products: Array<{
+    productName: string;
+    quantity: number;
+    price: number;
+  }>;
+};
+
+export type CustomerDetailRecord = ClientRecord & {
+  recentVisits: CustomerVisitHistoryItem[];
 };
 
 export type ClientInput = {
@@ -575,7 +768,7 @@ export async function fetchClients(locationId?: string, filters: ClientFilters =
 }
 
 export async function fetchClientById(id: string) {
-  return request<{ client: ClientRecord }>(`/clients/${id}`, {
+  return request<{ client: CustomerDetailRecord }>(`/clients/${id}`, {
     headers: getClientAuthHeaders(),
   });
 }

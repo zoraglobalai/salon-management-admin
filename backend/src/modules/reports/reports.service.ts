@@ -396,7 +396,11 @@ export async function getInventoryReport(user: AuthUserPayload, filters: ReportF
     : "i.branch_id";
   const inventoryNameExpr = inventoryColumns.has("name") ? "i.name" : "i.item_name";
   const inventoryCostExpr = inventoryColumns.has("cost_price") ? "COALESCE(i.cost_price, 0)" : "COALESCE(i.unit_cost, 0)";
-  const inventoryReorderExpr = inventoryColumns.has("reorder_level") ? "i.reorder_level" : "5";
+  const inventoryReorderExpr = inventoryColumns.has("low_stock_threshold")
+    ? "i.low_stock_threshold"
+    : inventoryColumns.has("reorder_level")
+      ? "i.reorder_level"
+      : "5";
 
   const salesLocationExpr = salesColumns.has("location_id")
     ? (salesColumns.has("branch_id") ? "COALESCE(s.location_id, s.branch_id)" : "s.location_id")

@@ -9,6 +9,9 @@ export type StaffMember = {
   name: string;
   role: string;
   phoneNumber: string;
+  currentState: string;
+  currentCity: string;
+  currentAddressLine: string;
   state: string;
   city: string;
   addressLine: string;
@@ -17,6 +20,10 @@ export type StaffMember = {
   ifscCode: string;
   idType: string;
   idNumber: string;
+  identificationDetails: Array<{
+    idType: string;
+    idNumber: string;
+  }>;
   joiningDate: string | null;
   notes: string;
   locationId: string;
@@ -29,6 +36,9 @@ type StaffRow = {
   name: string;
   role: string;
   phone_number: string;
+  current_state: string;
+  current_city: string;
+  current_address_line: string;
   state: string;
   city: string;
   address_line: string;
@@ -37,6 +47,10 @@ type StaffRow = {
   ifsc_code: string;
   id_type: string;
   id_number: string;
+  identification_details: Array<{
+    idType?: string;
+    idNumber?: string;
+  }> | null;
   joining_date: string | null;
   notes: string;
   location_id: string;
@@ -48,6 +62,9 @@ export type StaffInput = {
   name: string;
   role: string;
   phoneNumber: string;
+  currentState?: string;
+  currentCity?: string;
+  currentAddressLine?: string;
   state?: string;
   city?: string;
   addressLine?: string;
@@ -56,6 +73,10 @@ export type StaffInput = {
   ifscCode?: string;
   idType?: string;
   idNumber?: string;
+  identificationDetails?: Array<{
+    idType?: string;
+    idNumber?: string;
+  }>;
   joiningDate?: string | null;
   notes?: string;
   locationId?: string;
@@ -64,11 +85,30 @@ export type StaffInput = {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function mapRow(row: StaffRow): StaffMember {
+  const identificationDetails = Array.isArray(row.identification_details)
+    ? row.identification_details
+        .map((item) => ({
+          idType: str(item?.idType),
+          idNumber: str(item?.idNumber),
+        }))
+        .filter((item) => item.idType || item.idNumber)
+    : [];
+
+  const normalizedIdentificationDetails =
+    identificationDetails.length > 0
+      ? identificationDetails
+      : row.id_type || row.id_number
+        ? [{ idType: row.id_type, idNumber: row.id_number }]
+        : [];
+
   return {
     id: row.id,
     name: row.name,
     role: row.role,
     phoneNumber: row.phone_number,
+    currentState: row.current_state,
+    currentCity: row.current_city,
+    currentAddressLine: row.current_address_line,
     state: row.state,
     city: row.city,
     addressLine: row.address_line,
@@ -77,6 +117,7 @@ function mapRow(row: StaffRow): StaffMember {
     ifscCode: row.ifsc_code,
     idType: row.id_type,
     idNumber: row.id_number,
+    identificationDetails: normalizedIdentificationDetails,
     joiningDate: row.joining_date,
     notes: row.notes,
     locationId: row.location_id,
@@ -101,18 +142,34 @@ function validateInput(input: StaffInput) {
   if (!str(input.name)) throw createError("Name is required.", 400);
   if (!str(input.role)) throw createError("Role is required.", 400);
   if (!str(input.phoneNumber)) throw createError("Phone number is required.", 400);
+  const identificationDetails = Array.isArray(input.identificationDetails)
+    ? input.identificationDetails
+        .map((item) => ({
+          idType: str(item?.idType),
+          idNumber: str(item?.idNumber),
+        }))
+        .filter((item) => item.idType || item.idNumber)
+    : [];
+
+  const normalizedIdType = identificationDetails[0]?.idType || str(input.idType);
+  const normalizedIdNumber = identificationDetails[0]?.idNumber || str(input.idNumber);
+
   return {
     name: str(input.name),
     role: str(input.role),
     phoneNumber: str(input.phoneNumber),
+    currentState: str(input.currentState) || str(input.state),
+    currentCity: str(input.currentCity) || str(input.city),
+    currentAddressLine: str(input.currentAddressLine) || str(input.addressLine),
     state: str(input.state),
     city: str(input.city),
     addressLine: str(input.addressLine),
     bankName: str(input.bankName),
     accountNumber: str(input.accountNumber),
     ifscCode: str(input.ifscCode),
-    idType: str(input.idType),
-    idNumber: str(input.idNumber),
+    idType: normalizedIdType,
+    idNumber: normalizedIdNumber,
+    identificationDetails,
     joiningDate: input.joiningDate || null,
     notes: str(input.notes),
     locationId: input.locationId,
@@ -165,9 +222,10 @@ export async function listStaff(user: AuthUserPayload, locationId?: string) {
 
   const result = await query<StaffRow>(
     `SELECT sm.id, sm.name, sm.role, sm.phone_number,
+            sm.current_state, sm.current_city, sm.current_address_line,
             sm.state, sm.city, sm.address_line,
             sm.bank_name, sm.account_number, sm.ifsc_code,
-            sm.id_type, sm.id_number, sm.joining_date,
+            sm.id_type, sm.id_number, sm.identification_details, sm.joining_date,
             sm.notes, sm.location_id, sm.created_at,
             b.name AS location_name
      FROM staff_members sm
@@ -185,9 +243,10 @@ export async function getStaffMember(user: AuthUserPayload, staffId: string) {
 
   const result = await query<StaffRow>(
     `SELECT sm.id, sm.name, sm.role, sm.phone_number,
+            sm.current_state, sm.current_city, sm.current_address_line,
             sm.state, sm.city, sm.address_line,
             sm.bank_name, sm.account_number, sm.ifsc_code,
-            sm.id_type, sm.id_number, sm.joining_date,
+            sm.id_type, sm.id_number, sm.identification_details, sm.joining_date,
             sm.notes, sm.location_id, sm.created_at,
             b.name AS location_name
      FROM staff_members sm
@@ -209,21 +268,24 @@ export async function createStaffMember(user: AuthUserPayload, input: StaffInput
   const result = await query<StaffRow>(
     `INSERT INTO staff_members
        (tenant_id, location_id, name, role, phone_number,
+        current_state, current_city, current_address_line,
         state, city, address_line,
         bank_name, account_number, ifsc_code,
-        id_type, id_number, joining_date, notes)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+        id_type, id_number, identification_details, joining_date, notes)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17::jsonb,$18,$19)
      RETURNING id, name, role, phone_number,
+               current_state, current_city, current_address_line,
                state, city, address_line,
                bank_name, account_number, ifsc_code,
-               id_type, id_number, joining_date,
+               id_type, id_number, identification_details, joining_date,
                notes, location_id, created_at,
                (SELECT name FROM branches WHERE id = location_id) AS location_name`,
     [
       user.tenant_id, locationId, data.name, data.role, data.phoneNumber,
+      data.currentState, data.currentCity, data.currentAddressLine,
       data.state, data.city, data.addressLine,
       data.bankName, data.accountNumber, data.ifscCode,
-      data.idType, data.idNumber, data.joiningDate, data.notes,
+      data.idType, data.idNumber, JSON.stringify(data.identificationDetails), data.joiningDate, data.notes,
     ]
   );
 
@@ -236,24 +298,27 @@ export async function updateStaffMember(user: AuthUserPayload, staffId: string, 
   const result = await query<StaffRow>(
     `UPDATE staff_members
      SET name=$1, role=$2, phone_number=$3,
-         state=$4, city=$5, address_line=$6,
-         bank_name=$7, account_number=$8, ifsc_code=$9,
-         id_type=$10, id_number=$11, joining_date=$12,
-         notes=$13, updated_at=NOW()
-     WHERE id=$14
-       AND tenant_id=$15
-       AND ($16::uuid IS NULL OR location_id=$16)
+         current_state=$4, current_city=$5, current_address_line=$6,
+         state=$7, city=$8, address_line=$9,
+         bank_name=$10, account_number=$11, ifsc_code=$12,
+         id_type=$13, id_number=$14, identification_details=$15::jsonb, joining_date=$16,
+         notes=$17, updated_at=NOW()
+     WHERE id=$18
+       AND tenant_id=$19
+       AND ($20::uuid IS NULL OR location_id=$20)
      RETURNING id, name, role, phone_number,
+               current_state, current_city, current_address_line,
                state, city, address_line,
                bank_name, account_number, ifsc_code,
-               id_type, id_number, joining_date,
+               id_type, id_number, identification_details, joining_date,
                notes, location_id, created_at,
                (SELECT name FROM branches WHERE id = location_id) AS location_name`,
     [
       data.name, data.role, data.phoneNumber,
+      data.currentState, data.currentCity, data.currentAddressLine,
       data.state, data.city, data.addressLine,
       data.bankName, data.accountNumber, data.ifscCode,
-      data.idType, data.idNumber, data.joiningDate,
+      data.idType, data.idNumber, JSON.stringify(data.identificationDetails), data.joiningDate,
       data.notes,
       staffId, user.tenant_id,
       user.type === "manager" ? user.branch_id : null,

@@ -9,6 +9,7 @@ export type InventoryRecord = {
   unit: string;
   quantity: number;
   stock: number;
+  lowStockThreshold: number;
   serviceQuantity: number;
   benefits: string;
   locationId: string;
@@ -23,6 +24,7 @@ type InventoryRow = {
   unit: string;
   quantity: string | number;
   stock: string | number;
+  low_stock_threshold: string | number;
   service_quantity: string | number;
   benefits: string;
   location_id: string;
@@ -36,6 +38,7 @@ type InventoryInput = {
   unit: string;
   quantity: number;
   stock: number;
+  lowStockThreshold: number;
   benefits: string;
   locationId?: string;
 };
@@ -54,6 +57,7 @@ function mapInventoryRow(row: InventoryRow): InventoryRecord {
     unit: row.unit,
     quantity: Number(row.quantity),
     stock: Number(row.stock),
+    lowStockThreshold: Number(row.low_stock_threshold),
     serviceQuantity: Number(row.service_quantity),
     benefits: row.benefits,
     locationId: row.location_id,
@@ -86,9 +90,10 @@ function normalizeInput(input: InventoryInput) {
   const costPrice = Number(input.costPrice);
   const quantity = Number(input.quantity);
   const stock = Number(input.stock);
+  const lowStockThreshold = Number(input.lowStockThreshold);
 
-  if ([costPrice, quantity, stock].some((value) => Number.isNaN(value) || value < 0)) {
-    throw createError("Cost price, quantity, and stock must be non-negative numbers.", 400);
+  if ([costPrice, quantity, stock, lowStockThreshold].some((value) => Number.isNaN(value) || value < 0)) {
+    throw createError("Cost price, quantity, stock, and low stock threshold must be non-negative numbers.", 400);
   }
 
   return {
@@ -97,6 +102,7 @@ function normalizeInput(input: InventoryInput) {
     unit,
     quantity,
     stock,
+    lowStockThreshold,
     benefits: String(input.benefits || "").trim(),
     locationId: input.locationId,
   };
@@ -130,6 +136,11 @@ function getInventorySql(columns: Set<string>, alias = "i") {
       ? `COALESCE(${alias}.reorder_level, 0)`
       : "0";
   const serviceQuantityExpr = columns.has("service_quantity") ? `COALESCE(${alias}.service_quantity, 0)` : "0";
+  const lowStockThresholdExpr = columns.has("low_stock_threshold")
+    ? `COALESCE(${alias}.low_stock_threshold, 5)`
+    : columns.has("reorder_level")
+      ? `COALESCE(${alias}.reorder_level, 5)`
+      : "5";
   const benefitsExpr = columns.has("benefits") ? `COALESCE(${alias}.benefits, '')` : `''`;
   const locationExpr = columns.has("location_id")
     ? (columns.has("branch_id") ? `COALESCE(${alias}.location_id, ${alias}.branch_id)` : `${alias}.location_id`)
@@ -141,6 +152,7 @@ function getInventorySql(columns: Set<string>, alias = "i") {
     unitExpr,
     quantityExpr,
     stockExpr,
+    lowStockThresholdExpr,
     serviceQuantityExpr,
     benefitsExpr,
     locationExpr,
@@ -195,6 +207,7 @@ async function getInventoryItemById(columns: Set<string>, inventoryId: string) {
         ${sql.unitExpr} AS unit,
         ${sql.quantityExpr} AS quantity,
         ${sql.stockExpr} AS stock,
+        ${sql.lowStockThresholdExpr} AS low_stock_threshold,
         ${sql.serviceQuantityExpr} AS service_quantity,
         ${sql.benefitsExpr} AS benefits,
         ${sql.locationExpr} AS location_id,
@@ -248,6 +261,7 @@ export async function listInventory(user: AuthUserPayload, locationId?: string) 
         ${sql.unitExpr} AS unit,
         ${sql.quantityExpr} AS quantity,
         ${sql.stockExpr} AS stock,
+        ${sql.lowStockThresholdExpr} AS low_stock_threshold,
         ${sql.serviceQuantityExpr} AS service_quantity,
         ${sql.benefitsExpr} AS benefits,
         ${sql.locationExpr} AS location_id,
@@ -284,6 +298,7 @@ export async function createInventoryItem(user: AuthUserPayload, input: Inventor
   if (columns.has("name")) pushValue("name", normalized.name);
   if (columns.has("sku")) pushValue("sku", buildLegacySku(normalized.name));
   if (columns.has("reorder_level")) pushValue("reorder_level", normalized.stock);
+  if (columns.has("low_stock_threshold")) pushValue("low_stock_threshold", normalized.lowStockThreshold);
   if (columns.has("unit_cost")) pushValue("unit_cost", normalized.costPrice);
   if (columns.has("cost_price")) pushValue("cost_price", normalized.costPrice);
   if (columns.has("unit")) pushValue("unit", normalized.unit);
@@ -313,7 +328,7 @@ export async function createInventoryItem(user: AuthUserPayload, input: Inventor
 export async function updateInventoryItem(user: AuthUserPayload, inventoryId: string, input: InventoryInput) {
   const normalized = normalizeInput(input);
   const locationId = await getAccessibleLocationId(user, normalized.locationId);
-  const legacyReorderLevel = Math.max(Math.floor(normalized.stock), 0);
+  const legacyReorderLevel = Math.max(Math.floor(normalized.lowStockThreshold), 0);
   const columns = await getTableColumns("inventory");
   const sql = getInventorySql(columns, "inventory");
 
@@ -344,6 +359,7 @@ export async function updateInventoryItem(user: AuthUserPayload, inventoryId: st
   if (columns.has("item_name")) pushUpdate("item_name", normalized.name);
   if (columns.has("unit_cost")) pushUpdate("unit_cost", normalized.costPrice);
   if (columns.has("reorder_level")) pushUpdate("reorder_level", legacyReorderLevel);
+  if (columns.has("low_stock_threshold")) pushUpdate("low_stock_threshold", normalized.lowStockThreshold);
   if (columns.has("name")) pushUpdate("name", normalized.name);
   if (columns.has("cost_price")) pushUpdate("cost_price", normalized.costPrice);
   if (columns.has("unit")) pushUpdate("unit", normalized.unit);

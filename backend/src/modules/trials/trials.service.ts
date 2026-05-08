@@ -2,12 +2,19 @@ import { AppDataSource } from '../../database/config';
 import { Log } from '../../entities/platform/Log';
 import { Tenant, TenantStatus } from '../../entities/platform/Tenant';
 import { Trial, TrialStatus } from '../../entities/platform/Trial';
+import {
+  calculateTrialEndDate,
+  getTrialPeriodConstraints,
+  getTrialPeriodDays,
+  updateTrialPeriodDays,
+} from '../../shared/utils/trialSettings';
 
 const trialRepo = () => AppDataSource.getRepository(Trial);
 const tenantRepo = () => AppDataSource.getRepository(Tenant);
 const logRepo = () => AppDataSource.getRepository(Log);
 
 async function ensureTrialCoverage() {
+  const trialDurationDays = await getTrialPeriodDays();
   const tenantsWithoutTrials = await tenantRepo()
     .createQueryBuilder('tenant')
     .leftJoin('tenant.trials', 'trial')
@@ -21,8 +28,7 @@ async function ensureTrialCoverage() {
 
   const trials = tenantsWithoutTrials.map((tenant) => {
     const startDate = new Date(tenant.createdAt);
-    const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + 7);
+    const endDate = calculateTrialEndDate(startDate, trialDurationDays);
 
     let status = TrialStatus.ACTIVE;
     if (tenant.status === TenantStatus.ACTIVE) {
@@ -92,4 +98,20 @@ export const getTrialStats = async () => {
     trialRepo().count({ where: { status: TrialStatus.CONVERTED } }),
   ]);
   return { total, active, expired, converted };
+};
+
+export const getTrialSettings = async () => {
+  const trialPeriodDays = await getTrialPeriodDays();
+  return {
+    trialPeriodDays,
+    ...getTrialPeriodConstraints(),
+  };
+};
+
+export const saveTrialSettings = async (days: number) => {
+  const trialPeriodDays = await updateTrialPeriodDays(days);
+  return {
+    trialPeriodDays,
+    ...getTrialPeriodConstraints(),
+  };
 };

@@ -7,13 +7,18 @@ interface AuthLayoutProps {
 
 export const AuthLayout: React.FC<AuthLayoutProps> = ({ children }) => {
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div className="sm:mx-auto sm:w-full sm:max-w-md flex flex-col items-center">
-        <img src={logo} alt="Groomvy Logo" className="h-20 w-auto mb-2" />
+    <div className="flex min-h-screen flex-col justify-center bg-[radial-gradient(circle_at_top_left,rgba(122,74,52,0.18),transparent_24%),linear-gradient(135deg,#f8f4ee_0%,#f4efe8_45%,#fbfaf8_100%)] px-4 py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="flex flex-col items-center">
+          <img src={logo} alt="Groomvy Logo" className="mb-3 h-20 w-auto" />
+          <p className="text-center text-sm font-medium text-[#8a6b58]">
+            Owner portal login
+          </p>
+        </div>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+        <div className="rounded-[24px] border border-[rgba(139,94,60,0.12)] bg-[rgba(255,251,246,0.96)] px-5 py-8 shadow-[0_18px_42px_rgba(88,56,32,0.12)] backdrop-blur-sm sm:px-10">
           {children}
         </div>
       </div>

@@ -14,6 +14,11 @@ import { SyncSubscriptionPlanEnum1714400000000 } from './migrations/171440000000
 import { CreateOperationalSchema1714500000000 } from './migrations/1714500000000-CreateOperationalSchema';
 import { AddDeploymentCompatibilitySchema1714600000000 } from './migrations/1714600000000-AddDeploymentCompatibilitySchema';
 import { FixSchemaAndLogicBugs1714700000000 } from './migrations/1714700000000-FixSchemaAndLogicBugs';
+import { CreatePlatformSettingsTable1714800000000 } from './migrations/1714800000000-CreatePlatformSettingsTable';
+import { AddStaffIdentificationDetails1714900000000 } from './migrations/1714900000000-AddStaffIdentificationDetails';
+import { AddStaffCurrentAddress1715000000000 } from './migrations/1715000000000-AddStaffCurrentAddress';
+import { AddComboServices1715100000000 } from './migrations/1715100000000-AddComboServices';
+import { AddInventoryLowStockThreshold1715200000000 } from './migrations/1715200000000-AddInventoryLowStockThreshold';
 
 export const databaseConfig = {
   host: ENV.DB_HOST,
@@ -36,5 +41,10 @@ export const AppDataSource = new DataSource({
     CreateOperationalSchema1714500000000,
     AddDeploymentCompatibilitySchema1714600000000,
     FixSchemaAndLogicBugs1714700000000,
+    CreatePlatformSettingsTable1714800000000,
+    AddStaffIdentificationDetails1714900000000,
+    AddStaffCurrentAddress1715000000000,
+    AddComboServices1715100000000,
+    AddInventoryLowStockThreshold1715200000000,
   ],
 });

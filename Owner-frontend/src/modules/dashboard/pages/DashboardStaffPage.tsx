@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
+import { City, State } from "country-state-city";
 import { useAuth } from "../../auth/hooks/useAuth";
 import {
   createStaffMember,
@@ -16,21 +17,28 @@ import { Plus, Search, MapPin, ChevronDown, Edit3, Trash2, X, User, Phone, Calen
 
 type LocationOption = { id: string; name: string; city?: string };
 type OutletContext = { ownerLocations?: LocationOption[] };
+type IndiaStateOption = { name: string; isoCode: string };
+type IndiaCityOption = { name: string };
+type IdentificationFormItem = { idType: string; idNumber: string };
 
 type FormState = {
   name: string; role: string; phoneNumber: string;
+  currentState: string; currentCity: string; currentAddressLine: string;
   state: string; city: string; addressLine: string;
+  sameAsCurrentAddress: boolean;
   bankName: string; accountNumber: string; ifscCode: string;
-  idType: string; idNumber: string;
-  joiningDate: string; notes: string; locationId: string;
+  identificationDetails: IdentificationFormItem[];
+  joiningDate: string; locationId: string;
 };
 
 const EMPTY: FormState = {
   name: "", role: "", phoneNumber: "",
+  currentState: "", currentCity: "", currentAddressLine: "",
   state: "", city: "", addressLine: "",
+  sameAsCurrentAddress: false,
   bankName: "", accountNumber: "", ifscCode: "",
-  idType: "", idNumber: "",
-  joiningDate: "", notes: "", locationId: "",
+  identificationDetails: [{ idType: "", idNumber: "" }],
+  joiningDate: "", locationId: "",
 };
 
 const ROLE_OPTIONS = ["Hair Stylist", "Colorist", "Nail Technician", "Therapist", "Receptionist", "Trainee", "Manager", "Other"];
@@ -56,11 +64,30 @@ export function DashboardStaffPage() {
   const { filters: globalFilters, setFilters } = useGlobalFilters();
   const isManager = user?.role === "MANAGER";
   const locationOptions = ownerLocations || [];
+  const indianStates = useMemo<IndiaStateOption[]>(
+    () => State.getStatesOfCountry("IN").map((state) => ({ name: state.name, isoCode: state.isoCode })),
+    []
+  );
+  const selectedCurrentState = useMemo(
+    () => indianStates.find((state) => state.name === form.currentState) || null,
+    [form.currentState, indianStates]
+  );
+  const selectedPermanentState = useMemo(
+    () => indianStates.find((state) => state.name === form.state) || null,
+    [form.state, indianStates]
+  );
   const defaultLocationId = useMemo(() => {
     if (isManager) return user?.branchId || "";
     return locationOptions[0]?.id || "";
   }, [isManager, user?.branchId, locationOptions]);
-
+  const availableCurrentCities = useMemo<IndiaCityOption[]>(
+    () => (selectedCurrentState ? City.getCitiesOfState("IN", selectedCurrentState.isoCode).map((city) => ({ name: city.name })) : []),
+    [selectedCurrentState]
+  );
+  const availablePermanentCities = useMemo<IndiaCityOption[]>(
+    () => (selectedPermanentState ? City.getCitiesOfState("IN", selectedPermanentState.isoCode).map((city) => ({ name: city.name })) : []),
+    [selectedPermanentState]
+  );
 
   const loadStaff = (locId = globalFilters.locationId) => {
     setIsLoading(true);
@@ -84,49 +111,164 @@ export function DashboardStaffPage() {
 
   const openCreate = () => {
     setEditingId(null);
-    setForm({ ...EMPTY, locationId: isManager ? defaultLocationId : globalFilters.locationId !== "all" ? globalFilters.locationId : (locationOptions[0]?.id || "") });
+    setForm({
+      ...EMPTY,
+      locationId: isManager ? defaultLocationId : globalFilters.locationId !== "all" ? globalFilters.locationId : (locationOptions[0]?.id || ""),
+    });
     setError(null);
     setIsModalOpen(true);
   };
 
   const openEdit = (member: StaffMember) => {
+    const identificationDetails =
+      member.identificationDetails?.filter((item) => item.idType || item.idNumber).length
+        ? member.identificationDetails.filter((item) => item.idType || item.idNumber)
+        : member.idType || member.idNumber
+          ? [{ idType: member.idType, idNumber: member.idNumber }]
+          : [{ idType: "", idNumber: "" }];
+
     setEditingId(member.id);
+    const sameAsCurrentAddress =
+      member.currentState === member.state &&
+      member.currentCity === member.city &&
+      member.currentAddressLine === member.addressLine;
+
     setForm({
-      name: member.name, role: member.role, phoneNumber: member.phoneNumber,
-      state: member.state, city: member.city, addressLine: member.addressLine,
-      bankName: member.bankName, accountNumber: member.accountNumber, ifscCode: member.ifscCode,
-      idType: member.idType, idNumber: member.idNumber,
-      joiningDate: member.joiningDate?.split("T")[0] || "", notes: member.notes,
+      name: member.name,
+      role: member.role,
+      phoneNumber: member.phoneNumber,
+      currentState: member.currentState,
+      currentCity: member.currentCity,
+      currentAddressLine: member.currentAddressLine,
+      state: member.state,
+      city: member.city,
+      addressLine: member.addressLine,
+      sameAsCurrentAddress,
+      bankName: member.bankName,
+      accountNumber: member.accountNumber,
+      ifscCode: member.ifscCode,
+      identificationDetails,
+      joiningDate: member.joiningDate?.split("T")[0] || "",
       locationId: member.locationId,
     });
     setError(null);
     setIsModalOpen(true);
   };
 
-  const closeModal = () => { if (isSubmitting) return; setIsModalOpen(false); setEditingId(null); setForm(EMPTY); setError(null); };
+  const closeModal = () => {
+    if (isSubmitting) return;
+    setIsModalOpen(false);
+    setEditingId(null);
+    setForm(EMPTY);
+    setError(null);
+  };
 
-  const f = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
-    setForm((c) => ({ ...c, [e.target.name]: e.target.value }));
+  const f = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setForm((current) => {
+      if (e.target.name === "currentState") {
+        const nextState = e.target.value;
+        return {
+          ...current,
+          currentState: nextState,
+          currentCity: "",
+          ...(current.sameAsCurrentAddress ? { state: nextState, city: "" } : {}),
+        };
+      }
+
+      if (e.target.name === "state") {
+        return { ...current, state: e.target.value, city: "" };
+      }
+
+      return { ...current, [e.target.name]: e.target.value };
+    });
+
+  const updateCurrentAddressLine = (value: string) => {
+    setForm((current) => ({
+      ...current,
+      currentAddressLine: value,
+      ...(current.sameAsCurrentAddress ? { addressLine: value } : {}),
+    }));
+  };
+
+  const updateCurrentCity = (value: string) => {
+    setForm((current) => ({
+      ...current,
+      currentCity: value,
+      ...(current.sameAsCurrentAddress ? { city: value } : {}),
+    }));
+  };
+
+  const toggleSameAsCurrentAddress = (checked: boolean) => {
+    setForm((current) => ({
+      ...current,
+      sameAsCurrentAddress: checked,
+      ...(checked
+        ? {
+            state: current.currentState,
+            city: current.currentCity,
+            addressLine: current.currentAddressLine,
+          }
+        : {}),
+    }));
+  };
+
+  const updateIdentification = (index: number, field: keyof IdentificationFormItem, value: string) => {
+    setForm((current) => ({
+      ...current,
+      identificationDetails: current.identificationDetails.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [field]: value } : item
+      ),
+    }));
+  };
+
+  const addIdentification = () => {
+    setForm((current) => ({
+      ...current,
+      identificationDetails: [...current.identificationDetails, { idType: "", idNumber: "" }],
+    }));
+  };
+
+  const removeIdentification = (index: number) => {
+    setForm((current) => ({
+      ...current,
+      identificationDetails:
+        current.identificationDetails.length === 1
+          ? [{ idType: "", idNumber: "" }]
+          : current.identificationDetails.filter((_, itemIndex) => itemIndex !== index),
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError(null);
     const payload: StaffInput = {
-      name: form.name, role: form.role, phoneNumber: form.phoneNumber,
-      state: form.state, city: form.city, addressLine: form.addressLine,
-      bankName: form.bankName, accountNumber: form.accountNumber, ifscCode: form.ifscCode,
-      idType: form.idType, idNumber: form.idNumber,
-      joiningDate: form.joiningDate || null, notes: form.notes,
+      name: form.name,
+      role: form.role,
+      phoneNumber: form.phoneNumber,
+      currentState: form.currentState,
+      currentCity: form.currentCity,
+      currentAddressLine: form.currentAddressLine,
+      state: form.state,
+      city: form.city,
+      addressLine: form.addressLine,
+      bankName: form.bankName,
+      accountNumber: form.accountNumber,
+      ifscCode: form.ifscCode,
+      identificationDetails: form.identificationDetails,
+      joiningDate: form.joiningDate || null,
       locationId: isManager ? defaultLocationId : form.locationId,
     };
     try {
-      if (editingId) { await updateStaffMember(editingId, payload); }
-      else { await createStaffMember(payload); }
-      closeModal(); loadStaff();
+      if (editingId) await updateStaffMember(editingId, payload);
+      else await createStaffMember(payload);
+      closeModal();
+      loadStaff();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save.");
-    } finally { setIsSubmitting(false); }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleDelete = (member: StaffMember) => {
@@ -149,7 +291,6 @@ export function DashboardStaffPage() {
 
   return (
     <div className="flex flex-col gap-5 h-full">
-      {/* Header */}
       <div className={`flex flex-col gap-4 rounded-2xl border p-5 shadow-sm md:flex-row md:items-center md:justify-between transition-all ${
         isDark ? "bg-[#151821] border-[rgba(255,255,255,0.07)]" : "bg-white border-[#E8E1D8]"
       }`}>
@@ -172,7 +313,7 @@ export function DashboardStaffPage() {
             </div>
           )}
           <div className="relative">
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search team…"
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search team..."
               className={`rounded-xl border pl-10 pr-4 py-2.5 text-sm outline-none transition-all w-52 ${
                 isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E] placeholder:text-[#4A4744]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
               }`} />
@@ -194,7 +335,6 @@ export function DashboardStaffPage() {
         }`}>{error}</div>
       )}
 
-      {/* Staff Table */}
       <div className={`flex-1 overflow-hidden rounded-2xl border shadow-sm transition-all ${
         isDark ? "bg-[#151821] border-[rgba(255,255,255,0.07)]" : "bg-white border-[#E8E1D8]"
       }`}>
@@ -211,7 +351,7 @@ export function DashboardStaffPage() {
             </thead>
             <tbody>
               {isLoading && (
-                <tr><td colSpan={6} className={`p-8 text-center text-sm ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>Loading staff profiles…</td></tr>
+                <tr><td colSpan={6} className={`p-8 text-center text-sm ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>Loading staff profiles...</td></tr>
               )}
               {!isLoading && filtered.map((m) => (
                 <tr key={m.id} className={`border-b transition-all last:border-0 cursor-pointer ${
@@ -230,7 +370,7 @@ export function DashboardStaffPage() {
                   <td className={`p-4 text-sm font-medium ${isDark ? "text-[#C8BFB4]" : "text-gray-600"}`}>{m.role}</td>
                   <td className={`p-4 text-sm font-medium ${isDark ? "text-[#C8BFB4]" : "text-gray-600"}`}>{m.phoneNumber}</td>
                   <td className={`p-4 text-sm ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>{m.locationName?.split("-")[0].trim()}</td>
-                  <td className={`p-4 text-sm ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>{m.joiningDate ? new Date(m.joiningDate).toLocaleDateString("en-IN") : "—"}</td>
+                  <td className={`p-4 text-sm ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>{m.joiningDate ? new Date(m.joiningDate).toLocaleDateString("en-IN") : "-"}</td>
                   <td className="p-4">
                     <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                       <button onClick={() => openEdit(m)} type="button"
@@ -256,9 +396,8 @@ export function DashboardStaffPage() {
           </table>
         </div>
 
-        {/* Mobile View */}
         <div className="md:hidden flex flex-col gap-3 p-4">
-          {isLoading && <div className={`text-center py-8 text-sm ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>Loading…</div>}
+          {isLoading && <div className={`text-center py-8 text-sm ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>Loading...</div>}
           {!isLoading && filtered.map((m) => (
             <div key={m.id} className={`rounded-xl border p-4 shadow-sm transition-all ${
               isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)]" : "bg-white border-[#E8E1D8]"
@@ -290,7 +429,6 @@ export function DashboardStaffPage() {
         </div>
       </div>
 
-      {/* Staff Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md">
           <div className={`flex w-full max-w-2xl max-h-[92vh] flex-col overflow-hidden rounded-[32px] border shadow-2xl transition-all ${
@@ -312,7 +450,6 @@ export function DashboardStaffPage() {
 
             <form onSubmit={handleSubmit} className="flex flex-col overflow-hidden">
               <div className="overflow-y-auto p-6 flex flex-col gap-8 scrollbar-elegant">
-                {/* Basic Info Section */}
                 <section>
                   <div className="flex items-center gap-2 mb-4">
                     <User size={14} className={isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"} />
@@ -336,7 +473,7 @@ export function DashboardStaffPage() {
                     )}
                     <div>
                       <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Full Name</label>
-                      <input required name="name" value={form.name} 
+                      <input required name="name" value={form.name}
                         maxLength={35}
                         onKeyDown={(e) => {
                           if (e.key === " " && !form.name) e.preventDefault();
@@ -345,7 +482,7 @@ export function DashboardStaffPage() {
                           const val = e.target.value.replace(/^\s+/, "").replace(/[^a-zA-Z\s]/g, "").replace(/\s{2,}/g, " ").slice(0, 35);
                           setForm((c) => ({ ...c, name: val }));
                         }}
-                        placeholder="e.g. Rahul Singh"
+                        placeholder="Enter Staff Name"
                         className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
                           isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
                         }`} />
@@ -366,7 +503,7 @@ export function DashboardStaffPage() {
                     <div className="relative">
                       <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Phone Number</label>
                       <div className="relative">
-                        <input required name="phoneNumber" value={form.phoneNumber} 
+                        <input required name="phoneNumber" value={form.phoneNumber}
                           maxLength={10}
                           onKeyDown={(e) => {
                             if (e.key === " ") e.preventDefault();
@@ -375,7 +512,7 @@ export function DashboardStaffPage() {
                             const val = e.target.value.replace(/\D/g, "").slice(0, 10);
                             setForm((c) => ({ ...c, phoneNumber: val }));
                           }}
-                          placeholder="9876543210"
+                          placeholder="Enter Phn No"
                           className={`w-full rounded-xl border pl-10 pr-4 py-3 text-sm outline-none transition-all ${
                             isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
                           }`} />
@@ -395,60 +532,172 @@ export function DashboardStaffPage() {
                   </div>
                 </section>
 
-                {/* Address Section */}
                 <section>
                   <div className="flex items-center gap-2 mb-4">
                     <Map size={14} className={isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"} />
-                    <h3 className={`text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`}>Permanent Address</h3>
+                    <h3 className={`text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`}>Current Address</h3>
                   </div>
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
                       <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>State</label>
-                      <input name="state" value={form.state} onChange={f} placeholder="e.g. Maharashtra"
-                        className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
-                          isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
-                        }`} />
+                      <div className="relative">
+                        <select
+                          name="currentState"
+                          value={form.currentState}
+                          onChange={f}
+                          className={`w-full appearance-none rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
+                            isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E] [color-scheme:dark]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C] [color-scheme:light]"
+                          }`}
+                        >
+                          <option value="">Select State</option>
+                          {indianStates.map((state) => (
+                            <option key={state.isoCode} value={state.name}>
+                              {state.name}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown size={16} className={`absolute right-4 top-3.5 pointer-events-none ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`} />
+                      </div>
                     </div>
                     <div>
                       <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>City</label>
-                      <input name="city" value={form.city} onChange={f} placeholder="e.g. Mumbai"
-                        className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
-                          isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
-                        }`} />
+                      <div className="relative">
+                        <select
+                          name="currentCity"
+                          value={form.currentCity}
+                          onChange={(e) => updateCurrentCity(e.target.value)}
+                          disabled={!form.currentState}
+                          className={`w-full appearance-none rounded-xl border px-4 py-3 text-sm outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
+                            isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E] [color-scheme:dark]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C] [color-scheme:light]"
+                          }`}
+                        >
+                          <option value="">{form.currentState ? "Select City" : "Select State First"}</option>
+                          {availableCurrentCities.map((city) => (
+                            <option key={city.name} value={city.name}>
+                              {city.name}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown size={16} className={`absolute right-4 top-3.5 pointer-events-none ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`} />
+                      </div>
                     </div>
                     <div className="md:col-span-2">
                       <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Address Line</label>
-                      <input name="addressLine" value={form.addressLine} onChange={f} placeholder="Street, Flat/House No."
+                      <input
+                        name="currentAddressLine"
+                        value={form.currentAddressLine}
+                        onChange={(e) => updateCurrentAddressLine(e.target.value)}
+                        placeholder="Street, Flat/House No."
                         className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
                           isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
-                        }`} />
+                        }`}
+                      />
                     </div>
                   </div>
                 </section>
 
-                {/* Bank Details Section */}
+                <section>
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Map size={14} className={isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"} />
+                      <h3 className={`text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`}>Permanent Address</h3>
+                    </div>
+                    <label className={`inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.12em] ${isDark ? "text-[#C8BFB4]" : "text-gray-600"}`}>
+                      <input
+                        type="checkbox"
+                        checked={form.sameAsCurrentAddress}
+                        onChange={(e) => toggleSameAsCurrentAddress(e.target.checked)}
+                        className={`h-4 w-4 rounded border ${
+                          isDark ? "border-[rgba(255,255,255,0.16)] bg-[#1C2030] text-[#C9A96E]" : "border-[#D8C7B7] text-[#8B5E3C]"
+                        }`}
+                      />
+                      Same as current
+                    </label>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>State</label>
+                      <div className="relative">
+                        <select
+                          name="state"
+                          value={form.state}
+                          onChange={f}
+                          disabled={form.sameAsCurrentAddress}
+                          className={`w-full appearance-none rounded-xl border px-4 py-3 text-sm outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
+                            isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E] [color-scheme:dark]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C] [color-scheme:light]"
+                          }`}
+                        >
+                          <option value="">Select State</option>
+                          {indianStates.map((state) => (
+                            <option key={state.isoCode} value={state.name}>
+                              {state.name}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown size={16} className={`absolute right-4 top-3.5 pointer-events-none ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>City</label>
+                      <div className="relative">
+                        <select
+                          name="city"
+                          value={form.city}
+                          onChange={f}
+                          disabled={form.sameAsCurrentAddress || !form.state}
+                          className={`w-full appearance-none rounded-xl border px-4 py-3 text-sm outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
+                            isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E] [color-scheme:dark]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C] [color-scheme:light]"
+                          }`}
+                        >
+                          <option value="">{form.state ? "Select City" : "Select State First"}</option>
+                          {availablePermanentCities.map((city) => (
+                            <option key={city.name} value={city.name}>
+                              {city.name}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown size={16} className={`absolute right-4 top-3.5 pointer-events-none ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`} />
+                      </div>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Address Line</label>
+                      <input
+                        name="addressLine"
+                        value={form.addressLine}
+                        onChange={f}
+                        disabled={form.sameAsCurrentAddress}
+                        placeholder="Street, Flat/House No."
+                        className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
+                          isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
+                        }`}
+                      />
+                    </div>
+                  </div>
+                </section>
+
                 <section>
                   <div className="flex items-center gap-2 mb-4">
                     <Banknote size={14} className={isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"} />
                     <h3 className={`text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`}>Payroll / Bank Details</h3>
                   </div>
+                  <p className={`mb-4 text-xs font-medium ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>These bank details are optional and can be added later.</p>
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
-                      <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Bank Name</label>
-                      <input name="bankName" value={form.bankName} onChange={f} placeholder="e.g. HDFC Bank"
+                      <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Bank Name (Optional)</label>
+                      <input name="bankName" value={form.bankName} onChange={f} placeholder="Enter Bank Name"
                         className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
                           isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
                         }`} />
                     </div>
                     <div>
-                      <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>IFSC Code</label>
-                      <input name="ifscCode" value={form.ifscCode} onChange={f} placeholder="HDFC0001234"
+                      <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>IFSC Code (Optional)</label>
+                      <input name="ifscCode" value={form.ifscCode} onChange={f} placeholder="Enter IFSC Code"
                         className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
                           isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
                         }`} />
                     </div>
                     <div className="md:col-span-2">
-                      <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Account Number</label>
+                      <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Account Number (Optional)</label>
                       <input name="accountNumber" value={form.accountNumber} onChange={f} placeholder="Standard Savings/Current No."
                         className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
                           isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
@@ -457,44 +706,79 @@ export function DashboardStaffPage() {
                   </div>
                 </section>
 
-                {/* ID Proof Section */}
                 <section>
-                  <div className="flex items-center gap-2 mb-4">
-                    <Shield size={14} className={isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"} />
-                    <h3 className={`text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`}>Identification</h3>
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Shield size={14} className={isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"} />
+                      <h3 className={`text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`}>Identification</h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={addIdentification}
+                      className={`rounded-full px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${
+                        isDark ? "bg-[rgba(201,169,110,0.12)] text-[#E8C98A] hover:bg-[rgba(201,169,110,0.2)]" : "bg-[#F5EDE4] text-[#8B5E3C] hover:bg-[#EEDCC9]"
+                      }`}
+                    >
+                      Add ID
+                    </button>
                   </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div>
-                      <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>ID Type</label>
-                      <div className="relative">
-                        <select name="idType" value={form.idType} onChange={f}
-                          className={`w-full appearance-none rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
-                            isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E] [color-scheme:dark]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C] [color-scheme:light]"
-                          }`}>
-                          <option value="">Select ID Type</option>
-                          {ID_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                        </select>
-                        <ChevronDown size={16} className={`absolute right-4 top-3.5 pointer-events-none ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`} />
+                  <p className={`mb-4 text-xs font-medium ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>You can store multiple identification proofs for one staff member.</p>
+                  <div className="flex flex-col gap-4">
+                    {form.identificationDetails.map((item, index) => (
+                      <div
+                        key={`identification-${index}`}
+                        className={`rounded-2xl border p-4 transition-all ${
+                          isDark ? "border-[rgba(255,255,255,0.08)] bg-[#1C2030]" : "border-[#E8E1D8] bg-[#FCFAF7]"
+                        }`}
+                      >
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <p className={`text-xs font-black uppercase tracking-[0.16em] ${isDark ? "text-[#C8BFB4]" : "text-[#6B7280]"}`}>
+                            ID Proof {index + 1}
+                          </p>
+                          {form.identificationDetails.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeIdentification(index)}
+                              className={`rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all ${
+                                isDark ? "bg-[rgba(248,113,113,0.12)] text-[#FCA5A5] hover:bg-[rgba(248,113,113,0.2)]" : "bg-red-50 text-red-600 hover:bg-red-100"
+                              }`}
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div>
+                            <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>ID Type</label>
+                            <div className="relative">
+                              <select
+                                value={item.idType}
+                                onChange={(e) => updateIdentification(index, "idType", e.target.value)}
+                                className={`w-full appearance-none rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
+                                  isDark ? "bg-[#151821] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E] [color-scheme:dark]" : "bg-white border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C] [color-scheme:light]"
+                                }`}
+                              >
+                                <option value="">Select ID Type</option>
+                                {ID_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                              </select>
+                              <ChevronDown size={16} className={`absolute right-4 top-3.5 pointer-events-none ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`} />
+                            </div>
+                          </div>
+                          <div>
+                            <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>ID Number</label>
+                            <input
+                              value={item.idNumber}
+                              onChange={(e) => updateIdentification(index, "idNumber", e.target.value)}
+                              placeholder="XXXX XXXX XXXX"
+                              className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
+                                isDark ? "bg-[#151821] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-white border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
+                              }`}
+                            />
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                    <div>
-                      <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>ID Number</label>
-                      <input name="idNumber" value={form.idNumber} onChange={f} placeholder="XXXX XXXX XXXX"
-                        className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
-                          isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
-                        }`} />
-                    </div>
+                    ))}
                   </div>
-                </section>
-
-                {/* Notes Section */}
-                <section>
-                  <label className={`mb-1.5 block text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Personnel Notes</label>
-                  <textarea name="notes" value={form.notes} onChange={f} rows={3}
-                    placeholder="Performance remarks, background verification status, etc."
-                    className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
-                      isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] placeholder:text-[#4A4744] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
-                    }`} />
                 </section>
 
                 {error && <p className="text-xs font-bold text-red-500 bg-red-500/10 px-4 py-2 rounded-xl">{error}</p>}
@@ -511,7 +795,7 @@ export function DashboardStaffPage() {
                   className={`rounded-full px-8 py-2.5 text-[10px] font-black uppercase tracking-widest text-white shadow-lg transition-all hover:-translate-y-0.5 disabled:opacity-60 ${
                     isDark ? "bg-[linear-gradient(135deg,#C9A96E_0%,#A67C3D_100%)] shadow-[0_8px_20px_rgba(201,169,110,0.15)]" : "bg-[#8B5E3C] shadow-[0_8px_20px_rgba(139,94,60,0.15)] hover:bg-[#744A2E]"
                   }`}>
-                  {isSubmitting ? "Syncing…" : editingId ? "Update Member" : "Finalize Staff Record"}
+                  {isSubmitting ? "Syncing..." : editingId ? "Update Member" : "Finalize Staff Record"}
                 </button>
               </div>
             </form>

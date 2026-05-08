@@ -26,6 +26,7 @@ type InventoryFormState = {
   unit: "ml" | "pcs";
   quantity: string;
   stock: string;
+  lowStockThreshold: string;
   benefits: string;
   locationId: string;
 };
@@ -36,6 +37,7 @@ const EMPTY_FORM: InventoryFormState = {
   unit: "pcs",
   quantity: "",
   stock: "",
+  lowStockThreshold: "5",
   benefits: "",
   locationId: "",
 };
@@ -65,7 +67,7 @@ export function DashboardInventoryPage() {
   const isManager = user?.role === "MANAGER";
   const locationOptions = ownerLocations || [];
   const lowStockItems = useMemo(
-    () => items.filter((item) => item.stock < 5),
+    () => items.filter((item) => item.stock <= item.lowStockThreshold),
     [items],
   );
 
@@ -76,7 +78,7 @@ export function DashboardInventoryPage() {
       .then((response) => {
         setItems(response.items);
         setError(null);
-        if (response.items.some((item) => item.stock < 5)) {
+        if (response.items.some((item) => item.stock <= item.lowStockThreshold)) {
           setIsLowStockModalOpen(true);
         }
       })
@@ -112,6 +114,7 @@ export function DashboardInventoryPage() {
       unit: item.unit,
       quantity: String(item.quantity),
       stock: String(item.stock),
+      lowStockThreshold: String(item.lowStockThreshold),
       benefits: item.benefits,
       locationId: item.locationId,
     });
@@ -136,6 +139,7 @@ export function DashboardInventoryPage() {
         unit: form.unit,
         quantity: Number(form.quantity),
         stock: Number(form.stock),
+        lowStockThreshold: Number(form.lowStockThreshold),
         benefits: form.benefits,
         locationId: isManager ? user?.branchId || "" : form.locationId,
       };
@@ -277,7 +281,7 @@ export function DashboardInventoryPage() {
               <div>
                 <h3 className={`font-bold ${isDark ? "text-amber-500" : "text-amber-900"}`}>Low Stock Alerts</h3>
                 <p className={`mt-0.5 text-xs ${isDark ? "text-amber-500/70" : "text-amber-700"}`}>
-                  These alerts stay active until the stock is filled above 5 units.
+                  Each product now uses its own configured low stock alert level.
                 </p>
               </div>
             </div>
@@ -314,14 +318,14 @@ export function DashboardInventoryPage() {
               <tr className={`border-b transition-all ${
                 isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.05)]" : "bg-gray-50/50 border-[#E8E1D8]"
               }`}>
-                {["Product", "Location", "Cost Price", "Quantity", "Stock", "Service Stock", "Actions"].map((h) => (
+                {["Product", "Location", "Cost Price", "Quantity", "Stock", "Low Stock Alert", "Service Stock", "Actions"].map((h) => (
                   <th key={h} className={`p-4 text-xs font-bold uppercase tracking-wider ${isDark ? "text-[#7A7572]" : "text-gray-500"} ${h === "Actions" ? "text-right" : ""}`}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {isLoading && (
-                <tr><td colSpan={7} className={`p-8 text-center text-sm ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>Loading inventory...</td></tr>
+                <tr><td colSpan={8} className={`p-8 text-center text-sm ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>Loading inventory...</td></tr>
               )}
               {!isLoading && items.map((item) => (
                 <tr key={item.id} className={`border-b transition-all last:border-0 ${
@@ -336,13 +340,14 @@ export function DashboardInventoryPage() {
                   <td className={`p-4 text-sm ${isDark ? "text-[#C8BFB4]" : "text-gray-600"}`}>{item.quantity} {item.unit}</td>
                   <td className="p-4">
                     <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase ${
-                      item.stock <= 5 
+                      item.stock <= item.lowStockThreshold 
                         ? (isDark ? "bg-red-500/20 text-red-400" : "bg-red-100 text-red-700") 
                         : (isDark ? "bg-green-500/10 text-green-400" : "bg-green-100 text-green-700")
                     }`}>
                       {item.stock}
                     </span>
                   </td>
+                  <td className={`p-4 text-sm font-semibold ${isDark ? "text-[#C8BFB4]" : "text-gray-600"}`}>{item.lowStockThreshold}</td>
                   <td className="p-4">
                     <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase ${
                       isDark ? "bg-[#1C2030] text-[#C9A96E]" : "bg-blue-100 text-blue-700"
@@ -375,7 +380,7 @@ export function DashboardInventoryPage() {
                 </tr>
               ))}
               {!isLoading && items.length === 0 && (
-                <tr><td colSpan={7} className={`p-12 text-center text-sm ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>No inventory items found.</td></tr>
+                <tr><td colSpan={8} className={`p-12 text-center text-sm ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>No inventory items found.</td></tr>
               )}
             </tbody>
           </table>
@@ -399,7 +404,7 @@ export function DashboardInventoryPage() {
                   </div>
                 </div>
                 <span className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase ${
-                  item.stock <= 5 
+                  item.stock <= item.lowStockThreshold 
                     ? (isDark ? "bg-red-500/20 text-red-400" : "bg-red-100 text-red-700") 
                     : (isDark ? "bg-green-500/10 text-green-400" : "bg-green-100 text-green-700")
                 }`}>
@@ -410,6 +415,10 @@ export function DashboardInventoryPage() {
                 <div className="flex flex-col">
                   <span className={`text-[9px] font-bold uppercase tracking-wider ${isDark ? "text-[#4A4744]" : "text-gray-400"}`}>Cost Price</span>
                   <span className={`text-sm font-bold ${isDark ? "text-[#E8C98A]" : "text-[#8B5E3C]"}`}>₹{item.costPrice}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className={`text-[9px] font-bold uppercase tracking-wider ${isDark ? "text-[#4A4744]" : "text-gray-400"}`}>Low Stock Alert</span>
+                  <span className={`text-sm font-bold ${isDark ? "text-[#FCA5A5]" : "text-red-600"}`}>{item.lowStockThreshold}</span>
                 </div>
                 <div className="flex flex-col">
                   <span className={`text-[9px] font-bold uppercase tracking-wider ${isDark ? "text-[#4A4744]" : "text-gray-400"}`}>Service Stock</span>
@@ -457,7 +466,7 @@ export function DashboardInventoryPage() {
                     const val = event.target.value.replace(/^\s+/, "").replace(/\s{2,}/g, " ");
                     setForm((current) => ({ ...current, name: val }));
                   }}
-                  placeholder="e.g., Argan Oil Shampoo"
+                  placeholder="Enter Product Name"
                   className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
                     isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] placeholder:text-[#4A4744] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
                   }`} />
@@ -512,6 +521,18 @@ export function DashboardInventoryPage() {
                   className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
                     isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
                   }`} />
+              </div>
+              <div className="md:col-span-2">
+                <div className={`rounded-2xl border p-4 transition-all ${
+                  isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.06)]" : "bg-[#FBF9F6] border-[#E8E1D8]"
+                }`}>
+                  <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`}>Low Stock Alert</label>
+                  <p className={`mb-3 text-[11px] ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Set the stock level at which this product should appear in low stock alerts.</p>
+                  <input required min="0" step="0.01" type="number" value={form.lowStockThreshold} onChange={(event) => setForm((current) => ({ ...current, lowStockThreshold: event.target.value }))}
+                    className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
+                      isDark ? "bg-[#151821] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-white border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
+                    }`} />
+                </div>
               </div>
               <div className="md:col-span-2">
                 <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>Key Benefits / Description</label>
