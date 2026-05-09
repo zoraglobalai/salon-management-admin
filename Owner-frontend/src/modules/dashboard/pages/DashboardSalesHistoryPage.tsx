@@ -2,8 +2,10 @@ import { useState, useEffect } from "react";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import { 
   fetchSales, 
+  fetchSaleById,
   fetchStaff, 
   fetchServices, 
+  type SaleDetail,
   type SaleRecord, 
   type SaleFilters, 
   type StaffMember, 
@@ -28,16 +30,87 @@ import {
   RefreshCw,
   Plus
 } from "lucide-react";
+import { useNotifications } from "../../../shared/components/NotificationProvider";
 
 type LocationOption = { id: string; name: string; city?: string };
 type SalesOutletContext = {
   ownerLocations?: LocationOption[];
 };
 
+type GroupedHistoryService =
+  | {
+      kind: "service";
+      id: string;
+      name: string;
+      price: number;
+      staffName: string | null;
+    }
+  | {
+      kind: "combo";
+      id: string;
+      comboName: string;
+      comboPrice: number;
+      services: Array<{
+        id: string;
+        name: string;
+        staffName: string | null;
+      }>;
+    };
+
+function formatCurrency(value: number) {
+  return `Rs.${Number(value || 0).toFixed(0)}`;
+}
+
+function groupSaleServicesForHistory(sale?: SaleDetail | null): GroupedHistoryService[] {
+  if (!sale) return [];
+
+  const groupedCombos = new Map<string, Extract<GroupedHistoryService, { kind: "combo" }>>();
+  const groupedServices: GroupedHistoryService[] = [];
+
+  (sale.services || []).forEach((item) => {
+    const comboServiceId = item.combo_service_id || "";
+
+    if (comboServiceId) {
+      const existingCombo = groupedCombos.get(comboServiceId);
+      const comboService = existingCombo || {
+        kind: "combo" as const,
+        id: comboServiceId,
+        comboName: item.combo_service_name || "Combo",
+        comboPrice: Number(item.combo_total_price || 0),
+        services: [],
+      };
+
+      comboService.services.push({
+        id: item.id,
+        name: item.service_name,
+        staffName: item.staff_name,
+      });
+
+      if (!existingCombo) {
+        groupedCombos.set(comboServiceId, comboService);
+        groupedServices.push(comboService);
+      }
+
+      return;
+    }
+
+    groupedServices.push({
+      kind: "service",
+      id: item.id,
+      name: item.service_name,
+      price: Number(item.price || 0),
+      staffName: item.staff_name,
+    });
+  });
+
+  return groupedServices;
+}
+
 export function DashboardSalesHistoryPage() {
   const navigate = useNavigate();
   const { theme } = useDashboardTheme();
   const isDark = theme === "dark";
+  const { toast } = useNotifications();
   const { user } = useAuth();
   const isManager = user?.role === "MANAGER";
   const { ownerLocations } = useOutletContext<SalesOutletContext>() || {};
@@ -49,6 +122,8 @@ export function DashboardSalesHistoryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+  const [saleDetails, setSaleDetails] = useState<Record<string, SaleDetail>>({});
+  const [loadingDetailId, setLoadingDetailId] = useState<string | null>(null);
 
   // Filter States
   const [selectedLocationId, setSelectedLocationId] = useState<string>(isManager ? user?.branchId || "" : "all");
@@ -88,6 +163,23 @@ export function DashboardSalesHistoryPage() {
     }, 400); // Debounce search
     return () => clearTimeout(timer);
   }, [selectedLocationId, filters]);
+
+  useEffect(() => {
+    if (!expandedRowId || saleDetails[expandedRowId] || loadingDetailId === expandedRowId) return;
+
+    setLoadingDetailId(expandedRowId);
+    fetchSaleById(expandedRowId)
+      .then((response) => {
+        setSaleDetails((current) => ({
+          ...current,
+          [expandedRowId]: response.sale,
+        }));
+      })
+      .catch((error: Error) => {
+        toast(error.message || "Unable to load invoice details", "error");
+      })
+      .finally(() => setLoadingDetailId((current) => (current === expandedRowId ? null : current)));
+  }, [expandedRowId, loadingDetailId, saleDetails, toast]);
 
   const toggleSort = (field: string) => {
     setFilters(prev => ({
@@ -349,7 +441,7 @@ export function DashboardSalesHistoryPage() {
                         Reset All Filters
                       </button>
                       <button 
-                        onClick={() => navigate("/dashboard/sales")}
+                        onClick={() => navigate("/dashboard/sales/pos/new")}
                         className={`px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white shadow-lg transition-all hover:-translate-y-0.5 ${
                           isDark ? "bg-[linear-gradient(135deg,#C9A96E,#A67C3D)] shadow-[0_8px_20px_rgba(201,169,110,0.15)]" : "bg-gray-900 text-white"
                         }`}
@@ -361,6 +453,16 @@ export function DashboardSalesHistoryPage() {
                   </td>
                 </tr>
               ) : sales.map(s => (
+                (() => {
+                  const saleDetail = saleDetails[s.id];
+                  const groupedServices = groupSaleServicesForHistory(saleDetail);
+                  const discountAmount = saleDetail
+                    ? saleDetail.discountType === "percent"
+                      ? (Number(saleDetail.subtotal || 0) * Number(saleDetail.discount || 0)) / 100
+                      : Number(saleDetail.discount || 0)
+                    : 0;
+
+                  return (
                 <>
                   <tr 
                     key={s.id}
@@ -435,7 +537,22 @@ export function DashboardSalesHistoryPage() {
                                 <span className={`text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Settlement Channel</span>
                                 <span className={`text-xs font-black uppercase tracking-widest ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>{s.paymentMethod}</span>
                               </div>
-
+                              {saleDetail ? (
+                                <>
+                                  <div className="flex justify-between items-center">
+                                    <span className={`text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Subtotal</span>
+                                    <span className={`text-xs font-black ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>{formatCurrency(Number(saleDetail.subtotal || 0))}</span>
+                                  </div>
+                                  <div className="flex justify-between items-center">
+                                    <span className={`text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Discount</span>
+                                    <span className={`text-xs font-black ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>- {formatCurrency(discountAmount)}</span>
+                                  </div>
+                                  <div className="flex justify-between items-center">
+                                    <span className={`text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Paid</span>
+                                    <span className={`text-xs font-black ${isDark ? "text-[#E8C98A]" : "text-[#8B5E3C]"}`}>{formatCurrency(Number(saleDetail.paidAmount || 0))}</span>
+                                  </div>
+                                </>
+                              ) : null}
                             </div>
                           </div>
 
@@ -453,17 +570,89 @@ export function DashboardSalesHistoryPage() {
                               </button>
                             </div>
                             
-                            {/* <div className={`p-6 rounded-3xl border ${isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.05)]" : "bg-white border-[#F2EDE7]"}`}>
-                               <p className={`text-center text-[10px] font-bold italic ${isDark ? "text-[#4A4744]" : "text-gray-400"}`}>
-                                 Inline expansion provides a quick snapshot. For full ledger reconstruction, line-item details, and modifications, please refer to the POS module or generate a detailed PDF invoice.
-                               </p>
-                            </div> */}
+                            <div className={`rounded-3xl border p-6 ${isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.05)]" : "bg-white border-[#F2EDE7]"}`}>
+                              {loadingDetailId === s.id && !saleDetail ? (
+                                <div className={`text-sm font-bold ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Loading invoice details...</div>
+                              ) : !saleDetail ? (
+                                <div className={`text-sm font-bold ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Invoice details are not available right now.</div>
+                              ) : (
+                                <div className="space-y-6">
+                                  <div className="space-y-4">
+                                    <h5 className={`text-[10px] font-black uppercase tracking-[0.25em] ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Services & Combos</h5>
+                                    {groupedServices.length === 0 ? (
+                                      <p className={`text-sm ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>No services recorded.</p>
+                                    ) : (
+                                      <div className="space-y-3">
+                                        {groupedServices.map((item) => (
+                                          <div
+                                            key={item.id}
+                                            className={`rounded-2xl border p-4 ${isDark ? "border-[rgba(255,255,255,0.05)] bg-[#151821]" : "border-[#F6F0E8] bg-[#FCFAF8]"}`}
+                                          >
+                                            {item.kind === "combo" ? (
+                                              <div className="space-y-3">
+                                                <div className="flex items-start justify-between gap-3">
+                                                  <div>
+                                                    <div className={`text-sm font-black ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>{item.comboName} (Combo)</div>
+                                                    <div className={`text-[11px] font-bold ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`}>Package with {item.services.length} services</div>
+                                                  </div>
+                                                  <div className={`text-sm font-black ${isDark ? "text-[#E8C98A]" : "text-[#8B5E3C]"}`}>{formatCurrency(item.comboPrice)}</div>
+                                                </div>
+                                                <div className="space-y-2">
+                                                  {item.services.map((service) => (
+                                                    <div key={service.id} className="flex items-center justify-between gap-3">
+                                                      <span className={`text-xs font-bold ${isDark ? "text-[#C8BFB4]" : "text-gray-700"}`}>{service.name}</span>
+                                                      <span className={`text-[11px] font-bold ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>{service.staffName || "No staff assigned"}</span>
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              </div>
+                                            ) : (
+                                              <div className="flex items-start justify-between gap-3">
+                                                <div>
+                                                  <div className={`text-sm font-black ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>{item.name}</div>
+                                                  <div className={`text-[11px] font-bold ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>{item.staffName || "No staff assigned"}</div>
+                                                </div>
+                                                <div className={`text-sm font-black ${isDark ? "text-[#E8C98A]" : "text-[#8B5E3C]"}`}>{formatCurrency(item.price)}</div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="space-y-4">
+                                    <h5 className={`text-[10px] font-black uppercase tracking-[0.25em] ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Inventory</h5>
+                                    {saleDetail.products.length === 0 ? (
+                                      <p className={`text-sm ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>No inventory products recorded.</p>
+                                    ) : (
+                                      <div className="space-y-3">
+                                        {saleDetail.products.map((product) => (
+                                          <div
+                                            key={product.id}
+                                            className={`flex items-center justify-between gap-3 rounded-2xl border p-4 ${isDark ? "border-[rgba(255,255,255,0.05)] bg-[#151821]" : "border-[#F6F0E8] bg-[#FCFAF8]"}`}
+                                          >
+                                            <div>
+                                              <div className={`text-sm font-black ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>{product.product_name}</div>
+                                              <div className={`text-[11px] font-bold ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Quantity {Number(product.quantity || 0)}</div>
+                                            </div>
+                                            <div className={`text-sm font-black ${isDark ? "text-[#E8C98A]" : "text-[#8B5E3C]"}`}>{formatCurrency(Number(product.price || 0) * Number(product.quantity || 0))}</div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </td>
                     </tr>
                   )}
                 </>
+                  );
+                })()
               ))}
             </tbody>
           </table>

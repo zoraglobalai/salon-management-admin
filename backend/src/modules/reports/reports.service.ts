@@ -126,6 +126,7 @@ export async function getSalesReport(user: AuthUserPayload, filters: ReportFilte
     ? (salesColumns.has("amount") ? "COALESCE(s.total_amount, s.amount, 0)" : "COALESCE(s.total_amount, 0)")
     : "COALESCE(s.amount, 0)";
   const salesDiscountExpr = salesColumns.has("discount") ? "COALESCE(s.discount, 0)" : "0";
+  const salesStatusCondition = salesColumns.has("status") ? ` AND COALESCE(s.status, 'COMPLETED') = 'COMPLETED'` : "";
 
   const { whereClause, values } = buildScopedFilters(user, filters, {
     alias: "s",
@@ -146,7 +147,7 @@ export async function getSalesReport(user: AuthUserPayload, filters: ReportFilte
         COALESCE(SUM(${salesDiscountExpr}), 0) as total_discount,
         COALESCE(AVG(${salesAmountExpr}), 0) as avg_order_value
      FROM sales s
-     WHERE ${whereClause}`,
+     WHERE ${whereClause}${salesStatusCondition}`,
     values,
   );
 
@@ -171,7 +172,7 @@ export async function getSalesReport(user: AuthUserPayload, filters: ReportFilte
         COALESCE(SUM(${salesAmountExpr}), 0) as revenue,
         COUNT(*)::int as sales_count
      FROM sales s
-     WHERE ${whereClause}
+     WHERE ${whereClause}${salesStatusCondition}
      GROUP BY date
      ORDER BY date ASC`,
     values,
@@ -183,7 +184,7 @@ export async function getSalesReport(user: AuthUserPayload, filters: ReportFilte
         COUNT(*)::int as count,
         COALESCE(SUM(${salesAmountExpr}), 0) as amount
      FROM sales s
-     WHERE ${whereClause}
+     WHERE ${whereClause}${salesStatusCondition}
      GROUP BY s.payment_method`,
     values,
   );
@@ -205,14 +206,14 @@ export async function getSalesReport(user: AuthUserPayload, filters: ReportFilte
      FROM sales s
      LEFT JOIN clients c ON c.id = s.client_id
      LEFT JOIN branches b ON b.id = ${salesLocationExpr}
-     WHERE ${whereClause}
+     WHERE ${whereClause}${salesStatusCondition}
      ORDER BY ${salesDateExpr} DESC
      LIMIT $${listValues.length - 1} OFFSET $${listValues.length}`,
     listValues,
   );
 
   const totalCountResult = await query<{ count: string }>(
-    `SELECT COUNT(*)::int as count FROM sales s WHERE ${whereClause}`,
+    `SELECT COUNT(*)::int as count FROM sales s WHERE ${whereClause}${salesStatusCondition}`,
     values,
   );
 
@@ -296,6 +297,7 @@ export async function getStaffReport(user: AuthUserPayload, filters: ReportFilte
   const salesDateExpr = salesColumns.has("created_at")
     ? (salesColumns.has("sale_date") ? "COALESCE(s.created_at, s.sale_date)" : "s.created_at")
     : "s.sale_date";
+  const salesStatusCondition = salesColumns.has("status") ? ` AND COALESCE(s.status, 'COMPLETED') = 'COMPLETED'` : "";
   const staffLocationExpr = staffColumns.has("location_id")
     ? (staffColumns.has("branch_id") ? "COALESCE(sm.location_id, sm.branch_id)" : "sm.location_id")
     : "sm.branch_id";
@@ -321,7 +323,7 @@ export async function getStaffReport(user: AuthUserPayload, filters: ReportFilte
      LEFT JOIN sale_services ss ON ss.staff_id = sm.id
      LEFT JOIN sales sales_filter
        ON sales_filter.id = ss.sale_id
-      AND ${salesJoinScoped}
+      AND ${salesJoinScoped}${salesStatusCondition.replace(/\bs\./g, "sales_filter.")}
      WHERE ${entityScope.whereClause}
      GROUP BY sm.id, sm.name
      ORDER BY revenue DESC, services_count DESC`,
@@ -346,6 +348,7 @@ export async function getServiceReport(user: AuthUserPayload, filters: ReportFil
   const salesDateExpr = salesColumns.has("created_at")
     ? (salesColumns.has("sale_date") ? "COALESCE(s.created_at, s.sale_date)" : "s.created_at")
     : "s.sale_date";
+  const salesStatusCondition = salesColumns.has("status") ? ` AND COALESCE(s.status, 'COMPLETED') = 'COMPLETED'` : "";
   const serviceLocationExpr = serviceColumns.has("location_id")
     ? (serviceColumns.has("branch_id") ? "COALESCE(ser.location_id, ser.branch_id)" : "ser.location_id")
     : "ser.branch_id";
@@ -371,7 +374,7 @@ export async function getServiceReport(user: AuthUserPayload, filters: ReportFil
      LEFT JOIN sale_services ss ON ss.service_id = ser.id
      LEFT JOIN sales sales_filter
        ON sales_filter.id = ss.sale_id
-      AND ${salesJoinScoped}
+      AND ${salesJoinScoped}${salesStatusCondition.replace(/\bs\./g, "sales_filter.")}
      WHERE ${entityScope.whereClause}
      GROUP BY ser.id, ser.name
      ORDER BY usage_count DESC, revenue DESC`,
@@ -408,6 +411,7 @@ export async function getInventoryReport(user: AuthUserPayload, filters: ReportF
   const salesDateExpr = salesColumns.has("created_at")
     ? (salesColumns.has("sale_date") ? "COALESCE(s.created_at, s.sale_date)" : "s.created_at")
     : "s.sale_date";
+  const salesStatusCondition = salesColumns.has("status") ? ` AND COALESCE(s.status, 'COMPLETED') = 'COMPLETED'` : "";
 
   // 1. Inventory Scope (Branch/Tenant)
   const invScope = buildScopedFilters(user, filters, {
@@ -452,7 +456,7 @@ export async function getInventoryReport(user: AuthUserPayload, filters: ReportF
         SUM(sp.quantity * sp.price) as revenue
       FROM sale_products sp
       JOIN sales s ON s.id = sp.sale_id
-      WHERE ${salesWhereScoped}
+      WHERE ${salesWhereScoped}${salesStatusCondition}
       GROUP BY sp.product_id
     ),
     service_movement AS (
@@ -464,7 +468,7 @@ export async function getInventoryReport(user: AuthUserPayload, filters: ReportF
       JOIN sales s ON s.id = ss.sale_id
       JOIN service_products sep ON sep.service_id = ss.service_id
       JOIN inventory inv_ref ON inv_ref.id = sep.product_id
-      WHERE ${salesWhereScoped}
+      WHERE ${salesWhereScoped}${salesStatusCondition}
       GROUP BY sep.product_id
     )
     SELECT 
@@ -500,7 +504,7 @@ export async function getInventoryReport(user: AuthUserPayload, filters: ReportF
     `SELECT SUM(sp.quantity) as count 
      FROM sale_products sp 
      JOIN sales s ON s.id = sp.sale_id 
-     WHERE s.tenant_id = $1 AND DATE(${salesDateExpr}) = $2`,
+     WHERE s.tenant_id = $1 AND DATE(${salesDateExpr}) = $2${salesStatusCondition}`,
     [user.tenant_id, today]
   );
 
@@ -543,6 +547,7 @@ export async function getReportsSummary(user: AuthUserPayload, filters: ReportFi
   const salesAmountExpr = salesColumns.has("total_amount")
     ? (salesColumns.has("amount") ? "COALESCE(s.total_amount, s.amount, 0)" : "COALESCE(s.total_amount, 0)")
     : "COALESCE(s.amount, 0)";
+  const salesStatusCondition = salesColumns.has("status") ? ` AND COALESCE(s.status, 'COMPLETED') = 'COMPLETED'` : "";
 
   const clientLocationExpr = clientColumns.has("location_id")
     ? (clientColumns.has("branch_id") ? "COALESCE(c.location_id, c.branch_id)" : "c.location_id")
@@ -568,7 +573,7 @@ export async function getReportsSummary(user: AuthUserPayload, filters: ReportFi
           COALESCE(SUM(${salesAmountExpr}), 0) as total_revenue,
           COUNT(*)::int as total_sales
        FROM sales s
-       WHERE ${salesScope.whereClause}`,
+       WHERE ${salesScope.whereClause}${salesStatusCondition}`,
       salesScope.values,
     ),
     query<any>(

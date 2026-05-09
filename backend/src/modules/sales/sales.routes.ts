@@ -1,9 +1,19 @@
 import { Router } from "express";
-import { handleCreateSale, handleListSales, handleGetSaleDetail } from "./sales.controller";
+import {
+  handleCreateSaleDraft,
+  handleFinalizeSaleDraft,
+  handleGetSaleDetail,
+  handleListSaleDrafts,
+  handleListSales,
+  handleUpdateSaleDraft,
+} from "./sales.controller";
 
 const router = Router();
 
-router.post("/", handleCreateSale);
+router.get("/drafts", handleListSaleDrafts);
+router.post("/drafts", handleCreateSaleDraft);
+router.put("/drafts/:id", handleUpdateSaleDraft);
+router.post("/drafts/:id/checkout", handleFinalizeSaleDraft);
 router.get("/", handleListSales);
 router.get("/:id", handleGetSaleDetail);
 

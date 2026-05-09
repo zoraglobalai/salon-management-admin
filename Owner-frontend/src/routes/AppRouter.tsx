@@ -18,6 +18,8 @@ import { ServiceReportPage } from "../modules/reports/pages/ServiceReportPage";
 import { StaffReportPage } from "../modules/reports/pages/StaffReportPage";
 import { InventoryReportPage } from "../modules/reports/pages/InventoryReportPage";
 import { DashboardSalesPOSPage } from "../modules/dashboard/pages/DashboardSalesPOSPage";
+import { DashboardSalesPOSEditPage } from "../modules/dashboard/pages/DashboardSalesPOSEditPage";
+import { DashboardSalesPOSCheckoutPage } from "../modules/dashboard/pages/DashboardSalesPOSCheckoutPage";
 import { DashboardSalesHistoryPage } from "../modules/dashboard/pages/DashboardSalesHistoryPage";
 import { DashboardServicesPage } from "../modules/dashboard/pages/DashboardServicesPage";
 import { DashboardStaffPage } from "../modules/dashboard/pages/DashboardStaffPage";
@@ -39,6 +41,9 @@ export function AppRouter() {
           <Route index element={<DashboardPage />} />
           <Route path="sales" element={<Navigate to="sales/pos" replace />} />
           <Route path="sales/pos" element={<POSRouteGuard><DashboardSalesPOSPage /></POSRouteGuard>} />
+          <Route path="sales/pos/new" element={<POSRouteGuard><DashboardSalesPOSEditPage /></POSRouteGuard>} />
+          <Route path="sales/pos/:draftId/edit" element={<POSRouteGuard><DashboardSalesPOSEditPage /></POSRouteGuard>} />
+          <Route path="sales/pos/:draftId/checkout" element={<POSRouteGuard><DashboardSalesPOSCheckoutPage /></POSRouteGuard>} />
           <Route path="sales/history" element={<POSRouteGuard><DashboardSalesHistoryPage /></POSRouteGuard>} />
           <Route path="clients" element={<DashboardClientsPage />} />
           <Route path="clients/:id" element={<ClientDetailPage />} />

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { fetchClientById, type CustomerDetailRecord } from "../../../core/api";
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
-import { ArrowLeft, Phone, MapPin, MessageSquare, History, Package, Scissors, CreditCard } from "lucide-react";
+import { ArrowLeft, Phone, MapPin, MessageSquare, History, Package, Scissors, CreditCard, Plus, ReceiptText } from "lucide-react";
 
 const TAG_COLORS: Record<string, string> = {
   NEW: "bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800/50",
@@ -127,6 +127,28 @@ export function ClientDetailPage() {
                 <MapPin size={14} className={isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"} />
                 <span className={`text-sm font-medium ${isDark ? "text-[#C8BFB4]" : "text-gray-600"}`}>{client.locationName}</span>
               </div>
+            </div>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => navigate("/dashboard/sales/pos/new")}
+                className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.18em] transition-all ${
+                  isDark ? "bg-[linear-gradient(135deg,#C9A96E,#A67C3D)] text-[#0F1115]" : "bg-[#8B5E3C] text-white"
+                }`}
+              >
+                <Plus size={14} />
+                New Sale
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate("/dashboard/sales/history")}
+                className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-black uppercase tracking-[0.18em] transition-all ${
+                  isDark ? "bg-[#1C2030] text-[#F0EBE3]" : "bg-[#F5EFE8] text-[#8B5E3C]"
+                }`}
+              >
+                <ReceiptText size={14} />
+                Sales History
+              </button>
             </div>
           </div>
         </div>
@@ -334,7 +356,7 @@ export function ClientDetailPage() {
             ))}
           </div>
         )}
-      </div>
+  </div>
     </div>
   );
 }

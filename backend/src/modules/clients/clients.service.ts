@@ -2,6 +2,10 @@ import { query, withTransaction } from "../../database/pool";
 import { createError } from "../../middleware/errorHandler";
 import type { AuthUserPayload } from "../../shared/types/auth";
 
+type SchemaColumnRow = {
+  column_name: string;
+};
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type ClientRecord = {
@@ -63,8 +67,8 @@ type ClientSaleRow = {
   sale_id: string;
   sale_date: string;
   total_amount: string | number;
-  payment_method: string;
-  location_name: string;
+  payment_method: string | null;
+  location_name: string | null;
 };
 
 type ClientSaleServiceRow = {
@@ -127,22 +131,41 @@ function mapRow(row: ClientRow, problems: string[] = []): ClientRecord {
   };
 }
 
+async function getTableColumns(tableName: string) {
+  const result = await query<SchemaColumnRow>(
+    `
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = $1
+    `,
+    [tableName],
+  );
+
+  return new Set(result.rows.map((row) => row.column_name));
+}
+
 async function fetchRecentVisits(
   clientId: string,
   tenantId: string,
   locationId: string | null,
 ): Promise<ClientVisitHistoryItem[]> {
+  const salesColumns = await getTableColumns("sales");
+  const salesLocationExpr = salesColumns.has("location_id") ? `COALESCE(s.location_id, s.branch_id)` : `s.branch_id`;
+  const salesStatusExpr = salesColumns.has("status") ? `COALESCE(s.status, 'COMPLETED')` : `'COMPLETED'`;
+  const salesPaymentExpr = salesColumns.has("payment_method") ? `s.payment_method` : `NULL`;
+
   const saleResult = await query<ClientSaleRow>(
     `SELECT s.id AS sale_id,
             COALESCE(s.sale_date, s.created_at)::text AS sale_date,
             COALESCE(s.total_amount, s.amount, 0) AS total_amount,
-            s.payment_method,
+            ${salesPaymentExpr} AS payment_method,
             b.name AS location_name
      FROM sales s
-     INNER JOIN branches b ON b.id = s.location_id
+     LEFT JOIN branches b ON b.id = ${salesLocationExpr}
      WHERE s.client_id = $1
        AND s.tenant_id = $2
-       AND ($3::uuid IS NULL OR s.location_id = $3)
+       AND ${salesStatusExpr} = 'COMPLETED'
+       AND ($3::uuid IS NULL OR ${salesLocationExpr} = $3)
      ORDER BY COALESCE(s.sale_date, s.created_at) DESC
      LIMIT 10`,
     [clientId, tenantId, locationId]
@@ -210,8 +233,8 @@ async function fetchRecentVisits(
     saleId: row.sale_id,
     saleDate: row.sale_date,
     totalAmount: Number(row.total_amount),
-    paymentMethod: row.payment_method,
-    locationName: row.location_name,
+    paymentMethod: row.payment_method || "N/A",
+    locationName: row.location_name || "Unknown location",
     services: servicesBySale[row.sale_id] || [],
     products: productsBySale[row.sale_id] || [],
   }));
@@ -261,7 +284,11 @@ async function resolveLocationId(user: AuthUserPayload, requestedId?: string) {
   if (!requestedId) throw createError("locationId is required.", 400);
 
   const check = await query<{ id: string }>(
-    `SELECT id FROM branches WHERE id = $1 AND "tenantId" = $2 LIMIT 1`,
+    `SELECT id
+     FROM branches
+     WHERE id = $1
+       AND COALESCE(tenant_id, "tenantId") = $2
+     LIMIT 1`,
     [requestedId, user.tenant_id]
   );
   if (!check.rows[0]) throw createError("Location not found.", 403);
@@ -287,6 +314,8 @@ async function fetchProblems(clientIds: string[]): Promise<Record<string, string
 
 export async function listClients(user: AuthUserPayload, locationId?: string, filters: ClientFilters = {}) {
   if (!user.tenant_id) throw createError("Tenant not found.", 400);
+  const clientColumns = await getTableColumns("clients");
+  const clientLocationExpr = clientColumns.has("location_id") ? `COALESCE(c.location_id, c.branch_id)` : `c.branch_id`;
 
   const values: unknown[] = [user.tenant_id];
   const conditions = ["c.tenant_id = $1"];
@@ -294,11 +323,11 @@ export async function listClients(user: AuthUserPayload, locationId?: string, fi
   // Location restriction
   if (user.type === "manager") {
     if (!user.branch_id) throw createError("Manager location not configured.", 400);
-    conditions.push(`c.location_id = $${values.length + 1}`);
+    conditions.push(`${clientLocationExpr} = $${values.length + 1}`);
     values.push(user.branch_id);
   } else if (user.type === "owner" && locationId && locationId !== "all") {
     const resolved = await resolveLocationId(user, locationId);
-    conditions.push(`c.location_id = $${values.length + 1}`);
+    conditions.push(`${clientLocationExpr} = $${values.length + 1}`);
     values.push(resolved);
   } else if (user.type !== "owner") {
     throw createError("Access denied.", 403);
@@ -350,10 +379,10 @@ export async function listClients(user: AuthUserPayload, locationId?: string, fi
     `SELECT c.id, c.name, c.phone_number, c.hair_type, c.notes,
             c.last_visit_at, c.total_visits, c.tag,
             c.preferred_staff_id, c.next_follow_up_date,
-            c.location_id, c.created_at,
-            b.name AS location_name
+            ${clientLocationExpr} AS location_id, c.created_at,
+            COALESCE(b.name, 'Unknown location') AS location_name
      FROM clients c
-     INNER JOIN branches b ON b.id = c.location_id
+     LEFT JOIN branches b ON b.id = ${clientLocationExpr}
      WHERE ${conditions.join(" AND ")}
      ORDER BY c.created_at DESC`,
     values
@@ -378,18 +407,20 @@ export async function listClients(user: AuthUserPayload, locationId?: string, fi
 
 export async function getClient(user: AuthUserPayload, clientId: string): Promise<ClientDetailRecord> {
   if (!user.tenant_id) throw createError("Tenant not found.", 400);
+  const clientColumns = await getTableColumns("clients");
+  const clientLocationExpr = clientColumns.has("location_id") ? `COALESCE(c.location_id, c.branch_id)` : `c.branch_id`;
 
   const result = await query<ClientRow>(
     `SELECT c.id, c.name, c.phone_number, c.hair_type, c.notes,
             c.last_visit_at, c.total_visits, c.tag,
             c.preferred_staff_id, c.next_follow_up_date,
-            c.location_id, c.created_at,
-            b.name AS location_name
+            ${clientLocationExpr} AS location_id, c.created_at,
+            COALESCE(b.name, 'Unknown location') AS location_name
      FROM clients c
-     INNER JOIN branches b ON b.id = c.location_id
+     LEFT JOIN branches b ON b.id = ${clientLocationExpr}
      WHERE c.id = $1
        AND c.tenant_id = $2
-       AND ($3::uuid IS NULL OR c.location_id = $3)`,
+       AND ($3::uuid IS NULL OR ${clientLocationExpr} = $3)`,
     [clientId, user.tenant_id, user.type === "manager" ? user.branch_id : null]
   );
 

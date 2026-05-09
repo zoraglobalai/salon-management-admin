@@ -73,7 +73,9 @@ export async function getDashboardMetrics(user: AuthUserPayload) {
   if (user.type === "admin") {
     const [platformStats, revenueStats, ticketStats] = await Promise.all([
       query<MetricRow>("SELECT COUNT(*)::int AS tenants, COUNT(*) FILTER (WHERE subscription_status = 'trial')::int AS trials FROM tenants"),
-      query<MetricRow>("SELECT COALESCE(SUM(amount), 0) AS revenue, COUNT(*)::int AS sales_count FROM sales"),
+      query<MetricRow>(
+        "SELECT COALESCE(SUM(amount), 0) AS revenue, COUNT(*)::int AS sales_count FROM sales WHERE COALESCE(status, 'COMPLETED') = 'COMPLETED'",
+      ),
       query<MetricRow>("SELECT COUNT(*) FILTER (WHERE status = 'open')::int AS open_tickets FROM support_tickets"),
     ]);
 
@@ -92,7 +94,12 @@ export async function getDashboardMetrics(user: AuthUserPayload) {
   const where = scope.filters.length ? `WHERE ${scope.filters.join(" AND ")}` : "";
 
   const [salesStats, appointmentStats, clientStats, inventoryStats] = await Promise.all([
-    query<MetricRow>(`SELECT COALESCE(SUM(amount), 0) AS revenue, COUNT(*)::int AS sales_count FROM sales ${where}`, scope.values),
+    query<MetricRow>(
+      `SELECT COALESCE(SUM(amount), 0) AS revenue, COUNT(*)::int AS sales_count
+       FROM sales
+       ${where ? `${where} AND COALESCE(status, 'COMPLETED') = 'COMPLETED'` : "WHERE COALESCE(status, 'COMPLETED') = 'COMPLETED'"}`,
+      scope.values,
+    ),
     query<MetricRow>(
       `SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE status = 'scheduled')::int AS scheduled, COUNT(*) FILTER (WHERE status = 'no_show')::int AS no_show
        FROM appointments ${where}`,
@@ -191,6 +198,7 @@ export async function getDashboardSummary(
         salesColumns.has("amount") ? ", s.amount, 0)" : ", 0)"
       }`
     : salesAmountExpr;
+  const salesStatusCondition = salesColumns.has("status") ? `AND COALESCE(s.status, 'COMPLETED') = 'COMPLETED'` : "";
   const appointmentLocationExpr = appointmentColumns.has("location_id")
     ? (appointmentColumns.has("branch_id") ? "COALESCE(a.location_id, a.branch_id)" : "a.location_id")
     : "a.branch_id";
@@ -237,6 +245,7 @@ export async function getDashboardSummary(
               SELECT COUNT(*)::int
               FROM sales s
               WHERE s.tenant_id = $1
+                ${salesStatusCondition}
                 AND ${salesLocationExpr} = b.id
                 AND DATE(${salesDateExpr}) = ${dateParam}::date
             ) AS total_sales,
@@ -244,6 +253,7 @@ export async function getDashboardSummary(
               SELECT COALESCE(SUM(${salesAmountExpr}), 0)
               FROM sales s
               WHERE s.tenant_id = $1
+                ${salesStatusCondition}
                 AND ${salesLocationExpr} = b.id
                 AND DATE(${salesDateExpr}) = ${dateParam}::date
             ) AS revenue,
@@ -251,6 +261,7 @@ export async function getDashboardSummary(
               SELECT COUNT(DISTINCT s.client_id)::int
               FROM sales s
               WHERE s.tenant_id = $1
+                ${salesStatusCondition}
                 AND ${salesLocationExpr} = b.id
                 AND DATE(${salesDateExpr}) = ${dateParam}::date
             ) AS clients,
@@ -258,6 +269,7 @@ export async function getDashboardSummary(
               SELECT COALESCE(SUM(${salesPaidExpr}), 0)
               FROM sales s
               WHERE s.tenant_id = $1
+                ${salesStatusCondition}
                 AND ${salesLocationExpr} = b.id
                 AND DATE(${salesDateExpr}) = ${dateParam}::date
             ) AS payments
@@ -282,6 +294,7 @@ export async function getDashboardSummary(
               SELECT COUNT(*)::int
               FROM sales s
               WHERE s.tenant_id = $1
+                ${salesStatusCondition}
                 AND ${salesLocationExpr} = b.id
                 AND DATE(${salesDateExpr}) = ${dateParam}::date
             ) AS total_sales,
@@ -289,6 +302,7 @@ export async function getDashboardSummary(
               SELECT COALESCE(SUM(${salesAmountExpr}), 0)
               FROM sales s
               WHERE s.tenant_id = $1
+                ${salesStatusCondition}
                 AND ${salesLocationExpr} = b.id
                 AND DATE(${salesDateExpr}) = ${dateParam}::date
             ) AS revenue,
@@ -296,6 +310,7 @@ export async function getDashboardSummary(
               SELECT COUNT(DISTINCT s.client_id)::int
               FROM sales s
               WHERE s.tenant_id = $1
+                ${salesStatusCondition}
                 AND ${salesLocationExpr} = b.id
                 AND DATE(${salesDateExpr}) = ${dateParam}::date
             ) AS clients,
@@ -321,6 +336,7 @@ export async function getDashboardSummary(
           COALESCE(SUM(${salesPaidExpr}), 0) AS today_payments
         FROM sales s
         WHERE s.tenant_id = $1
+          ${salesStatusCondition}
           AND DATE(${salesDateExpr}) = ${dateParam}::date
           ${salesScopeCondition}
       `,
@@ -351,8 +367,9 @@ export async function getDashboardSummary(
         FROM trend_window
         CROSS JOIN generate_series(trend_window.start_date, trend_window.end_date, INTERVAL '1 day') AS day_bucket(day)
         LEFT JOIN sales s
-          ON DATE(${salesDateExpr}) = DATE(day_bucket.day)
+         ON DATE(${salesDateExpr}) = DATE(day_bucket.day)
          AND s.tenant_id = $1
+         ${salesStatusCondition}
          ${salesScopeCondition}
         GROUP BY day_bucket.day
         ORDER BY day_bucket.day ASC
@@ -369,6 +386,7 @@ export async function getDashboardSummary(
         INNER JOIN sales s ON s.id = ss.sale_id
         INNER JOIN services ser ON ser.id = ss.service_id
         WHERE s.tenant_id = $1
+          ${salesStatusCondition}
           AND DATE(${salesDateExpr}) = ${dateParam}::date
           ${serviceScopeCondition}
         GROUP BY ser.id, ser.name
@@ -396,6 +414,7 @@ export async function getDashboardSummary(
         FROM sales s
         LEFT JOIN clients c ON c.id = s.client_id
         WHERE s.tenant_id = $1
+          ${salesStatusCondition}
           AND DATE(${salesDateExpr}) = ${dateParam}::date
           ${salesScopeCondition}
         ORDER BY ${salesDateExpr} DESC
@@ -411,6 +430,7 @@ export async function getDashboardSummary(
           COUNT(DISTINCT s.client_id)::int AS yesterday_clients
         FROM sales s
         WHERE s.tenant_id = $1
+          ${salesStatusCondition}
           AND DATE(${salesDateExpr}) = ${dateParam}::date - INTERVAL '1 day'
           ${salesScopeCondition}
       `,
@@ -424,6 +444,7 @@ export async function getDashboardSummary(
           COUNT(*)::int AS count
         FROM sales s
         WHERE s.tenant_id = $1
+          ${salesStatusCondition}
           AND DATE(${salesDateExpr}) = ${dateParam}::date
           ${salesScopeCondition}
         GROUP BY s.payment_method

@@ -803,38 +803,68 @@ export type SaleRecord = {
   clientName: string;
   clientPhone: string;
   totalAmount: number;
-  paymentMethod: string;
+  paymentMethod: string | null;
   createdAt: string;
   locationName: string;
+  status: "DRAFT" | "COMPLETED";
+  updatedAt?: string | null;
 };
 
 export type SaleDetail = SaleRecord & {
+  client_name?: string;
+  client_phone?: string;
   subtotal: number;
   discount: number;
   discountType: string;
+  discount_type?: string;
   paidAmount: number;
+  paid_amount?: number;
+  location_id?: string;
+  locationId?: string;
   services: Array<{
     id: string;
+    service_id?: string;
     service_name: string;
-    staff_name: string;
+    staff_id?: string | null;
+    staff_name: string | null;
     price: number;
+    combo_service_id?: string | null;
+    combo_service_name?: string | null;
+    combo_total_price?: number | null;
   }>;
   products: Array<{
     id: string;
+    product_id?: string;
     product_name: string;
     quantity: number;
     price: number;
   }>;
 };
 
-export type SaleInput = {
+export type SaleServiceDraftLine =
+  | {
+      serviceId: string;
+      staffId?: string | null;
+    }
+  | {
+      comboServiceId: string;
+      services: Array<{
+        serviceId: string;
+        staffId?: string | null;
+      }>;
+    };
+
+export type SaleDraftInput = {
   phoneNumber: string;
   clientName?: string;
   locationId?: string;
-  services: Array<{ serviceId: string; staffId: string }>;
+  services: SaleServiceDraftLine[];
   products: Array<{ productId: string; quantity: number }>;
   discount: number;
   discountType: "flat" | "percent";
+};
+
+export type SaleCheckoutInput = SaleDraftInput & {
   paymentMethod: "CASH" | "UPI" | "CARD";
   paidAmount: number;
 };
@@ -878,8 +908,33 @@ export async function fetchSaleById(id: string) {
   });
 }
 
-export async function createSale(payload: SaleInput) {
-  return request<{ saleId: string; totalAmount: number }>("/sales", {
+export async function fetchSaleDrafts(locationId?: string) {
+  const params = new URLSearchParams();
+  if (locationId && locationId !== "all") params.set("locationId", locationId);
+  const qs = params.toString();
+  return request<{ sales: SaleRecord[] }>(`/sales/drafts${qs ? `?${qs}` : ""}`, {
+    headers: getOwnerAuthHeaders(),
+  });
+}
+
+export async function createSaleDraft(payload: SaleDraftInput) {
+  return request<{ saleId: string; totalAmount: number; status: "DRAFT" }>("/sales/drafts", {
+    method: "POST",
+    headers: getOwnerAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateSaleDraft(id: string, payload: SaleDraftInput) {
+  return request<{ saleId: string; totalAmount: number; status: "DRAFT" }>(`/sales/drafts/${id}`, {
+    method: "PUT",
+    headers: getOwnerAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function finalizeSaleDraft(id: string, payload: SaleCheckoutInput) {
+  return request<{ saleId: string; totalAmount: number; status: "COMPLETED" }>(`/sales/drafts/${id}/checkout`, {
     method: "POST",
     headers: getOwnerAuthHeaders(),
     body: JSON.stringify(payload),
