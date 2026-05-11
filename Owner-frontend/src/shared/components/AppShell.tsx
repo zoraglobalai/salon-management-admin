@@ -232,14 +232,14 @@ export function AppShell({
         {/* ── Sidebar ── */}
         <aside
           className={[
-            `fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col overflow-hidden rounded-r-[30px] transition-transform duration-200 ease-out md:relative md:inset-auto md:h-full md:rounded-[30px] md:translate-x-0`,
+            `fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col overflow-hidden rounded-r-[22px] transition-transform duration-200 ease-out md:relative md:inset-auto md:h-full md:rounded-[24px] md:translate-x-0`,
             sidebarBg,
             sidebarShadow,
             isSidebarOpen ? "translate-x-0" : "-translate-x-full",
           ].join(" ")}
         >
           {/* Brand header */}
-          <div className={`rounded-b-[30px] px-5 py-4 text-white ${headerBg}`}>
+          <div className={`rounded-b-none px-5 py-4 text-white ${headerBg}`}>
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
                 <img src={brandLogo} alt="Salon Desk" className="h-10 w-10 rounded-2xl object-contain" />

@@ -78,7 +78,7 @@ export function DashboardSalesPOSEditPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedServices, setSelectedServices] = useState<DraftLineService[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<DraftLineProduct[]>([]);
-  const [discountValue, setDiscountValue] = useState(0);
+  const [discountValue, setDiscountValue] = useState("0");
   const [discountType, setDiscountType] = useState<"flat" | "percent">("flat");
 
   const serviceMap = useMemo(() => new Map(services.map((item) => [item.id, item])), [services]);
@@ -264,7 +264,7 @@ export function DashboardSalesPOSEditPage() {
             quantity: Number(item.quantity || 1),
           })),
         );
-        setDiscountValue(Number(sale.discount || 0));
+        setDiscountValue(sale.discount ? String(Number(sale.discount)) : "");
         setDiscountType(sale.discountType === "percent" ? "percent" : "flat");
       })
       .catch((error: Error) => {
@@ -726,10 +726,13 @@ export function DashboardSalesPOSEditPage() {
                 <label className={`text-[10px] font-black uppercase tracking-widest ${isDark ? "text-[#4A4744]" : "text-gray-400"}`}>Discount</label>
                 <div className={`flex items-center rounded-2xl border px-4 py-3 ${isDark ? "border-[rgba(255,255,255,0.08)] bg-[#1C2030]" : "border-[#E8E1D8] bg-gray-50"}`}>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     value={discountValue}
-                    min={0}
-                    onChange={(event) => setDiscountValue(Number(event.target.value || 0))}
+                    onChange={(event) => {
+                      const nextValue = event.target.value.replace(/\D/g, "");
+                      setDiscountValue(nextValue);
+                    }}
                     className={`w-full bg-transparent text-sm font-bold outline-none ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}
                     placeholder="Enter discount"
                   />

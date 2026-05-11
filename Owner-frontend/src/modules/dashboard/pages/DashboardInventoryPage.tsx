@@ -71,6 +71,9 @@ export function DashboardInventoryPage() {
     [items],
   );
 
+  const getDecimalInputValue = (value: string) =>
+    value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1");
+
 
   const loadInventory = (locationId = globalFilters.locationId) => {
     setIsLoading(true);
@@ -203,10 +206,21 @@ export function DashboardInventoryPage() {
   const handleMoveStock = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!movingStockItem || !moveQuantity) return;
+
+    const quantity = Number(moveQuantity);
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      toast("Enter a valid quantity to move.", "error");
+      return;
+    }
+
+    if (quantity > Number(movingStockItem.stock)) {
+      toast(`Quantity cannot exceed ${movingStockItem.stock}.`, "error");
+      return;
+    }
     
     setIsMovingStock(true);
     try {
-      const response = await moveStockToService(movingStockItem.id, Number(moveQuantity));
+      const response = await moveStockToService(movingStockItem.id, quantity);
       setItems((current) => current.map((item) => item.id === movingStockItem.id ? response.item : item));
       setError(null);
       setIsMoveStockModalOpen(false);
@@ -490,7 +504,7 @@ export function DashboardInventoryPage() {
               )}
               <div>
                 <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>Cost Price (₹)</label>
-                <input required min="0" step="0.01" type="number" value={form.costPrice} onChange={(event) => setForm((current) => ({ ...current, costPrice: event.target.value }))}
+                <input required type="text" inputMode="decimal" value={form.costPrice} onChange={(event) => setForm((current) => ({ ...current, costPrice: getDecimalInputValue(event.target.value) }))}
                   className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
                     isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
                   }`} />
@@ -510,14 +524,14 @@ export function DashboardInventoryPage() {
               </div>
               <div>
                 <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>Initial Quantity</label>
-                <input required min="0" step="0.01" type="number" value={form.quantity} onChange={(event) => setForm((current) => ({ ...current, quantity: event.target.value }))}
+                <input required type="text" inputMode="decimal" value={form.quantity} onChange={(event) => setForm((current) => ({ ...current, quantity: getDecimalInputValue(event.target.value) }))}
                   className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
                     isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
                   }`} />
               </div>
               <div>
                 <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>Initial Stock</label>
-                <input required min="0" step="0.01" type="number" value={form.stock} onChange={(event) => setForm((current) => ({ ...current, stock: event.target.value }))}
+                <input required type="text" inputMode="decimal" value={form.stock} onChange={(event) => setForm((current) => ({ ...current, stock: getDecimalInputValue(event.target.value) }))}
                   className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
                     isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
                   }`} />
@@ -528,7 +542,7 @@ export function DashboardInventoryPage() {
                 }`}>
                   <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`}>Low Stock Alert</label>
                   <p className={`mb-3 text-[11px] ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Set the stock level at which this product should appear in low stock alerts.</p>
-                  <input required min="0" step="0.01" type="number" value={form.lowStockThreshold} onChange={(event) => setForm((current) => ({ ...current, lowStockThreshold: event.target.value }))}
+                  <input required type="text" inputMode="decimal" value={form.lowStockThreshold} onChange={(event) => setForm((current) => ({ ...current, lowStockThreshold: getDecimalInputValue(event.target.value) }))}
                     className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
                       isDark ? "bg-[#151821] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-white border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
                     }`} />
@@ -648,7 +662,12 @@ export function DashboardInventoryPage() {
               </div>
               <div>
                 <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>Quantity to Move</label>
-                <input required min="0.01" max={movingStockItem.stock} step="0.01" type="number" value={moveQuantity} onChange={(event) => setMoveQuantity(event.target.value)}
+                <input required type="text" inputMode="decimal" value={moveQuantity} onChange={(event) => {
+                  const nextValue = event.target.value
+                    .replace(/[^0-9.]/g, "")
+                    .replace(/(\..*)\./g, "$1");
+                  setMoveQuantity(nextValue);
+                }}
                   placeholder={`Max ${movingStockItem.stock}`}
                   className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
                     isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
