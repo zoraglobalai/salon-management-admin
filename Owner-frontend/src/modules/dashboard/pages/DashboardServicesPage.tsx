@@ -913,11 +913,10 @@ export function DashboardServicesPage() {
                   </label>
                   <input
                     required
-                    min="0"
-                    step="0.01"
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     value={comboForm.price}
-                    onChange={(e) => setComboForm({ ...comboForm, price: e.target.value })}
+                    onChange={(e) => setComboForm({ ...comboForm, price: getDecimalInputValue(e.target.value) })}
                     className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
                       isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
                     }`}
@@ -929,11 +928,10 @@ export function DashboardServicesPage() {
                   </label>
                   <input
                     required
-                    min="1"
-                    step="1"
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     value={comboForm.duration}
-                    onChange={(e) => setComboForm({ ...comboForm, duration: e.target.value })}
+                    onChange={(e) => setComboForm({ ...comboForm, duration: getIntegerInputValue(e.target.value) })}
                     className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
                       isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
                     }`}
