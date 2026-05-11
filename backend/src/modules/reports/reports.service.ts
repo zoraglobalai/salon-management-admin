@@ -140,12 +140,26 @@ export async function getSalesReport(user: AuthUserPayload, filters: ReportFilte
     total_sales: string;
     total_discount: string;
     avg_order_value: string;
+    total_services_sold: string;
+    total_products_sold: string;
   }>(
     `SELECT 
         COALESCE(SUM(${salesAmountExpr}), 0) as total_revenue,
         COUNT(*)::int as total_sales,
         COALESCE(SUM(${salesDiscountExpr}), 0) as total_discount,
-        COALESCE(AVG(${salesAmountExpr}), 0) as avg_order_value
+        COALESCE(AVG(${salesAmountExpr}), 0) as avg_order_value,
+        (
+          SELECT COUNT(*)::int 
+          FROM sale_services ss
+          JOIN sales s2 ON s2.id = ss.sale_id
+          WHERE ${whereClause.replace(/\bs\./g, "s2.")}${salesStatusCondition.replace(/\bs\./g, "s2.")}
+        ) as total_services_sold,
+        (
+          SELECT COALESCE(SUM(sp.quantity), 0)::int
+          FROM sale_products sp
+          JOIN sales s2 ON s2.id = sp.sale_id
+          WHERE ${whereClause.replace(/\bs\./g, "s2.")}${salesStatusCondition.replace(/\bs\./g, "s2.")}
+        ) as total_products_sold
      FROM sales s
      WHERE ${whereClause}${salesStatusCondition}`,
     values,
@@ -202,7 +216,20 @@ export async function getSalesReport(user: AuthUserPayload, filters: ReportFilte
         ${salesDiscountExpr} as discount,
         COALESCE(s.payment_method, 'UNKNOWN') as "paymentSplit",
         COALESCE(c.name, 'Walk-in customer') as "clientName",
-        COALESCE(b.name, 'Unknown Branch') as "locationName"
+        COALESCE(b.name, 'Unknown Branch') as "locationName",
+        COALESCE((
+          SELECT json_agg(json_build_object('name', ser.name, 'staff_name', st.name))
+          FROM sale_services ss
+          JOIN services ser ON ser.id = ss.service_id
+          LEFT JOIN staff_members st ON st.id = ss.staff_id
+          WHERE ss.sale_id = s.id
+        ), '[]'::json) as services,
+        COALESCE((
+          SELECT json_agg(json_build_object('name', inv.name, 'quantity', sp.quantity))
+          FROM sale_products sp
+          JOIN inventory inv ON inv.id = sp.product_id
+          WHERE sp.sale_id = s.id
+        ), '[]'::json) as products
      FROM sales s
      LEFT JOIN clients c ON c.id = s.client_id
      LEFT JOIN branches b ON b.id = ${salesLocationExpr}
@@ -232,6 +259,7 @@ export async function getSalesReport(user: AuthUserPayload, filters: ReportFilte
     },
   };
 }
+
 
 export async function getCustomerReport(user: AuthUserPayload, filters: ReportFilters) {
   if (!user.tenant_id) throw createError("Tenant not found.", 400);
@@ -338,9 +366,10 @@ export async function getStaffReport(user: AuthUserPayload, filters: ReportFilte
 export async function getServiceReport(user: AuthUserPayload, filters: ReportFilters) {
   if (!user.tenant_id) throw createError("Tenant not found.", 400);
 
-  const [salesColumns, serviceColumns] = await Promise.all([
+  const [salesColumns, serviceColumns, inventoryColumns] = await Promise.all([
     getTableColumns("sales"),
     getTableColumns("services"),
+    getTableColumns("inventory"),
   ]);
   const salesLocationExpr = salesColumns.has("location_id")
     ? (salesColumns.has("branch_id") ? "COALESCE(s.location_id, s.branch_id)" : "s.location_id")
@@ -352,6 +381,7 @@ export async function getServiceReport(user: AuthUserPayload, filters: ReportFil
   const serviceLocationExpr = serviceColumns.has("location_id")
     ? (serviceColumns.has("branch_id") ? "COALESCE(ser.location_id, ser.branch_id)" : "ser.location_id")
     : "ser.branch_id";
+  const inventoryNameExpr = inventoryColumns.has("name") ? "inv.name" : "inv.item_name";
 
   const salesScope = buildScopedFilters(user, filters, {
     alias: "s",
@@ -365,24 +395,70 @@ export async function getServiceReport(user: AuthUserPayload, filters: ReportFil
   const salesJoinScoped = remapCombinedScope(salesJoinPredicate, 1, salesParamOffset);
 
   const servicePerformance = await query<any>(
-    `SELECT 
+    `WITH service_costs AS (
+        SELECT 
+          sc.service_id,
+          json_agg(json_build_object(
+            'name', ${inventoryNameExpr},
+            'quantity', sc.consumption_quantity,
+            'unit', sc.consumption_unit,
+            'cost_per_unit', (inv.cost_price / NULLIF(inv.quantity, 0))
+          )) as consumables,
+          SUM(sc.consumption_quantity * (inv.cost_price / NULLIF(inv.quantity, 0))) as cost_per_booking
+        FROM service_consumables sc
+        JOIN inventory inv ON inv.id = sc.inventory_item_id
+        GROUP BY sc.service_id
+     )
+     SELECT 
         ser.id as service_id,
         ser.name as service_name,
         COUNT(sales_filter.id)::int as usage_count,
-        COALESCE(SUM(CASE WHEN sales_filter.id IS NOT NULL THEN ss.price ELSE 0 END), 0) as revenue
+        COALESCE(SUM(CASE WHEN sales_filter.id IS NOT NULL THEN ss.price ELSE 0 END), 0) as revenue,
+        COALESCE(cost.consumables, '[]'::json) as consumables,
+        COALESCE(cost.cost_per_booking, 0) as cost_per_booking,
+        COALESCE(SUM(CASE WHEN sales_filter.id IS NOT NULL THEN cost.cost_per_booking ELSE 0 END), 0) as total_consumable_cost
      FROM services ser
      LEFT JOIN sale_services ss ON ss.service_id = ser.id
      LEFT JOIN sales sales_filter
        ON sales_filter.id = ss.sale_id
       AND ${salesJoinScoped}${salesStatusCondition.replace(/\bs\./g, "sales_filter.")}
+     LEFT JOIN service_costs cost ON cost.service_id = ser.id
      WHERE ${entityScope.whereClause}
-     GROUP BY ser.id, ser.name
+     GROUP BY ser.id, ser.name, cost.consumables, cost.cost_per_booking
      ORDER BY usage_count DESC, revenue DESC`,
+    combinedValues,
+  );
+
+  const summaryResult = await query<any>(
+    `SELECT 
+        COALESCE(SUM(total_cost), 0) as total_consumable_cost,
+        (SELECT name FROM inventory WHERE tenant_id = $1 AND stock < COALESCE(low_stock_threshold, 5) LIMIT 1) as low_stock_item,
+        (SELECT COUNT(*) FROM inventory WHERE tenant_id = $1 AND stock < COALESCE(low_stock_threshold, 5))::int as low_stock_count
+     FROM (
+       SELECT 
+         COUNT(sales_filter.id) * COALESCE(cost.cost_per_booking, 0) as total_cost
+       FROM services ser
+       LEFT JOIN sale_services ss ON ss.service_id = ser.id
+       LEFT JOIN sales sales_filter
+         ON sales_filter.id = ss.sale_id
+        AND ${salesJoinScoped}${salesStatusCondition.replace(/\bs\./g, "sales_filter.")}
+       LEFT JOIN (
+         SELECT 
+           sc.service_id,
+           SUM(sc.consumption_quantity * (inv.cost_price / NULLIF(inv.quantity, 0))) as cost_per_booking
+         FROM service_consumables sc
+         JOIN inventory inv ON inv.id = sc.inventory_item_id
+         GROUP BY sc.service_id
+       ) cost ON cost.service_id = ser.id
+       WHERE ${entityScope.whereClause}
+       GROUP BY ser.id, cost.cost_per_booking
+     ) sub`,
     combinedValues,
   );
 
   return {
     servicePerformance: servicePerformance.rows,
+    summary: summaryResult.rows[0],
   };
 }
 
@@ -414,25 +490,25 @@ export async function getInventoryReport(user: AuthUserPayload, filters: ReportF
   const salesStatusCondition = salesColumns.has("status") ? ` AND COALESCE(s.status, 'COMPLETED') = 'COMPLETED'` : "";
 
   // 1. Inventory Scope (Branch/Tenant)
-  const invScope = buildScopedFilters(user, filters, {
-    alias: "i",
-    locationExpr: inventoryLocationExpr,
-  });
+  const selectedLocationId = user.type === "manager" ? user.branch_id : normalizeLocationId(filters.locationId);
+  const values: any[] = [user.tenant_id];
+  let invWhere = "i.tenant_id = $1";
+  if (selectedLocationId) {
+    values.push(selectedLocationId);
+    invWhere += ` AND ${inventoryLocationExpr} = $2`;
+  }
 
-  // 2. Sales Scope (Branch/Tenant/Date)
-  const salesScope = buildScopedFilters(user, filters, {
-    alias: "s",
-    locationExpr: salesLocationExpr,
-    dateExpr: salesDateExpr,
-  });
-
-  // Parameter Offset Handling for combined query
-  const combinedValues = [...invScope.values, ...salesScope.values.slice(1)];
-  const salesParamOffset = invScope.values.length - 1;
-  const salesWhereScoped = salesScope.whereClause.replace(/\$(\d+)/g, (_, num) => {
-    const n = Number(num);
-    return n === 1 ? "$1" : `$${n + salesParamOffset}`;
-  });
+  // 2. Sales Scope (Dates)
+  const salesDateValues: any[] = [];
+  let salesDateWhere = "";
+  if (filters.startDate) {
+    values.push(filters.startDate);
+    salesDateWhere += ` AND DATE(${salesDateExpr}) >= $${values.length}`;
+  }
+  if (filters.endDate) {
+    values.push(filters.endDate);
+    salesDateWhere += ` AND DATE(${salesDateExpr}) <= $${values.length}`;
+  }
 
   const queryStr = `
     WITH filtered_inventory AS (
@@ -442,12 +518,13 @@ export async function getInventoryReport(user: AuthUserPayload, filters: ReportF
         ${inventoryLocationExpr} as resolved_location_id,
         ${inventoryNameExpr} as name,
         i.sku,
+        i.unit,
         COALESCE(i.stock, 0) as stock,
         COALESCE(i.quantity, 0) as unit_quantity,
         ${inventoryReorderExpr} as reorder_level,
         ${inventoryCostExpr} as unit_cost
       FROM inventory i
-      WHERE ${invScope.whereClause}
+      WHERE ${invWhere}
     ),
     sales_movement AS (
       SELECT 
@@ -456,20 +533,20 @@ export async function getInventoryReport(user: AuthUserPayload, filters: ReportF
         SUM(sp.quantity * sp.price) as revenue
       FROM sale_products sp
       JOIN sales s ON s.id = sp.sale_id
-      WHERE ${salesWhereScoped}${salesStatusCondition}
+      WHERE s.tenant_id = $1 ${selectedLocationId ? `AND ${salesLocationExpr} = $2` : ""} ${salesDateWhere} ${salesStatusCondition}
       GROUP BY sp.product_id
     ),
     service_movement AS (
       SELECT 
-        sep.product_id,
-        SUM(sep.quantity_used) as consumed_qty,
-        SUM(sep.quantity_used / NULLIF(COALESCE(inv_ref.quantity, 0), 0))::numeric as consumed_units
+        sc.inventory_item_id as product_id,
+        SUM(sc.consumption_quantity) as consumed_qty,
+        SUM(sc.consumption_quantity / NULLIF(COALESCE(inv_ref.quantity, 0), 0))::numeric as consumed_units
       FROM sale_services ss
       JOIN sales s ON s.id = ss.sale_id
-      JOIN service_products sep ON sep.service_id = ss.service_id
-      JOIN inventory inv_ref ON inv_ref.id = sep.product_id
-      WHERE ${salesWhereScoped}${salesStatusCondition}
-      GROUP BY sep.product_id
+      JOIN service_consumables sc ON sc.service_id = ss.service_id
+      JOIN inventory inv_ref ON inv_ref.id = sc.inventory_item_id
+      WHERE s.tenant_id = $1 ${selectedLocationId ? `AND ${salesLocationExpr} = $2` : ""} ${salesDateWhere} ${salesStatusCondition}
+      GROUP BY sc.inventory_item_id
     )
     SELECT 
       fi.*,
@@ -487,15 +564,15 @@ export async function getInventoryReport(user: AuthUserPayload, filters: ReportF
     ORDER BY total_out DESC, fi.stock ASC
   `;
 
-  const inventoryStatus = await query<any>(queryStr, combinedValues);
+  const inventoryStatus = await query<any>(queryStr, values);
   const rows = inventoryStatus.rows;
 
   // Summary Metrics
-  const totalStockValue = rows.reduce((sum, r) => sum + Number(r.stock_value), 0);
-  const totalProductRevenue = rows.reduce((sum, r) => sum + Number(r.revenue), 0);
+  const totalStockValue = rows.reduce((sum, r) => sum + Number(r.stock_value || 0), 0);
+  const totalProductRevenue = rows.reduce((sum, r) => sum + Number(r.revenue || 0), 0);
   const lowStockCount = rows.filter(r => {
-    const stock = Number(r.stock);
-    const reorder = Number(r.reorder_level);
+    const stock = Number(r.stock || 0);
+    const reorder = Number(r.reorder_level || 0);
     return stock < reorder || (stock <= 5 && stock <= reorder);
   }).length;
   
@@ -504,9 +581,11 @@ export async function getInventoryReport(user: AuthUserPayload, filters: ReportF
     `SELECT SUM(sp.quantity) as count 
      FROM sale_products sp 
      JOIN sales s ON s.id = sp.sale_id 
-     WHERE s.tenant_id = $1 AND DATE(${salesDateExpr}) = $2${salesStatusCondition}`,
-    [user.tenant_id, today]
+     WHERE s.tenant_id = $1 ${selectedLocationId ? `AND ${salesLocationExpr} = $2` : ""} AND DATE(${salesDateExpr}) = ${selectedLocationId ? '$3' : '$2'}${salesStatusCondition}`,
+    selectedLocationId ? [user.tenant_id, selectedLocationId, today] : [user.tenant_id, today]
   );
+
+  const topPerformer = rows.length > 0 ? rows[0] : null;
 
   return {
     inventoryStatus: rows,
@@ -515,17 +594,17 @@ export async function getInventoryReport(user: AuthUserPayload, filters: ReportF
       totalProductRevenue,
       lowStockCount,
       productsSoldToday: Number(todaySales.rows[0]?.count || 0),
-      fastMovingProduct: rows.length > 0 && Number(rows[0].total_out) > 0 ? rows[0].name : "None"
+      fastMovingProduct: topPerformer && Number(topPerformer.total_out) > 0 ? topPerformer.name : "None"
     },
     insights: {
-      topSelling: rows.filter(r => Number(r.sold) > 0).sort((a, b) => Number(b.sold) - Number(a.sold)).slice(0, 5),
+      topSelling: rows.filter(r => Number(r.sold || 0) > 0).sort((a, b) => Number(b.sold) - Number(a.sold)).slice(0, 5),
       lowStockAlerts: rows.filter(r => {
-        const stock = Number(r.stock);
-        const reorder = Number(r.reorder_level);
+        const stock = Number(r.stock || 0);
+        const reorder = Number(r.reorder_level || 0);
         return stock < reorder || (stock <= 5 && stock <= reorder);
       }).slice(0, 5),
-      deadStock: rows.filter(r => Number(r.sold) === 0).slice(0, 5),
-      highConsumption: rows.filter(r => Number(r.consumed) > 0).sort((a, b) => Number(b.consumed) - Number(a.consumed)).slice(0, 5)
+      deadStock: rows.filter(r => Number(r.sold || 0) === 0).slice(0, 5),
+      highConsumption: rows.filter(r => Number(r.consumed || 0) > 0).sort((a, b) => Number(b.consumed) - Number(a.consumed)).slice(0, 5)
     }
   };
 }

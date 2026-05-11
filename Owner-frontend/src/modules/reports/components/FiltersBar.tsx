@@ -70,32 +70,51 @@ export function FiltersBar({
       dateRangeType: globalFilters.dateRangeType, 
       locationId: globalFilters.locationId, 
       paymentMethod: globalFilters.paymentMethod, 
+      startDate: globalFilters.startDate,
+      endDate: globalFilters.endDate,
       ...updates 
     };
 
-    let startDate = globalFilters.startDate;
-    let endDate = globalFilters.endDate;
+    let startDate = combined.startDate;
+    let endDate = combined.endDate;
 
     const today = new Date();
-    if (updates.dateRangeType === "Today") {
-      startDate = formatLocalDate(today);
-      endDate = startDate;
-    } else if (updates.dateRangeType === "Yesterday") {
-      const yesterday = new Date(today);
-      yesterday.setDate(today.getDate() - 1);
-      startDate = formatLocalDate(yesterday);
-      endDate = startDate;
-    } else if (updates.dateRangeType === "Last 7 Days") {
-      const last7 = new Date(today);
-      last7.setDate(today.getDate() - 7);
-      startDate = formatLocalDate(last7);
-      endDate = formatLocalDate(today);
-    } else if (updates.dateRangeType === "This Month") {
-      startDate = formatLocalDate(new Date(today.getFullYear(), today.getMonth(), 1));
-      endDate = formatLocalDate(today);
-    } else if (updates.dateRangeType === "Last Month") {
-      startDate = formatLocalDate(new Date(today.getFullYear(), today.getMonth() - 1, 1));
-      endDate = formatLocalDate(new Date(today.getFullYear(), today.getMonth(), 0));
+    const todayStr = formatLocalDate(today);
+
+    if (updates.dateRangeType) {
+      if (updates.dateRangeType === "Today") {
+        startDate = todayStr;
+        endDate = startDate;
+      } else if (updates.dateRangeType === "Yesterday") {
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        startDate = formatLocalDate(yesterday);
+        endDate = startDate;
+      } else if (updates.dateRangeType === "Last 7 Days") {
+        const last7 = new Date(today);
+        last7.setDate(today.getDate() - 7);
+        startDate = formatLocalDate(last7);
+        endDate = todayStr;
+      } else if (updates.dateRangeType === "This Month") {
+        startDate = formatLocalDate(new Date(today.getFullYear(), today.getMonth(), 1));
+        endDate = todayStr;
+      } else if (updates.dateRangeType === "Last Month") {
+        startDate = formatLocalDate(new Date(today.getFullYear(), today.getMonth() - 1, 1));
+        endDate = formatLocalDate(new Date(today.getFullYear(), today.getMonth(), 0));
+      } else if (updates.dateRangeType === "Custom") {
+        // Keep existing if already custom
+      }
+    }
+
+    // Validation for custom dates
+    if (updates.startDate || updates.endDate) {
+      combined.dateRangeType = "Custom";
+      if (updates.startDate && updates.startDate > (updates.endDate || endDate)) {
+        endDate = updates.startDate;
+      }
+      if (updates.endDate && updates.endDate < (updates.startDate || startDate)) {
+        startDate = updates.endDate;
+      }
     }
 
     setFilters({ ...combined, startDate, endDate });
@@ -116,6 +135,10 @@ export function FiltersBar({
     ? "appearance-none rounded-xl border border-[rgba(255,255,255,0.1)] bg-[#1C2030] text-[#C8BFB4] transition focus:outline-none focus:border-[rgba(201,169,110,0.4)] focus:ring-2 focus:ring-[rgba(201,169,110,0.15)] hover:border-[rgba(255,255,255,0.18)] [color-scheme:dark]"
     : "appearance-none rounded-xl border border-[#E5E7EB] bg-white text-[#4B5563] transition hover:bg-[#F9FAFB] focus:outline-none focus:ring-2 focus:ring-[#8B5E3C]/20 [color-scheme:light]";
 
+  const inputCls = isDark
+    ? "rounded-xl border border-[rgba(255,255,255,0.1)] bg-[#1C2030] text-[#C8BFB4] transition focus:outline-none focus:border-[rgba(201,169,110,0.4)] focus:ring-2 focus:ring-[rgba(201,169,110,0.15)] px-3 py-2 text-sm font-medium [color-scheme:dark]"
+    : "rounded-xl border border-[#E5E7EB] bg-white text-[#4B5563] transition focus:outline-none focus:ring-2 focus:ring-[#8B5E3C]/20 px-3 py-2 text-sm font-medium [color-scheme:light]";
+
   const calendarIconCls = isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]";
   const chevronIconCls = isDark ? "text-[#7A7572]" : "text-gray-400";
 
@@ -127,6 +150,8 @@ export function FiltersBar({
     ? "bg-[linear-gradient(135deg,#C9A96E_0%,#A67C3D_100%)] text-[#0F1115] shadow-[0_4px_20px_rgba(201,169,110,0.3)] hover:shadow-[0_4px_28px_rgba(201,169,110,0.45)] hover:brightness-110"
     : "bg-[#111827] text-white hover:bg-[#374151]";
 
+  const todayStr = formatLocalDate(new Date());
+
   return (
     <div
       className={cn(
@@ -136,7 +161,7 @@ export function FiltersBar({
       )}
     >
       <div className="flex flex-wrap items-center gap-2">
-        {/* Date Range */}
+        {/* Date Range Selector */}
         <div className="relative">
           <select
             value={globalFilters.dateRangeType}
@@ -150,9 +175,35 @@ export function FiltersBar({
             <option value="Last 7 Days">Last 7 Days</option>
             <option value="This Month">This Month</option>
             <option value="Last Month">Last Month</option>
+            <option value="Custom">Custom Range</option>
           </select>
           <Calendar className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${calendarIconCls}`} />
           <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 ${chevronIconCls} pointer-events-none`} />
+        </div>
+
+        {/* Custom Date Pickers */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <span className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? "text-[#4A4744]" : "text-gray-400"}`}>From</span>
+            <input
+              type="date"
+              value={globalFilters.startDate}
+              max={todayStr}
+              onChange={(e) => handleFilterChange({ startDate: e.target.value })}
+              className={inputCls}
+            />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? "text-[#4A4744]" : "text-gray-400"}`}>To</span>
+            <input
+              type="date"
+              value={globalFilters.endDate}
+              max={todayStr}
+              min={globalFilters.startDate}
+              onChange={(e) => handleFilterChange({ endDate: e.target.value })}
+              className={inputCls}
+            />
+          </div>
         </div>
 
         {/* Branch selector */}

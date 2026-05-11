@@ -15,11 +15,14 @@ type InventoryStatus = {
   id: string;
   name: string;
   sku: string;
+  unit: string;
   stock: number;
+  unit_quantity: number;
   reorder_level: number;
   unit_cost: number;
   sold: number;
   consumed: number;
+  consumed_vol: number;
   total_out: number;
   stock_value: number;
   location_name: string;
@@ -58,12 +61,46 @@ const columns: Column<InventoryStatus>[] = [
     },
   },
   {
-    header: "Total Sold",
+    header: "Retail Sold",
     accessorKey: "sold",
     align: "center" as const,
     sortable: true,
     cell: (item: InventoryStatus) => (
       <span className="font-medium text-[#111827]">{Number(item.sold).toFixed(2).replace(/\.00$/, "")}</span>
+    ),
+  },
+  {
+    header: "Consumed (Services)",
+    accessorKey: "consumed",
+    align: "center" as const,
+    sortable: true,
+    cell: (item: InventoryStatus) => (
+      <div className="flex flex-col items-center">
+        <span className="font-medium text-[#111827]">{Number(item.consumed).toFixed(2).replace(/\.00$/, "")}</span>
+        {Number(item.consumed_vol) > 0 && (
+          <span className="text-[10px] text-gray-400 italic">
+            ({Number(item.consumed_vol).toLocaleString()} {item.unit})
+          </span>
+        )}
+      </div>
+    ),
+  },
+  {
+    header: "Total Out",
+    accessorKey: "total_out",
+    align: "center" as const,
+    sortable: true,
+    cell: (item: InventoryStatus) => (
+      <span className="font-bold text-[#111827]">{Number(item.total_out).toFixed(2).replace(/\.00$/, "")}</span>
+    ),
+  },
+  {
+    header: "Stock Value",
+    accessorKey: "stock_value",
+    align: "right" as const,
+    sortable: true,
+    cell: (item: InventoryStatus) => (
+      <span className="text-gray-600 font-medium">₹{Number(item.stock_value).toLocaleString()}</span>
     ),
   },
   {
@@ -315,7 +352,7 @@ export function InventoryReportPage() {
         <ReportDataTable
           columns={columns}
           data={inventoryStatus}
-          sortKey="sold"
+          sortKey="total_out"
           sortDirection="desc"
           page={pagination.page}
           totalPages={pagination.totalPages}
