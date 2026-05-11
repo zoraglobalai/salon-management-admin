@@ -1,16 +1,20 @@
 import { useEffect, useState } from "react";
 import {
   BarChart3,
+  CalendarDays,
   ChevronRight,
+  MapPin,
   Package,
   Scissors,
+  Sparkles,
   TrendingUp,
+  Trophy,
   UserSquare2,
   Users,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../../auth/hooks/useAuth";
 import {
-  fetchInventoryReport,
   fetchReportsSummary,
   fetchSalesReport,
   fetchServiceReport,
@@ -27,6 +31,13 @@ type OverviewSummary = {
   revenue: number;
   salesCount: number;
   customerCount: number;
+  insights?: {
+    topPerformer?: { name: string; revenue: number | string; services_count: number | string };
+    topBranch?: { name: string; revenue: number | string };
+    mostProfitableService?: { name: string; profit: number | string };
+    mostRequestedService?: { name: string; bookings_count: number | string };
+    highestRevenueDay?: { day_name: string; day_revenue: number | string };
+  };
 };
 
 type SalesTrendPoint = {
@@ -66,17 +77,6 @@ type ServiceOverview = {
   servicePerformance?: ServicePerformance[];
 };
 
-type InventoryOverview = {
-  summary?: {
-    lowStockCount: number | string;
-    fastMovingProduct: string;
-    totalProductRevenue: number | string;
-    productsSoldToday: number | string;
-  };
-  insights?: {
-    lowStockAlerts?: Array<{ name: string; stock: number | string }>;
-  };
-};
 
 
 function formatCurrency(value: number | string | undefined) {
@@ -94,27 +94,6 @@ function growthFromValues(current: number, previous: number) {
   return ((current - previous) / previous) * 100;
 }
 
-function buildSuggestion(input: {
-  revenueGrowth: number;
-  lowStockCount: number;
-  activeStaffCount: number;
-  topServiceName: string;
-}) {
-  if (input.lowStockCount > 0) {
-    return `Restock flagged items before ${input.topServiceName} demand slips.`;
-  }
-
-  if (input.revenueGrowth < 0) {
-    return `Revenue softened this period. Push ${input.topServiceName} bundles or reactivate recent clients.`;
-  }
-
-  if (input.activeStaffCount <= 1) {
-    return "Team activity is concentrated. Rebalance bookings to reduce dependency on one staff member.";
-  }
-
-  return `Momentum is healthy. Double down on ${input.topServiceName} and protect your best-performing slots.`;
-}
-
 
 export function ReportsLandingPage() {
   const { theme } = useDashboardTheme();
@@ -125,7 +104,7 @@ export function ReportsLandingPage() {
   const [salesData, setSalesData] = useState<SalesOverview | null>(null);
   const [staffData, setStaffData] = useState<StaffOverview | null>(null);
   const [serviceData, setServiceData] = useState<ServiceOverview | null>(null);
-  const [inventoryData, setInventoryData] = useState<InventoryOverview | null>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     let mounted = true;
@@ -141,12 +120,11 @@ export function ReportsLandingPage() {
           endDate: globalFilters.endDate,
           locationId: globalFilters.locationId === "all" ? undefined : globalFilters.locationId
         };
-        const [summaryRes, salesRes, staffRes, serviceRes, inventoryRes] = await Promise.all([
+        const [summaryRes, salesRes, staffRes, serviceRes] = await Promise.all([
           fetchReportsSummary(fetchParams),
           fetchSalesReport({ ...fetchParams, paymentMethod: globalFilters.paymentMethod, page: 1, limit: 20, interval: "daily" }),
           fetchStaffReport(fetchParams),
           fetchServiceReport(fetchParams),
-          fetchInventoryReport({ locationId: fetchParams.locationId }),
         ]);
 
         if (!mounted) return;
@@ -155,7 +133,6 @@ export function ReportsLandingPage() {
         setSalesData(salesRes.data);
         setStaffData(staffRes.data);
         setServiceData(serviceRes.data);
-        setInventoryData(inventoryRes.data);
       } catch (error) {
         console.error("Failed to load reports overview:", error);
       } finally {
@@ -180,14 +157,12 @@ export function ReportsLandingPage() {
   const servicePerformance = serviceData?.servicePerformance ?? [];
   const salesTrends = salesData?.trends ?? [];
 
-  const topStaff = staffPerformance[0];
   const activeStaff = staffPerformance.filter(
     (item) => Number(item.services_count || 0) > 0 || Number(item.revenue || 0) > 0,
   );
   const activeStaffCount = activeStaff.length;
   const totalStaffCount = staffPerformance.length;
   const topService = servicePerformance[0];
-  const lowStockCount = Number(inventoryData?.summary?.lowStockCount || 0);
 
   const currentTrendPoint = salesTrends[salesTrends.length - 1];
   const previousTrendPoint = salesTrends[salesTrends.length - 2];
@@ -200,12 +175,6 @@ export function ReportsLandingPage() {
     Number(currentTrendPoint?.sales_count || 0),
     Number(previousTrendPoint?.sales_count || 0),
   );
-  const suggestion = buildSuggestion({
-    revenueGrowth,
-    lowStockCount,
-    activeStaffCount,
-    topServiceName: topService?.service_name || "your top service",
-  });
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
@@ -247,116 +216,88 @@ export function ReportsLandingPage() {
         />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-3">
-        <div className={`flex flex-col justify-between rounded-[22px] p-5 text-white shadow-xl transition-all ${
-          isDark 
-            ? "bg-[linear-gradient(135deg,#A67C3D_0%,#4E2D1B_100%)]" 
-            : "bg-[linear-gradient(135deg,#8B5E3C_0%,#4E2D1B_100%)]"
-        }`}>
-          <div>
-            <div className="mb-4 flex items-center gap-3">
-              <div className="grid h-10 w-10 place-items-center rounded-xl bg-white/10">
-                <TrendingUp size={20} className="text-white" />
-              </div>
-              <h3 className="text-sm font-medium text-white/80 uppercase tracking-wider">Top Performer</h3>
-            </div>
-            <h2 className="text-[2.2rem] font-bold leading-tight tracking-tight">
-              {loading ? "..." : topStaff?.staff_name || topService?.service_name || "No performer yet"}
-            </h2>
-            <p className="mt-3 text-[15px] leading-relaxed text-white/80">
-              {topStaff 
-                ? `Generated ${formatCurrency(topStaff.revenue)} across ${topStaff.services_count} services this period.` 
-                : "Waiting for more activity data."}
-            </p>
-          </div>
+      <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+        {/* Insight Card 1: Top Performer (Common) */}
+        <InsightCard
+          isDark={isDark}
+          loading={loading}
+          icon={<Trophy className="text-orange-400" size={18} />}
+          title="Top Performer"
+          primaryValue={summary?.insights?.topPerformer?.name || "No Data"}
+          secondaryValue={
+            summary?.insights?.topPerformer
+              ? `${formatCurrency(summary.insights.topPerformer.revenue)} • ${summary.insights.topPerformer.services_count} services`
+              : "No activity recorded"
+          }
+          footer="Staff performance visibility"
+          link="/dashboard/reports/staff"
+        />
 
-          <div className="mt-8">
-            <div className="mb-4 h-px w-full bg-white/10" />
-            <Link
-              to="/dashboard/reports/staff"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-white/90 transition hover:text-white"
-            >
-              <span>View leaderboard</span>
-              <ChevronRight size={16} />
-            </Link>
-          </div>
-        </div>
+        {/* Insight Card 2: Top Branch (Owner) or Most Requested (Manager) */}
+        {user?.role === "OWNER" || user?.role === "INDEPENDENT_OWNER" ? (
+          <InsightCard
+            isDark={isDark}
+            loading={loading}
+            icon={<MapPin className="text-blue-400" size={18} />}
+            title="Top Branch"
+            primaryValue={summary?.insights?.topBranch?.name || "No Data"}
+            secondaryValue={
+              summary?.insights?.topBranch
+                ? `${formatCurrency(summary.insights.topBranch.revenue)} generated this period`
+                : "Awaiting multi-branch data"
+            }
+            footer="Branch growth visibility"
+            link="/dashboard/reports/sales"
+          />
+        ) : (
+          <InsightCard
+            isDark={isDark}
+            loading={loading}
+            icon={<Sparkles className="text-purple-400" size={18} />}
+            title="Most Requested Service"
+            primaryValue={summary?.insights?.mostRequestedService?.name || "No Data"}
+            secondaryValue={
+              summary?.insights?.mostRequestedService
+                ? `${summary.insights.mostRequestedService.bookings_count} bookings completed`
+                : "Service demand visibility"
+            }
+            footer="Staffing optimization insight"
+            link="/dashboard/reports/services"
+          />
+        )}
 
-        <div className={`flex flex-col justify-between rounded-[22px] border p-5 transition-all ${
-          isDark 
-            ? "bg-[#151821] border-[rgba(255,255,255,0.07)] shadow-lg" 
-            : "bg-white border-[#E8E1D8] shadow-sm"
-        }`}>
-          <div>
-            <div className="mb-4 flex items-center gap-3">
-              <div className={`grid h-10 w-10 place-items-center rounded-xl ${isDark ? "bg-[#1C2030] text-[#C9A96E]" : "bg-[#FAF7F3] text-[#8B5E3C]"}`}>
-                <UserSquare2 size={20} />
-              </div>
-              <h3 className={`text-sm font-medium uppercase tracking-wider ${isDark ? "text-[#7A7572]" : "text-[#9A8D80]"}`}>Team Productivity</h3>
-            </div>
-            <h2 className={`text-[2.2rem] font-bold leading-tight tracking-tight ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>
-              {loading ? "..." : `${totalStaffCount ? Math.round((activeStaffCount / totalStaffCount) * 100) : 0}% Utilization`}
-            </h2>
-            <p className={`mt-3 text-[15px] leading-relaxed ${isDark ? "text-[#C8BFB4]" : "text-[#4B5563]"}`}>
-              {loading ? "..." : `${activeStaffCount} out of ${totalStaffCount} staff members are actively handling services today.`}
-            </p>
-          </div>
-
-          <div className={`mt-8 rounded-[18px] p-4 ${isDark ? "bg-[#1C2030]" : "bg-[#FAF7F3]"}`}>
-            <p className={`text-[11px] font-bold uppercase tracking-[0.12em] ${isDark ? "text-[#4A4744]" : "text-[#9A8D80]"}`}>Recommendation</p>
-            <p className={`mt-2 text-[13px] leading-relaxed ${isDark ? "text-[#C8BFB4]" : "text-[#4B5563]"}`}>
-              Redistribute walk-ins to underbooked staff to maximize throughput.
-            </p>
-          </div>
-        </div>
-
-        <div className={`flex flex-col justify-between rounded-[22px] border p-5 transition-all ${
-          isDark 
-            ? "bg-[#151821] border-[rgba(255,255,255,0.07)] shadow-lg" 
-            : "bg-[#FFFDFB] border-[#F1D8CC] shadow-sm"
-        }`}>
-          <div>
-            <div className="mb-4 flex items-center gap-3">
-              <div className={`grid h-10 w-10 place-items-center rounded-xl ${isDark ? "bg-[#1C2030] text-[#FBBF24]" : "bg-[#FEF9F0] text-[#D97706]"}`}>
-                <BarChart3 size={20} />
-              </div>
-              <h3 className={`text-sm font-medium uppercase tracking-wider ${isDark ? "text-[#7A7572]" : "text-[#9A8D80]"}`}>Business Health</h3>
-            </div>
-            <h2 className={`text-[2.2rem] font-bold leading-tight tracking-tight ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>
-              {loading ? "..." : revenueGrowth >= 0 ? "Revenue is trending up" : "Revenue needs focus"}
-            </h2>
-            <p className={`mt-3 text-[15px] leading-relaxed ${isDark ? "text-[#C8BFB4]" : "text-[#4B5563]"}`}>
-              {loading ? "..." : `Your revenue ${revenueGrowth >= 0 ? "grew" : "dipped"} by ${Math.abs(revenueGrowth).toFixed(1)}% compared to the previous period.`}
-            </p>
-          </div>
-
-          <div className="mt-8">
-            <div className={`rounded-[18px] border p-4 transition-all ${isDark ? "bg-[#1C2030] border-white/5" : "bg-white border-[#F1D8CC]"}`}>
-              <p className={`text-[11px] font-bold uppercase tracking-[0.12em] ${isDark ? "text-[#4A4744]" : "text-[#9A8D80]"}`}>Strategy</p>
-              <p className={`mt-2 text-[13px] leading-relaxed ${isDark ? "text-[#C8BFB4]" : "text-[#4B5563]"}`}>
-                {loading ? "..." : suggestion}
-              </p>
-            </div>
-            <div className="mt-4 flex gap-3">
-              <Link
-                to="/dashboard/reports/sales"
-                className={`flex-1 rounded-xl py-2.5 text-center text-sm font-semibold transition-all ${
-                  isDark ? "bg-[#C9A96E] text-[#0F1115]" : "bg-[#8B5E3C] text-white"
-                }`}
-              >
-                Deep Dive
-              </Link>
-              <Link
-                to="/dashboard/reports/inventory"
-                className={`flex-1 rounded-xl border py-2.5 text-center text-sm font-semibold transition-all ${
-                  isDark ? "border-white/10 text-white/70" : "border-[#E6D6C8] text-[#8B5E3C]"
-                }`}
-              >
-                Stock Alerts
-              </Link>
-            </div>
-          </div>
-        </div>
+        {/* Insight Card 3: Profitable Service (Owner) or Peak Day (Manager) */}
+        {user?.role === "OWNER" || user?.role === "INDEPENDENT_OWNER" ? (
+          <InsightCard
+            isDark={isDark}
+            loading={loading}
+            icon={<TrendingUp className="text-emerald-400" size={18} />}
+            title="Most Profitable Service"
+            primaryValue={summary?.insights?.mostProfitableService?.name || "No Data"}
+            secondaryValue={
+              summary?.insights?.mostProfitableService
+                ? `${formatCurrency(summary.insights.mostProfitableService.profit)} net profit`
+                : "Profitability visibility"
+            }
+            footer="Business strategy insight"
+            link="/dashboard/reports/services"
+          />
+        ) : (
+          <InsightCard
+            isDark={isDark}
+            loading={loading}
+            icon={<CalendarDays className="text-indigo-400" size={18} />}
+            title="Highest Revenue Day"
+            primaryValue={summary?.insights?.highestRevenueDay?.day_name || "No Data"}
+            secondaryValue={
+              summary?.insights?.highestRevenueDay
+                ? `${formatCurrency(summary.insights.highestRevenueDay.day_revenue)} generated`
+                : "Peak business visibility"
+            }
+            footer="Operational optimization"
+            link="/dashboard/reports/sales"
+          />
+        )}
       </div>
 
       <h2 className={`pt-2 text-xl font-semibold ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>Detailed Reports</h2>
@@ -396,4 +337,102 @@ export function ReportsLandingPage() {
     </div>
   );
 }
+function InsightCard({
+  isDark,
+  loading,
+  icon,
+  title,
+  primaryValue,
+  secondaryValue,
+  footer,
+  link,
+}: {
+  isDark: boolean;
+  loading: boolean;
+  icon: React.ReactNode;
+  title: string;
+  primaryValue: string;
+  secondaryValue: string;
+  footer: string;
+  link: string;
+}) {
+  return (
+    <div
+      className={`group flex flex-col justify-between overflow-hidden rounded-3xl border p-6 transition-all duration-300 hover:scale-[1.01] hover:shadow-xl ${
+        isDark
+          ? "bg-[#151821] border-white/5 shadow-2xl"
+          : "bg-white border-[#F0EBE3] shadow-sm"
+      }`}
+    >
+      <div className="relative z-10">
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div
+              className={`flex h-10 w-10 items-center justify-center rounded-xl transition-colors ${
+                isDark ? "bg-white/5" : "bg-[#FAF7F3]"
+              }`}
+            >
+              {icon}
+            </div>
+            <span
+              className={`text-[11px] font-bold uppercase tracking-[0.2em] ${
+                isDark ? "text-[#7A7572]" : "text-[#9A8D80]"
+              }`}
+            >
+              {title}
+            </span>
+          </div>
+          <Link
+            to={link}
+            className={`opacity-0 transition-all group-hover:opacity-100 ${
+              isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"
+            }`}
+          >
+            <ChevronRight size={18} />
+          </Link>
+        </div>
 
+        <div className="space-y-1.5">
+          <div
+            className={`truncate text-2xl font-bold tracking-tight ${
+              isDark ? "text-[#F0EBE3]" : "text-[#111827]"
+            }`}
+          >
+            {loading ? <div className="h-8 w-24 animate-pulse rounded bg-gray-200/20" /> : primaryValue}
+          </div>
+          <div
+            className={`text-sm font-medium ${
+              isDark ? "text-[#A69F97]" : "text-[#6B7280]"
+            }`}
+          >
+            {loading ? <div className="mt-2 h-4 w-40 animate-pulse rounded bg-gray-200/20" /> : secondaryValue}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-8 pt-5 border-t border-dashed border-white/5">
+        <div className="flex items-center justify-between">
+          <span
+            className={`text-[10px] font-semibold uppercase tracking-widest ${
+              isDark ? "text-[#4A4744]" : "text-[#B5A99D]"
+            }`}
+          >
+            {footer}
+          </span>
+          <div
+            className={`h-1.5 w-1.5 rounded-full ${
+              isDark ? "bg-[#C9A96E]/50" : "bg-[#8B5E3C]/30"
+            }`}
+          />
+        </div>
+      </div>
+
+      {/* Decorative gradient background elements */}
+      <div
+        className={`absolute -right-8 -top-8 h-32 w-32 rounded-full blur-[60px] transition-opacity duration-500 group-hover:opacity-40 ${
+          isDark ? "bg-[#C9A96E]/10" : "bg-[#8B5E3C]/5"
+        }`}
+      />
+    </div>
+  );
+}

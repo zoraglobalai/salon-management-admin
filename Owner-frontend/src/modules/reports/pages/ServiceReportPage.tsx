@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, Scissors, BarChart3, PieChart, FlaskConical, TrendingUp } from "lucide-react";
+import { ArrowLeft, Scissors, PieChart, FlaskConical, TrendingUp } from "lucide-react";
 import { Link } from "react-router-dom";
 import { FiltersBar } from "../components/FiltersBar";
 import { SummaryCard } from "../components/SummaryCard";

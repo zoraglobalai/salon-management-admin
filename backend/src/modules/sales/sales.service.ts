@@ -570,7 +570,7 @@ async function applyInventoryDeductions(
 
     await db.query(
       `UPDATE inventory
-       SET quantity = quantity - $1
+       SET stock = stock - $1
        WHERE id = $2`,
       [product.quantity, product.productId],
     );
