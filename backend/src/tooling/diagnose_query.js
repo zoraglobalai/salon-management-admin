@@ -56,19 +56,19 @@ async function run() {
     console.log(`\n=== SERVICES QUERY OK: ${result.rowCount} row(s) ===`);
     result.rows.slice(0, 3).forEach(r => console.log(`  ${r.id} - ${r.name}`));
 
-    // Step 5: Check service_products join
+    // Step 5: Check service_consumables join
     if (result.rowCount > 0) {
       const serviceIds = result.rows.map(r => r.id);
       const products = await pool.query(
-        `SELECT sp.id, sp.service_id, sp.product_id, sp.quantity_used, sp.unit,
+        `SELECT sc.id, sc.service_id, sc.inventory_item_id, sc.consumption_quantity, sc.consumption_unit,
                 i.name AS product_name,
                 COALESCE(i.service_quantity, 0) AS product_stock
-         FROM service_products sp
-         INNER JOIN inventory i ON i.id = sp.product_id
-         WHERE sp.service_id = ANY($1::uuid[])`,
+         FROM service_consumables sc
+         INNER JOIN inventory i ON i.id = sc.inventory_item_id
+         WHERE sc.service_id = ANY($1::uuid[])`,
         [serviceIds]
       );
-      console.log(`\n=== SERVICE_PRODUCTS JOIN OK: ${products.rowCount} row(s) ===`);
+      console.log(`\n=== SERVICE_CONSUMABLES JOIN OK: ${products.rowCount} row(s) ===`);
     }
 
   } catch (err) {

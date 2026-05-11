@@ -187,7 +187,7 @@ export async function getSalesReport(user: AuthUserPayload, filters: ReportFilte
         COUNT(*)::int as sales_count
      FROM sales s
      WHERE ${whereClause}${salesStatusCondition}
-     GROUP BY date
+     GROUP BY 1
      ORDER BY date ASC`,
     values,
   );
@@ -325,21 +325,28 @@ export async function getStaffReport(user: AuthUserPayload, filters: ReportFilte
   const salesDateExpr = salesColumns.has("created_at")
     ? (salesColumns.has("sale_date") ? "COALESCE(s.created_at, s.sale_date)" : "s.created_at")
     : "s.sale_date";
-  const salesStatusCondition = salesColumns.has("status") ? ` AND COALESCE(s.status, 'COMPLETED') = 'COMPLETED'` : "";
+  const salesStatusCondition = salesColumns.has("status") ? ` AND COALESCE(sales_filter.status, 'COMPLETED') = 'COMPLETED'` : "";
   const staffLocationExpr = staffColumns.has("location_id")
     ? (staffColumns.has("branch_id") ? "COALESCE(sm.location_id, sm.branch_id)" : "sm.location_id")
     : "sm.branch_id";
 
-  const salesScope = buildScopedFilters(user, filters, {
-    alias: "s",
-    locationExpr: salesLocationExpr,
-    dateExpr: salesDateExpr,
-  });
-  const entityScope = buildEntityScope(user, filters, "sm", staffLocationExpr);
-  const salesJoinPredicate = salesScope.whereClause.replace(/\bs\./g, "sales_filter.");
-  const combinedValues = [...entityScope.values, ...salesScope.values.slice(1)];
-  const salesParamOffset = entityScope.values.length - 1;
-  const salesJoinScoped = remapCombinedScope(salesJoinPredicate, 1, salesParamOffset);
+  const selectedLocationId = user.type === "manager" ? user.branch_id : normalizeLocationId(filters.locationId);
+  const values: any[] = [user.tenant_id];
+  let staffWhere = "sm.tenant_id = $1";
+  if (selectedLocationId) {
+    values.push(selectedLocationId);
+    staffWhere += ` AND ${staffLocationExpr} = $2`;
+  }
+
+  let salesDateWhere = "";
+  if (filters.startDate) {
+    values.push(filters.startDate);
+    salesDateWhere += ` AND DATE(${salesDateExpr.replace(/s\./g, 'sales_filter.')}) >= $${values.length}`;
+  }
+  if (filters.endDate) {
+    values.push(filters.endDate);
+    salesDateWhere += ` AND DATE(${salesDateExpr.replace(/s\./g, 'sales_filter.')}) <= $${values.length}`;
+  }
 
   const staffPerformance = await query<any>(
     `SELECT 
@@ -351,11 +358,11 @@ export async function getStaffReport(user: AuthUserPayload, filters: ReportFilte
      LEFT JOIN sale_services ss ON ss.staff_id = sm.id
      LEFT JOIN sales sales_filter
        ON sales_filter.id = ss.sale_id
-      AND ${salesJoinScoped}${salesStatusCondition.replace(/\bs\./g, "sales_filter.")}
-     WHERE ${entityScope.whereClause}
+      AND sales_filter.tenant_id = $1 ${selectedLocationId ? `AND ${salesLocationExpr.replace(/s\./g, 'sales_filter.')} = $2` : ""} ${salesDateWhere} ${salesStatusCondition}
+     WHERE ${staffWhere}
      GROUP BY sm.id, sm.name
      ORDER BY revenue DESC, services_count DESC`,
-    combinedValues,
+    values,
   );
 
   return {
@@ -377,56 +384,64 @@ export async function getServiceReport(user: AuthUserPayload, filters: ReportFil
   const salesDateExpr = salesColumns.has("created_at")
     ? (salesColumns.has("sale_date") ? "COALESCE(s.created_at, s.sale_date)" : "s.created_at")
     : "s.sale_date";
-  const salesStatusCondition = salesColumns.has("status") ? ` AND COALESCE(s.status, 'COMPLETED') = 'COMPLETED'` : "";
+  const salesStatusCondition = salesColumns.has("status") ? ` AND COALESCE(sales_filter.status, 'COMPLETED') = 'COMPLETED'` : "";
   const serviceLocationExpr = serviceColumns.has("location_id")
     ? (serviceColumns.has("branch_id") ? "COALESCE(ser.location_id, ser.branch_id)" : "ser.location_id")
     : "ser.branch_id";
   const inventoryNameExpr = inventoryColumns.has("name") ? "inv.name" : "inv.item_name";
 
-  const salesScope = buildScopedFilters(user, filters, {
-    alias: "s",
-    locationExpr: salesLocationExpr,
-    dateExpr: salesDateExpr,
-  });
-  const entityScope = buildEntityScope(user, filters, "ser", serviceLocationExpr);
-  const salesJoinPredicate = salesScope.whereClause.replace(/\bs\./g, "sales_filter.");
-  const combinedValues = [...entityScope.values, ...salesScope.values.slice(1)];
-  const salesParamOffset = entityScope.values.length - 1;
-  const salesJoinScoped = remapCombinedScope(salesJoinPredicate, 1, salesParamOffset);
+  const selectedLocationId = user.type === "manager" ? user.branch_id : normalizeLocationId(filters.locationId);
+  const values: any[] = [user.tenant_id];
+  let serviceWhere = "ser.tenant_id = $1";
+  if (selectedLocationId) {
+    values.push(selectedLocationId);
+    serviceWhere += ` AND ${serviceLocationExpr} = $2`;
+  }
+
+  let salesDateWhere = "";
+  if (filters.startDate) {
+    values.push(filters.startDate);
+    salesDateWhere += ` AND DATE(${salesDateExpr.replace(/s\./g, 'sales_filter.')}) >= $${values.length}`;
+  }
+  if (filters.endDate) {
+    values.push(filters.endDate);
+    salesDateWhere += ` AND DATE(${salesDateExpr.replace(/s\./g, 'sales_filter.')}) <= $${values.length}`;
+  }
 
   const servicePerformance = await query<any>(
     `WITH service_costs AS (
         SELECT 
           sc.service_id,
-          json_agg(json_build_object(
-            'name', ${inventoryNameExpr},
-            'quantity', sc.consumption_quantity,
-            'unit', sc.consumption_unit,
-            'cost_per_unit', (inv.cost_price / NULLIF(inv.quantity, 0))
-          )) as consumables,
+          json_agg(json_build_object('name', ${inventoryNameExpr}, 'quantity', sc.consumption_quantity, 'unit', sc.consumption_unit)) as consumables,
           SUM(sc.consumption_quantity * (inv.cost_price / NULLIF(inv.quantity, 0))) as cost_per_booking
         FROM service_consumables sc
         JOIN inventory inv ON inv.id = sc.inventory_item_id
         GROUP BY sc.service_id
+     ),
+     service_usage AS (
+        SELECT 
+          ss.service_id,
+          COUNT(sales_filter.id)::int as usage_count,
+          COALESCE(SUM(CASE WHEN sales_filter.id IS NOT NULL THEN ss.price ELSE 0 END), 0) as revenue
+        FROM sale_services ss
+        JOIN sales sales_filter ON sales_filter.id = ss.sale_id
+          AND sales_filter.tenant_id = $1 ${selectedLocationId ? `AND ${salesLocationExpr.replace(/s\./g, 'sales_filter.')} = $2` : ""} ${salesDateWhere} ${salesStatusCondition}
+        GROUP BY ss.service_id
      )
      SELECT 
         ser.id as service_id,
         ser.name as service_name,
-        COUNT(sales_filter.id)::int as usage_count,
-        COALESCE(SUM(CASE WHEN sales_filter.id IS NOT NULL THEN ss.price ELSE 0 END), 0) as revenue,
+        COALESCE(usage.usage_count, 0) as usage_count,
+        COALESCE(usage.revenue, 0) as revenue,
         COALESCE(cost.consumables, '[]'::json) as consumables,
         COALESCE(cost.cost_per_booking, 0) as cost_per_booking,
-        COALESCE(SUM(CASE WHEN sales_filter.id IS NOT NULL THEN cost.cost_per_booking ELSE 0 END), 0) as total_consumable_cost
+        COALESCE(usage.usage_count * cost.cost_per_booking, 0) as total_consumable_cost
      FROM services ser
-     LEFT JOIN sale_services ss ON ss.service_id = ser.id
-     LEFT JOIN sales sales_filter
-       ON sales_filter.id = ss.sale_id
-      AND ${salesJoinScoped}${salesStatusCondition.replace(/\bs\./g, "sales_filter.")}
+     LEFT JOIN service_usage usage ON usage.service_id = ser.id
      LEFT JOIN service_costs cost ON cost.service_id = ser.id
-     WHERE ${entityScope.whereClause}
-     GROUP BY ser.id, ser.name, cost.consumables, cost.cost_per_booking
+     WHERE ${serviceWhere}
      ORDER BY usage_count DESC, revenue DESC`,
-    combinedValues,
+    values,
   );
 
   const summaryResult = await query<any>(
@@ -435,25 +450,24 @@ export async function getServiceReport(user: AuthUserPayload, filters: ReportFil
         (SELECT name FROM inventory WHERE tenant_id = $1 AND stock < COALESCE(low_stock_threshold, 5) LIMIT 1) as low_stock_item,
         (SELECT COUNT(*) FROM inventory WHERE tenant_id = $1 AND stock < COALESCE(low_stock_threshold, 5))::int as low_stock_count
      FROM (
-       SELECT 
-         COUNT(sales_filter.id) * COALESCE(cost.cost_per_booking, 0) as total_cost
-       FROM services ser
-       LEFT JOIN sale_services ss ON ss.service_id = ser.id
-       LEFT JOIN sales sales_filter
-         ON sales_filter.id = ss.sale_id
-        AND ${salesJoinScoped}${salesStatusCondition.replace(/\bs\./g, "sales_filter.")}
-       LEFT JOIN (
-         SELECT 
-           sc.service_id,
-           SUM(sc.consumption_quantity * (inv.cost_price / NULLIF(inv.quantity, 0))) as cost_per_booking
-         FROM service_consumables sc
-         JOIN inventory inv ON inv.id = sc.inventory_item_id
-         GROUP BY sc.service_id
-       ) cost ON cost.service_id = ser.id
-       WHERE ${entityScope.whereClause}
-       GROUP BY ser.id, cost.cost_per_booking
+        SELECT 
+          COUNT(sales_filter.id) * COALESCE(cost.cost_per_booking, 0) as total_cost
+        FROM services ser
+        LEFT JOIN sale_services ss ON ss.service_id = ser.id
+        LEFT JOIN sales sales_filter ON sales_filter.id = ss.sale_id
+          AND sales_filter.tenant_id = $1 ${selectedLocationId ? `AND ${salesLocationExpr.replace(/s\./g, 'sales_filter.')} = $2` : ""} ${salesDateWhere} ${salesStatusCondition}
+        LEFT JOIN (
+          SELECT 
+            sc.service_id,
+            SUM(sc.consumption_quantity * (inv.cost_price / NULLIF(inv.quantity, 0))) as cost_per_booking
+          FROM service_consumables sc
+          JOIN inventory inv ON inv.id = sc.inventory_item_id
+          GROUP BY sc.service_id
+        ) cost ON cost.service_id = ser.id
+        WHERE ${serviceWhere}
+        GROUP BY ser.id, cost.cost_per_booking
      ) sub`,
-    combinedValues,
+    values,
   );
 
   return {
@@ -631,41 +645,168 @@ export async function getReportsSummary(user: AuthUserPayload, filters: ReportFi
   const clientLocationExpr = clientColumns.has("location_id")
     ? (clientColumns.has("branch_id") ? "COALESCE(c.location_id, c.branch_id)" : "c.location_id")
     : "c.branch_id";
-  const clientDateExpr = clientColumns.has("created_at")
-    ? "c.created_at"
-    : "COALESCE(c.last_visit_at, NOW())";
 
-  const salesScope = buildScopedFilters(user, filters, {
-    alias: "s",
-    locationExpr: salesLocationExpr,
-    dateExpr: salesDateExpr,
-  });
-  const customerScope = buildScopedFilters(user, filters, {
-    alias: "c",
-    locationExpr: clientLocationExpr,
-    dateExpr: clientDateExpr,
-  });
+  const selectedLocationId = user.type === "manager" ? user.branch_id : normalizeLocationId(filters.locationId);
+  const salesValues: any[] = [user.tenant_id];
+  let salesWhere = "s.tenant_id = $1";
+  if (selectedLocationId) {
+    salesValues.push(selectedLocationId);
+    salesWhere += ` AND ${salesLocationExpr} = $2`;
+  }
 
+  if (filters.startDate) {
+    salesValues.push(filters.startDate);
+    salesWhere += ` AND DATE(${salesDateExpr}) >= $${salesValues.length}::date`;
+  }
+  if (filters.endDate) {
+    salesValues.push(filters.endDate);
+    salesWhere += ` AND DATE(${salesDateExpr}) <= $${salesValues.length}::date`;
+  }
+
+  const clientValues: any[] = [user.tenant_id];
+  let clientWhere = "c.tenant_id = $1";
+  if (selectedLocationId) {
+    clientValues.push(selectedLocationId);
+    clientWhere += ` AND ${clientLocationExpr} = $2`;
+  }
+
+  const userRole = user.type?.toLowerCase() || "manager";
+  
+  // Use separate queries for summaries to ensure they always load
   const [salesSummary, customerSummary] = await Promise.all([
     query<any>(
       `SELECT 
           COALESCE(SUM(${salesAmountExpr}), 0) as total_revenue,
           COUNT(*)::int as total_sales
        FROM sales s
-       WHERE ${salesScope.whereClause}${salesStatusCondition}`,
-      salesScope.values,
+       WHERE ${salesWhere}${salesStatusCondition}`,
+      salesValues,
     ),
     query<any>(
       `SELECT COUNT(*)::int as total_customers
        FROM clients c
-       WHERE ${customerScope.whereClause}`,
-      customerScope.values,
+       WHERE ${clientWhere}`,
+      clientValues,
     ),
   ]);
 
+  const insights: any = {
+    topPerformer: null,
+    topBranch: null,
+    mostProfitableService: null,
+    mostRequestedService: null,
+    highestRevenueDay: null
+  };
+
+  try {
+    // Build a clean parameter list for each insight query to avoid indexing mismatches
+    const getInsightValues = () => [...salesValues];
+
+    const insightQueries = [
+      // 1. Top Performer (Common)
+      query<any>(
+        `SELECT 
+            sm.name,
+            COALESCE(SUM(ss.price), 0) as revenue,
+            COUNT(ss.id)::int as services_count
+         FROM staff_members sm
+         JOIN sale_services ss ON ss.staff_id = sm.id
+         JOIN sales s ON s.id = ss.sale_id
+         WHERE ${salesWhere}${salesStatusCondition}
+         GROUP BY sm.id, sm.name
+         ORDER BY revenue DESC
+         LIMIT 1`,
+        getInsightValues()
+      ),
+      ...(userRole === "owner" ? [
+        // 2. Top Branch (Owner)
+        query<any>(
+          `SELECT 
+              b.name,
+              COALESCE(SUM(${salesAmountExpr}), 0) as revenue
+           FROM branches b
+           JOIN sales s ON (s.location_id = b.id OR s.branch_id = b.id)
+           WHERE b.tenant_id = $1
+             AND s.tenant_id = $1
+             ${filters.startDate ? ` AND (${salesDateExpr})::date >= $${salesValues.indexOf(filters.startDate) + 1}::date` : ""}
+             ${filters.endDate ? ` AND (${salesDateExpr})::date <= $${salesValues.lastIndexOf(filters.endDate) + 1}::date` : ""}
+             ${salesStatusCondition}
+           GROUP BY b.id, b.name
+           ORDER BY revenue DESC
+           LIMIT 1`,
+          getInsightValues()
+        ),
+        // 3. Most Profitable Service (Owner)
+        query<any>(
+          `WITH service_costs AS (
+              SELECT 
+                sc.service_id,
+                SUM(sc.consumption_quantity * (COALESCE(inv.unit_cost, inv.cost_price, 0) / NULLIF(inv.quantity, 0))) as cost_per_booking
+              FROM service_consumables sc
+              JOIN inventory inv ON inv.id = sc.inventory_item_id
+              GROUP BY sc.service_id
+           )
+           SELECT 
+              ser.name,
+              COALESCE(SUM(ss.price - COALESCE(cost.cost_per_booking, 0)), 0) as profit
+           FROM services ser
+           JOIN sale_services ss ON ss.service_id = ser.id
+           JOIN sales s ON s.id = ss.sale_id
+           LEFT JOIN service_costs cost ON cost.service_id = ser.id
+           WHERE ${salesWhere}${salesStatusCondition}
+           GROUP BY ser.id, ser.name
+           ORDER BY profit DESC
+           LIMIT 1`,
+          getInsightValues()
+        )
+      ] : [
+        // 2. Most Requested Service (Manager)
+        query<any>(
+          `SELECT 
+              ser.name,
+              COUNT(ss.id)::int as bookings_count
+           FROM services ser
+           JOIN sale_services ss ON ss.service_id = ser.id
+           JOIN sales s ON s.id = ss.sale_id
+           WHERE ${salesWhere}${salesStatusCondition}
+           GROUP BY ser.id, ser.name
+           ORDER BY bookings_count DESC
+           LIMIT 1`,
+          getInsightValues()
+        ),
+        // 3. Highest Revenue Day (Manager)
+        query<any>(
+          `SELECT 
+              trim(to_char(${salesDateExpr}, 'FMDay')) as day_name,
+              SUM(${salesAmountExpr}) as day_revenue
+           FROM sales s
+           WHERE ${salesWhere}${salesStatusCondition}
+           GROUP BY 1
+           ORDER BY 2 DESC
+           LIMIT 1`,
+          getInsightValues()
+        )
+      ])
+    ];
+
+    const insightResults = await Promise.all(insightQueries);
+    
+    insights.topPerformer = insightResults[0]?.rows[0] || null;
+    if (userRole === "owner") {
+      insights.topBranch = insightResults[1]?.rows[0] || null;
+      insights.mostProfitableService = insightResults[2]?.rows[0] || null;
+    } else {
+      insights.mostRequestedService = insightResults[1]?.rows[0] || null;
+      insights.highestRevenueDay = insightResults[2]?.rows[0] || null;
+    }
+  } catch (err) {
+    console.error("Failed to load insights:", err);
+  }
+
   return {
-    revenue: salesSummary.rows[0].total_revenue || 0,
-    salesCount: salesSummary.rows[0].total_sales || 0,
-    customerCount: customerSummary.rows[0].total_customers || 0,
+    revenue: salesSummary.rows[0]?.total_revenue || 0,
+    salesCount: salesSummary.rows[0]?.total_sales || 0,
+    customerCount: customerSummary.rows[0]?.total_customers || 0,
+    insights
   };
 }

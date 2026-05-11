@@ -93,7 +93,7 @@ export function ReportDataTable<T>({
                 {columns.map((col, colIndex) => (
                   <td
                     key={colIndex}
-                    className={`whitespace-nowrap px-6 py-4 ${
+                    className={`px-6 py-4 ${
                       col.align === "right"
                         ? "text-right"
                         : col.align === "center"

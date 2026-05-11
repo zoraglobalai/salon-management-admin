@@ -56,11 +56,11 @@ const columns: Column<SalesRecord>[] = [
     cell: (item: SalesRecord) => {
       const services = item.services || [];
       const staffNames = Array.from(new Set(services.map((s) => s.staff_name).filter(Boolean)));
-      if (staffNames.length === 0) return <span className="text-gray-400 italic text-xs whitespace-normal">No staff</span>;
+      if (staffNames.length === 0) return <span className="text-gray-400 italic text-xs">No staff</span>;
       return (
-        <div className="flex flex-wrap gap-1 max-w-[150px] whitespace-normal">
+        <div className="flex flex-wrap gap-2 max-w-[180px]">
           {staffNames.map((name, i) => (
-            <span key={i} className="rounded-md bg-gray-50 px-1.5 py-0.5 text-[11px] font-medium text-gray-600 border border-gray-100">
+            <span key={i} className="rounded-md bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-gray-600 border border-gray-100 shadow-sm">
               {name}
             </span>
           ))}
@@ -72,21 +72,21 @@ const columns: Column<SalesRecord>[] = [
     header: "Services",
     accessorKey: "services",
     cell: (item: SalesRecord) => {
-      const displayLimit = 2;
+      const displayLimit = 3;
       const services = item.services || [];
       return (
-        <div className="flex flex-wrap gap-1 max-w-[200px] whitespace-normal">
+        <div className="flex flex-wrap gap-1.5 max-w-[280px]">
           {services.slice(0, displayLimit).map((s, i) => (
-            <span key={i} className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700 border border-blue-100">
+            <span key={i} className="rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-medium text-blue-700 border border-blue-100 shadow-sm whitespace-nowrap">
               {s.name}
             </span>
           ))}
           {services.length > displayLimit && (
             <span
-              className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600 cursor-help"
+              className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-medium text-gray-600 cursor-help"
               title={services.slice(displayLimit).map((s) => s.name).join(", ")}
             >
-              +{services.length - displayLimit} more
+              +{services.length - displayLimit}
             </span>
           )}
         </div>
@@ -97,22 +97,22 @@ const columns: Column<SalesRecord>[] = [
     header: "Products",
     accessorKey: "products",
     cell: (item: SalesRecord) => {
-      const displayLimit = 1;
+      const displayLimit = 2;
       const products = item.products || [];
-      if (products.length === 0) return <span className="text-gray-400 text-xs whitespace-normal">None</span>;
+      if (products.length === 0) return <span className="text-gray-400 text-xs">None</span>;
       return (
-        <div className="flex flex-wrap gap-1 max-w-[150px] whitespace-normal">
+        <div className="flex flex-wrap gap-1.5 max-w-[220px]">
           {products.slice(0, displayLimit).map((p, i) => (
-            <span key={i} className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-100">
-              {p.name} x{p.quantity}
+            <span key={i} className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-100 shadow-sm whitespace-nowrap">
+              {p.name} <span className="opacity-60 ml-0.5">x{p.quantity}</span>
             </span>
           ))}
           {products.length > displayLimit && (
             <span
-              className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600 cursor-help"
+              className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-medium text-gray-600 cursor-help"
               title={products.slice(displayLimit).map((p) => `${p.name} x${p.quantity}`).join(", ")}
             >
-              +{products.length - displayLimit} more
+              +{products.length - displayLimit}
             </span>
           )}
         </div>
