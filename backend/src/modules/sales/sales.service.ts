@@ -520,21 +520,21 @@ async function applyInventoryDeductions(
       throw createError("Assign staff for every service before checkout.", 400);
     }
 
-    const mapping = await db.query<{ product_id: string; quantity_used: string }>(
-      `SELECT product_id, quantity_used
-       FROM service_products
+    const mapping = await db.query<{ inventory_item_id: string; consumption_quantity: string }>(
+      `SELECT inventory_item_id, consumption_quantity
+       FROM service_consumables
        WHERE service_id = $1`,
       [service.serviceId],
     );
 
     for (const product of mapping.rows) {
-      const used = Number(product.quantity_used);
+      const used = Number(product.consumption_quantity);
       const stockCheck = await db.query<{ service_quantity: string }>(
         `SELECT service_quantity
          FROM inventory
          WHERE id = $1 AND location_id = $2
          FOR UPDATE`,
-        [product.product_id, locationId],
+        [product.inventory_item_id, locationId],
       );
 
       if (!stockCheck.rows[0]) continue;
@@ -546,7 +546,7 @@ async function applyInventoryDeductions(
         `UPDATE inventory
          SET service_quantity = service_quantity - $1
          WHERE id = $2`,
-        [used, product.product_id],
+        [used, product.inventory_item_id],
       );
     }
   }

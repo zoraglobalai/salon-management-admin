@@ -19,6 +19,9 @@ import { AddStaffIdentificationDetails1714900000000 } from './migrations/1714900
 import { AddStaffCurrentAddress1715000000000 } from './migrations/1715000000000-AddStaffCurrentAddress';
 import { AddComboServices1715100000000 } from './migrations/1715100000000-AddComboServices';
 import { AddInventoryLowStockThreshold1715200000000 } from './migrations/1715200000000-AddInventoryLowStockThreshold';
+import { AddSalesWorkflowStatus1715300000000 } from './migrations/1715300000000-AddSalesWorkflowStatus';
+import { AddSaleServiceComboFields1715400000000 } from './migrations/1715400000000-AddSaleServiceComboFields';
+import { AddServiceConsumablesTracking1715500000000 } from './migrations/1715500000000-AddServiceConsumablesTracking';
 
 export const databaseConfig = {
   host: ENV.DB_HOST,
@@ -46,5 +49,8 @@ export const AppDataSource = new DataSource({
     AddStaffCurrentAddress1715000000000,
     AddComboServices1715100000000,
     AddInventoryLowStockThreshold1715200000000,
+    AddSalesWorkflowStatus1715300000000,
+    AddSaleServiceComboFields1715400000000,
+    AddServiceConsumablesTracking1715500000000,
   ],
 });

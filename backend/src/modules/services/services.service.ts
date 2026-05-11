@@ -28,9 +28,9 @@ export type ComboServiceInput = {
 export type ServiceProductRow = {
   id: string;
   service_id: string;
-  product_id: string;
-  quantity_used: string | number;
-  unit: string;
+  inventory_item_id: string;
+  consumption_quantity: string | number;
+  consumption_unit: string;
   product_name?: string;
   product_stock?: number;
 };
@@ -466,22 +466,22 @@ export async function listServices(user: AuthUserPayload, locationId?: string) {
   if (services.length === 0) return { services: [], comboServices };
 
   const serviceIds = services.map((s) => s.id);
-  const productsResult = await query<ServiceProductRow>(
-    `
-      SELECT
-        sp.id,
-        sp.service_id,
-        sp.product_id,
-        sp.quantity_used,
-        sp.unit,
-        ${inventorySql.nameExpr} AS product_name,
-        ${inventorySql.serviceQuantityExpr} AS product_stock
-      FROM service_products sp
-      INNER JOIN inventory i ON i.id = sp.product_id
-      WHERE sp.service_id = ANY($1::uuid[])
-    `,
-    [serviceIds],
-  );
+    const productsResult = await query<ServiceProductRow>(
+      `
+        SELECT
+          sc.id,
+          sc.service_id,
+          sc.inventory_item_id,
+          sc.consumption_quantity,
+          sc.consumption_unit,
+          ${inventorySql.nameExpr} AS product_name,
+          ${inventorySql.serviceQuantityExpr} AS product_stock
+        FROM service_consumables sc
+        INNER JOIN inventory i ON i.id = sc.inventory_item_id
+        WHERE sc.service_id = ANY($1::uuid[])
+      `,
+      [serviceIds],
+    );
 
   const productsByService = productsResult.rows.reduce((acc, product) => {
     if (!acc[product.service_id]) acc[product.service_id] = [];
@@ -495,9 +495,9 @@ export async function listServices(user: AuthUserPayload, locationId?: string) {
       price: Number(service.price),
       products: (productsByService[service.id] || []).map((product) => ({
         id: product.id,
-        productId: product.product_id,
-        quantityUsed: Number(product.quantity_used),
-        unit: product.unit,
+        productId: product.inventory_item_id,
+        quantityUsed: Number(product.consumption_quantity),
+        unit: product.consumption_unit,
         productName: product.product_name || "Unknown Product",
         productStock: Number(product.product_stock ?? 0),
       })),
@@ -558,7 +558,7 @@ export async function createServiceItem(user: AuthUserPayload, input: ServiceInp
     for (const product of normalized.products) {
       await client.query(
         `
-          INSERT INTO service_products (service_id, product_id, quantity_used, unit)
+          INSERT INTO service_consumables (service_id, inventory_item_id, consumption_quantity, consumption_unit)
           VALUES ($1, $2, $3, $4)
         `,
         [serviceId, product.productId, product.quantityUsed, product.unit],
@@ -648,12 +648,12 @@ export async function executeServiceUsage(user: AuthUserPayload, serviceId: stri
 
     const locationId = serviceResult.rows[0].location_id;
 
-    const productsResult = await client.query<{ product_id: string; quantity_used: string; name: string }>(
+    const productsResult = await client.query<{ inventory_item_id: string; consumption_quantity: string; name: string }>(
       `
-        SELECT sp.product_id, sp.quantity_used, ${getInventorySql(inventoryColumns, "i").nameExpr} AS name
-        FROM service_products sp
-        JOIN inventory i ON i.id = sp.product_id
-        WHERE sp.service_id = $1
+        SELECT sc.inventory_item_id, sc.consumption_quantity, ${getInventorySql(inventoryColumns, "i").nameExpr} AS name
+        FROM service_consumables sc
+        JOIN inventory i ON i.id = sc.inventory_item_id
+        WHERE sc.service_id = $1
       `,
       [serviceId],
     );
@@ -663,7 +663,7 @@ export async function executeServiceUsage(user: AuthUserPayload, serviceId: stri
     }
 
     for (const product of productsResult.rows) {
-      const quantityUsed = Number(product.quantity_used);
+      const quantityUsed = Number(product.consumption_quantity);
       const setClause = inventoryColumns.has("service_quantity")
         ? "service_quantity = COALESCE(service_quantity, 0) - $1"
         : "quantity = COALESCE(quantity, 0) - $1";
@@ -680,7 +680,7 @@ export async function executeServiceUsage(user: AuthUserPayload, serviceId: stri
             AND ${stockExpr} >= $1
           RETURNING id
         `,
-        [quantityUsed, product.product_id, locationId],
+        [quantityUsed, product.inventory_item_id, locationId],
       );
 
       if (updateResult.rows.length === 0) {
@@ -784,12 +784,12 @@ export async function updateServiceItem(user: AuthUserPayload, serviceId: string
 
     const updatedServiceId = serviceResult.rows[0].id;
 
-    await client.query(`DELETE FROM service_products WHERE service_id = $1`, [updatedServiceId]);
+    await client.query(`DELETE FROM service_consumables WHERE service_id = $1`, [updatedServiceId]);
 
     for (const product of normalized.products) {
       await client.query(
         `
-          INSERT INTO service_products (service_id, product_id, quantity_used, unit)
+          INSERT INTO service_consumables (service_id, inventory_item_id, consumption_quantity, consumption_unit)
           VALUES ($1, $2, $3, $4)
         `,
         [updatedServiceId, product.productId, product.quantityUsed, product.unit],
