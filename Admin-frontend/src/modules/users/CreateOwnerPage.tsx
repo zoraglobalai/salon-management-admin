@@ -71,15 +71,16 @@ const CreateOwnerPage: React.FC = () => {
   };
 
   const handleBranchCountChange = (value: string) => {
-    if (value.trim() === '') {
-      setBranchCountInput('1');
-      syncBranchCount(1);
+    const sanitizedValue = value.replace(/\D/g, '');
+
+    if (sanitizedValue.trim() === '') {
+      setBranchCountInput('');
       return;
     }
 
-    setBranchCountInput(value);
+    setBranchCountInput(sanitizedValue);
 
-    const parsedValue = Number(value);
+    const parsedValue = Number(sanitizedValue);
     if (Number.isInteger(parsedValue)) {
       syncBranchCount(parsedValue);
     }

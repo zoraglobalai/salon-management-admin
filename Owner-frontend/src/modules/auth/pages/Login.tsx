@@ -94,26 +94,26 @@ export const Login: React.FC = () => {
       {/* Default Password Modal */}
       {showDefaultPasswordModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(34,20,11,0.45)] px-4 py-6 backdrop-blur-[3px]"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(248,244,238,0.96)] px-4 py-4 backdrop-blur-[6px]"
           aria-labelledby="modal-title"
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-[440px] rounded-[28px] border border-[rgba(139,94,60,0.14)] bg-[linear-gradient(180deg,rgba(255,253,250,0.98)_0%,rgba(248,241,233,0.98)_100%)] p-6 shadow-[0_26px_60px_rgba(88,56,32,0.24)] sm:p-7">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[linear-gradient(135deg,#f5e3cf_0%,#edd1b3_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]">
-              <ShieldAlert size={28} className="text-[#8B5E3C]" />
+          <div className="w-full max-w-[400px] rounded-[28px] border border-[rgba(139,94,60,0.14)] bg-[linear-gradient(180deg,rgba(255,253,250,0.98)_0%,rgba(248,241,233,0.98)_100%)] p-5 shadow-[0_26px_60px_rgba(88,56,32,0.24)] sm:p-6">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[linear-gradient(135deg,#f5e3cf_0%,#edd1b3_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]">
+              <ShieldAlert size={24} className="text-[#8B5E3C]" />
             </div>
 
-            <div className="mt-5 text-center">
-              <h3 className="font-['Outfit'] text-[1.85rem] font-semibold tracking-[-0.03em] text-[#17181F]" id="modal-title">
+            <div className="mt-4 text-center">
+              <h3 className="mx-auto max-w-[260px] font-['Outfit'] text-[1.7rem] font-semibold leading-tight tracking-[-0.03em] text-[#17181F]" id="modal-title">
                 Update Password Recommended
               </h3>
-              <p className="mt-3 text-sm leading-7 text-[#8a6b58]">
+              <p className="mx-auto mt-3 max-w-[300px] text-sm leading-7 text-[#8a6b58]">
                 You are using the default password for this account. For better security, we recommend changing it before continuing into the owner dashboard.
               </p>
             </div>
 
-            <div className="mt-5 rounded-[18px] border border-[rgba(139,94,60,0.1)] bg-white/70 px-4 py-3 text-center text-xs font-medium leading-6 text-[#7a6657]">
+            <div className="mx-auto mt-5 max-w-[320px] rounded-[18px] border border-[rgba(139,94,60,0.1)] bg-white/70 px-4 py-3 text-center text-xs font-medium leading-6 text-[#7a6657]">
               Changing it now helps protect client data, sales activity, and branch access.
             </div>
 
