@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type PropsWithChildren } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
-import { Bell, CircleHelp, Crown, LogOut, Menu, Moon, Settings2, UserCircle2, X } from "lucide-react";
+import { CircleHelp, Crown, LogOut, Menu, MessageSquare, Moon, Settings2, UserCircle2, X } from "lucide-react";
 import brandLogo from "../../assets/Groomvy Logo icon.png";
-import { fetchDashboardSummary, fetchMe } from "../../core/api";
+import { fetchMe } from "../../core/api";
+import { CommunicationPanel } from "./CommunicationPanel";
+import { useCommunications } from "../hooks/useCommunications";
 import { useAuth } from "../../modules/auth/hooks/useAuth";
-import { useNavigate } from "react-router-dom";
 import { ProfileDetailsModal } from "./ProfileDetailsModal";
 import { SubscriptionPlansModal } from "./SubscriptionPlansModal";
 import { SupportTicketDrawer } from "./SupportTicketDrawer";
@@ -61,66 +62,29 @@ export function AppShell({
   const isManager = user?.role === "MANAGER";
   const canOpenHelpdesk = user?.role === "OWNER" || user?.role === "INDEPENDENT_OWNER";
   const location = useLocation();
-  const navigate = useNavigate();
 
   const activeModule = navigation.find(item => 
     location.pathname === item.to || (item.to !== "/dashboard" && location.pathname.startsWith(item.to))
   );
   const moduleName = activeModule?.label || "Dashboard";
 
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const notificationsRef = useRef<HTMLDivElement | null>(null);
+  const { unreadTotal } = useCommunications();
+  const [showCommunications, setShowCommunications] = useState(false);
+  const communicationsRef = useRef<HTMLDivElement | null>(null);
 
   const toggleSidebar = () => setIsSidebarOpen((current) => !current);
 
   useEffect(() => {
     if (!user) return;
 
-    const loadNotifications = async () => {
-      try {
-        const response = await fetchDashboardSummary({
-          date: new Date().toISOString().slice(0, 10)
-        });
-        
-        const items = [
-          {
-            id: "sales",
-            title: `${response.todayStatus.completed} appointments completed`,
-            description: `Performance summary for today at ${user.location || 'your branch'}.`,
-          },
-          {
-            id: "payments",
-            title: `₹${(response.today.revenue || 0).toLocaleString()} collected`,
-            description: "Payments are synced across the dashboard totals and reports.",
-          },
-        ];
-
-        if (response.topServices?.[0]) {
-          items.push({
-            id: "service",
-            title: `${response.topServices[0].serviceName} is leading today`,
-            description: "Top services are ranked by completed sales for today.",
-          });
-        }
-        setNotifications(items);
-      } catch (err) {
-        console.error("Failed to load notifications", err);
-      }
-    };
-
-    loadNotifications();
-    const intervalId = window.setInterval(loadNotifications, 60000);
-
     const handleClickOutside = (event: MouseEvent) => {
-      if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
-        setShowNotifications(false);
+      if (communicationsRef.current && !communicationsRef.current.contains(event.target as Node)) {
+        setShowCommunications(false);
       }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      window.clearInterval(intervalId);
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [user]);
@@ -399,45 +363,24 @@ export function AppShell({
               </div>
             </div>
             
-            <div className="flex items-center gap-3" ref={notificationsRef}>
+            <div className="flex items-center gap-3" ref={communicationsRef}>
               <div className="relative">
                 <button
                   type="button"
-                  onClick={() => setShowNotifications(!showNotifications)}
+                  onClick={() => setShowCommunications(!showCommunications)}
                   className={`relative flex h-10 w-10 items-center justify-center rounded-xl transition-all ${isDark ? "bg-[#1C2030] text-[#C9A96E] hover:bg-[#222637]" : "bg-gray-50 text-[#8B5E3C] hover:bg-gray-100"}`}
                 >
-                  <Bell size={20} />
-                  {notifications.length > 0 && (
-                    <span className={`absolute right-2.5 top-2.5 flex h-2 w-2 rounded-full ring-2 ring-white dark:ring-[#1C2030] ${notificationBadge}`} />
+                  <MessageSquare size={20} />
+                  {unreadTotal > 0 && (
+                    <span className={`absolute right-2.5 top-2.5 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white ring-2 ring-white dark:ring-[#1C2030] ${notificationBadge}`}>
+                      {unreadTotal}
+                    </span>
                   )}
                 </button>
 
-                {showNotifications && (
-                  <div className={`absolute right-0 top-14 z-[70] w-[320px] max-w-[calc(100vw-2rem)] rounded-[22px] border p-3 shadow-[0_24px_60px_rgba(0,0,0,0.5)] ${isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)]" : "bg-white border-[#E9E1D8]"}`}>
-                    <div className="mb-3 flex items-center justify-between">
-                      <p className={`text-sm font-semibold ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>Notifications</p>
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${isDark ? "bg-[rgba(201,169,110,0.14)] text-[#E8C98A]" : "bg-[#F8E8DA] text-[#8B5E3C]"}`}>
-                        {notifications.length} new
-                      </span>
-                    </div>
-                    <div className="space-y-2">
-                      {notifications.length > 0 ? notifications.map((item) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => {
-                            setShowNotifications(false);
-                            navigate("/dashboard");
-                          }}
-                          className={`w-full rounded-[16px] border border-transparent px-4 py-3 text-left transition-all ${isDark ? "bg-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.06)] hover:border-[rgba(255,255,255,0.08)]" : "bg-[#FAF8F5] hover:border-[#EAD7C5] hover:bg-[#F6EFE8]"}`}
-                        >
-                          <p className={`text-sm font-medium ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>{item.title}</p>
-                          <p className={`mt-1 text-xs ${isDark ? "text-[#7A7572]" : "text-[#6B7280]"}`}>{item.description}</p>
-                        </button>
-                      )) : (
-                        <p className={`text-center py-6 text-xs ${isDark ? "text-[#4A4744]" : "text-gray-400"}`}>No new notifications</p>
-                      )}
-                    </div>
+                {showCommunications && (
+                  <div className={`fixed inset-0 z-[100] md:absolute md:inset-auto md:right-0 md:top-14 md:w-[800px] md:h-[600px] md:max-w-[calc(100vw-2rem)] rounded-[28px] border overflow-hidden shadow-[0_32px_80px_rgba(0,0,0,0.5)] ${isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)]" : "bg-white border-[#E9E1D8]"}`}>
+                    <CommunicationPanel onClose={() => setShowCommunications(false)} />
                   </div>
                 )}
               </div>

@@ -584,7 +584,7 @@ export function DashboardInventoryPage() {
       {/* Low Stock Modal */}
       {isLowStockModalOpen && lowStockItems.length > 0 && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4 backdrop-blur-md">
-          <div className={`w-full max-w-xl rounded-[32px] border shadow-2xl transition-all ${
+          <div className={`w-full max-w-xl rounded-[3px] border shadow-2xl transition-all ${
             isDark ? "bg-[#151821] border-[rgba(255,255,255,0.1)]" : "bg-white border-[#E8E1D8]"
           }`}>
             <div className={`flex items-center justify-between border-b px-6 py-5 ${
@@ -594,25 +594,51 @@ export function DashboardInventoryPage() {
                 <h2 className={`text-xl font-bold font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>Low Stock Alert</h2>
                 <p className={`mt-0.5 text-sm ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Please review and restock these items.</p>
               </div>
-              <button type="button" onClick={() => setIsLowStockModalOpen(false)} className={`p-2 rounded-full transition-all hover:bg-[rgba(255,255,255,0.05)] ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>
+              <button type="button" onClick={() => setIsLowStockModalOpen(false)} className={`p-2 rounded-full transition-all hover:bg-[rgba(255,255,255,0.05)] ${isDark ? "text-[#7A7572] hover:text-[#C8BFB4]" : "text-gray-400 hover:text-gray-600"}`}>
                 <X size={20} />
               </button>
             </div>
-            <div className="flex flex-col gap-3 px-6 py-6 max-h-[50vh] overflow-y-auto">
+            <div className="flex flex-col gap-4 px-6 py-8 max-h-[50vh] overflow-y-auto scrollbar-hide">
               {lowStockItems.map((item) => (
-                <div key={item.id} className={`rounded-2xl border p-4 flex items-center justify-between transition-all ${
-                  isDark ? "bg-[rgba(248,113,113,0.05)] border-[rgba(248,113,113,0.15)]" : "bg-red-50 border-red-100"
+                <div key={item.id} className={`group relative flex items-center justify-between p-5 rounded-[24px] border transition-all duration-300 ${
+                  isDark 
+                    ? "bg-[rgba(255,255,255,0.02)] border-[rgba(255,255,255,0.05)] hover:bg-[rgba(248,113,113,0.04)] hover:border-[rgba(248,113,113,0.2)]" 
+                    : "bg-white border-[#F3EEE7] hover:bg-red-50/30 hover:border-red-100 shadow-sm hover:shadow-md"
                 }`}>
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-xl ${isDark ? "bg-red-500/10 text-red-400" : "bg-red-100 text-red-600"}`}>
-                      <Package size={18} />
+                  <div className="flex items-center gap-4 min-w-0 flex-1">
+                    <div className={`relative shrink-0 flex items-center justify-center h-12 w-12 rounded-[18px] transition-transform group-hover:scale-110 ${
+                      isDark ? "bg-red-500/10 text-red-400" : "bg-red-100 text-red-600"
+                    }`}>
+                      <Package size={22} />
+                      <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 animate-pulse border-2 border-white dark:border-[#151821]" />
                     </div>
-                    <div>
-                      <p className={`text-sm font-bold ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>{item.name}</p>
-                      <p className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? "text-red-400/70" : "text-red-600/70"}`}>{item.locationName.split("-")[0].trim()}</p>
+                    <div className="min-w-0 flex-1">
+                      <h4 className={`text-[1.05rem] font-bold tracking-tight truncate ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>
+                        {item.name}
+                      </h4>
+                      <div className="flex items-center gap-2 mt-1">
+                        <MapPin size={12} className={isDark ? "text-red-400/50" : "text-red-400/70"} />
+                        <span className={`text-[10px] font-black uppercase tracking-[0.1em] truncate ${isDark ? "text-red-400/60" : "text-red-500/60"}`}>
+                          {item.locationName.split("-")[0].trim()}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <div className={`text-lg font-black ${isDark ? "text-red-400" : "text-red-700"}`}>{item.stock}</div>
+                  
+                  <div className="shrink-0 ml-4">
+                    <div className={`inline-flex flex-col items-center justify-center min-w-[58px] p-2 rounded-2xl border ${
+                      isDark 
+                        ? "bg-[#1C2030] border-[rgba(248,113,113,0.2)]" 
+                        : "bg-white border-red-100 shadow-sm"
+                    }`}>
+                      <span className={`text-[1.2rem] font-black leading-none ${isDark ? "text-red-400" : "text-red-700"}`}>
+                        {item.stock}
+                      </span>
+                      <span className={`text-[9px] font-bold uppercase mt-1 opacity-60 ${isDark ? "text-red-400" : "text-red-700"}`}>
+                        LEFT
+                      </span>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -643,7 +669,7 @@ export function DashboardInventoryPage() {
                 <h2 className={`text-xl font-bold font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>Move Stock</h2>
                 <p className={`mt-0.5 text-sm ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Main Stock → Service Use</p>
               </div>
-              <button type="button" onClick={() => setIsMoveStockModalOpen(false)} className={`p-2 rounded-full transition-all hover:bg-[rgba(255,255,255,0.05)] ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>
+              <button type="button" onClick={() => setIsMoveStockModalOpen(false)} className={`p-2 rounded-full transition-all hover:bg-[rgba(255,255,255,0.05)] ${isDark ? "text-[#7A7572] hover:text-[#C8BFB4]" : "text-gray-400 hover:text-gray-600"}`}>
                 <X size={20} />
               </button>
             </div>

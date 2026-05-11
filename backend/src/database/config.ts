@@ -9,6 +9,7 @@ import { Trial } from '../entities/platform/Trial';
 import { RevenueTransaction } from '../entities/platform/RevenueTransaction';
 import { SupportTicket } from '../entities/platform/SupportTicket';
 import { Log } from '../entities/platform/Log';
+import { Notification } from '../entities/platform/Notification';
 import { CreatePlatformCoreTables1714300000000 } from './migrations/1714300000000-CreatePlatformCoreTables';
 import { SyncSubscriptionPlanEnum1714400000000 } from './migrations/1714400000000-SyncSubscriptionPlanEnum';
 import { CreateOperationalSchema1714500000000 } from './migrations/1714500000000-CreateOperationalSchema';
@@ -22,6 +23,7 @@ import { AddInventoryLowStockThreshold1715200000000 } from './migrations/1715200
 import { AddSalesWorkflowStatus1715300000000 } from './migrations/1715300000000-AddSalesWorkflowStatus';
 import { AddSaleServiceComboFields1715400000000 } from './migrations/1715400000000-AddSaleServiceComboFields';
 import { AddServiceConsumablesTracking1715500000000 } from './migrations/1715500000000-AddServiceConsumablesTracking';
+import { CreateCommunicationsSchema1715600000000 } from './migrations/1715600000000-CreateCommunicationsSchema';
 
 export const databaseConfig = {
   host: ENV.DB_HOST,
@@ -37,7 +39,7 @@ export const databaseConfig = {
 export const AppDataSource = new DataSource({
   type: 'postgres',
   ...databaseConfig,
-  entities: [User, Tenant, Branch, Subscription, Trial, RevenueTransaction, SupportTicket, Log],
+  entities: [User, Tenant, Branch, Subscription, Trial, RevenueTransaction, SupportTicket, Log, Notification],
   migrations: [
     CreatePlatformCoreTables1714300000000,
     SyncSubscriptionPlanEnum1714400000000,
@@ -52,5 +54,6 @@ export const AppDataSource = new DataSource({
     AddSalesWorkflowStatus1715300000000,
     AddSaleServiceComboFields1715400000000,
     AddServiceConsumablesTracking1715500000000,
+    CreateCommunicationsSchema1715600000000,
   ],
 });

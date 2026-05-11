@@ -1026,3 +1026,42 @@ export async function fetchReportsSummary(filters: { startDate?: string; endDate
     headers: getOwnerAuthHeaders(),
   });
 }
+// ─── Notifications API ──────────────────────────────────────────────────────────
+
+export type NotificationCategory = "REVENUE" | "STAFF" | "SERVICE" | "CUSTOMER" | "BRANCH" | "INVENTORY";
+
+export type SalonNotification = {
+  id: string;
+  userId: string;
+  role: string;
+  type: string;
+  title: string;
+  message: string;
+  category: NotificationCategory;
+  metadata: any;
+  isRead: boolean;
+  createdAt: string;
+};
+
+export async function fetchNotifications(limit: number = 20) {
+  const token = sessionStorage.getItem("owner_token");
+  return request<SalonNotification[]>(`/notifications?limit=${limit}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+}
+
+export async function markNotificationAsRead(id: string) {
+  const token = sessionStorage.getItem("owner_token");
+  return request<{ success: boolean }>(`/notifications/${id}/read`, {
+    method: "PATCH",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+}
+
+export async function markAllNotificationsAsRead() {
+  const token = sessionStorage.getItem("owner_token");
+  return request<{ success: boolean }>("/notifications/read-all", {
+    method: "PATCH",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+}

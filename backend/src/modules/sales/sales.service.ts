@@ -1,6 +1,7 @@
 import { query, withTransaction } from "../../database/pool";
 import { createError } from "../../middleware/errorHandler";
 import type { AuthUserPayload } from "../../shared/types/auth";
+import { NotificationsService } from "../notifications/notifications.service";
 
 type SchemaColumnRow = {
   column_name: string;
@@ -731,13 +732,39 @@ export async function finalizeSaleDraft(user: AuthUserPayload, saleId: string, r
 
     await replaceSaleItems(db, saleId, pricedDraft.servicesToInsert, pricedDraft.productsToInsert);
 
-    await db.query(
+    const clientData = await db.query<{ total_visits: number; name: string }>(
       `UPDATE clients
        SET total_visits = total_visits + 1,
            last_visit_at = NOW()
-       WHERE id = $1`,
+       WHERE id = $1
+       RETURNING total_visits, name`,
       [clientId],
     );
+
+    // Trigger Realtime Intelligence
+    try {
+      const branchResult = await db.query<{ name: string }>("SELECT name FROM branches WHERE id = $1", [locationId]);
+      const branchName = branchResult.rows[0]?.name || "Branch";
+
+      // 1. High Value Sale Alert
+      if (pricedDraft.totalAmount > 2000) {
+        await NotificationsService.triggerEvent(user.tenant_id || "", locationId, "HIGH_VALUE_SALE", {
+          amount: pricedDraft.totalAmount,
+          branchName,
+          clientName: input.clientName
+        });
+      }
+
+      // 2. Repeat Customer Insight
+      if (clientData.rows[0] && clientData.rows[0].total_visits >= 3) {
+        await NotificationsService.triggerEvent(user.tenant_id || "", locationId, "REPEAT_CUSTOMER", {
+          clientName: clientData.rows[0].name,
+          visitCount: clientData.rows[0].total_visits
+        });
+      }
+    } catch (err) {
+      console.error("Failed to trigger intelligence event", err);
+    }
 
     return {
       saleId,

@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import {
   ArrowUpRight,
-  Bell,
   CalendarDays,
   ChevronDown,
   IndianRupee,
   MapPin,
+  MessageSquare,
   RotateCcw,
   Scissors,
   ShoppingBag,
@@ -14,6 +14,8 @@ import {
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { fetchDashboardSummary } from "../../../core/api";
 import type { DashboardSummaryResponse } from "../../../core/types";
+import { CommunicationPanel } from "../../../shared/components/CommunicationPanel";
+import { useCommunications } from "../../../shared/hooks/useCommunications";
 import { useAuth } from "../../auth/hooks/useAuth";
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
 import { useGlobalFilters } from "../../../shared/context/FilterContext";
@@ -122,37 +124,6 @@ function getLocationLabel(location?: { name: string; city?: string }) {
   if (!location) return "All Branches";
   return location.name || location.city || "Branch";
 }
-function buildNotifications(input: {
-  branchName: string;
-  selectedDateLabel: string;
-  todayStatus: DashboardSummaryResponse["todayStatus"];
-  paymentTotal: number;
-  topServiceName?: string;
-}) {
-  const items = [
-    {
-      id: "sales",
-      title: `${input.todayStatus.completed} appointments completed`,
-      description: `Performance summary for ${input.selectedDateLabel} at ${input.branchName}.`,
-    },
-    {
-      id: "payments",
-      title: `${formatCompactCurrency(input.paymentTotal)} collected`,
-      description: "Payments are synced across the dashboard totals and reports.",
-    },
-  ];
-
-  if (input.topServiceName) {
-    items.push({
-      id: "service",
-      title: `${input.topServiceName} is leading today`,
-      description: "Top services are ranked by completed sales for the selected date.",
-    });
-  }
-
-  return items;
-}
-
 
 function DashboardCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   const { theme } = useDashboardTheme();
@@ -282,12 +253,12 @@ function LineAreaChart({
         </label>
       </div>
 
-      <div className={`h-[240px] w-full rounded-[20px] transition-all p-2 ${
+      <div className={`h-[240px] w-full min-w-0 rounded-[20px] transition-all p-2 ${
         isDark
           ? "bg-[#0F1115]"
           : "bg-white"
       }`}>
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="99%" height={240}>
           <AreaChart data={points} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
             <defs>
               <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
@@ -409,16 +380,17 @@ export function DashboardSummary() {
   const { filters: globalFilters, setFilters, resetFilters } = useGlobalFilters();
   const isManager = user?.role === "MANAGER";
   const [trendRange, setTrendRange] = useState<TrendRange>("7d");
+  const { unreadTotal } = useCommunications();
   const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const notificationsRef = useRef<HTMLDivElement | null>(null);
+  const [showCommunications, setShowCommunications] = useState(false);
+  const communicationsRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (!notificationsRef.current?.contains(event.target as Node)) {
-        setShowNotifications(false);
+      if (!communicationsRef.current?.contains(event.target as Node)) {
+        setShowCommunications(false);
       }
     };
 
@@ -426,41 +398,36 @@ export function DashboardSummary() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    let mounted = true;
+  const loadSummary = useCallback(async () => {
+    try {
+      setError(null);
+      const response = await fetchDashboardSummary({
+        date: globalFilters.startDate,
+        branchId: isManager ? user?.branchId : globalFilters.locationId !== "all" ? globalFilters.locationId : undefined,
+        trendRange,
+      });
 
-    const loadSummary = async () => {
-      try {
-        if (mounted) {
-          setError(null);
-        }
-
-        const response = await fetchDashboardSummary({
-          date: globalFilters.startDate,
-          branchId: isManager ? user?.branchId : globalFilters.locationId !== "all" ? globalFilters.locationId : undefined,
-          trendRange,
-        });
-
-        if (!mounted) return;
-        setSummary(normalizeSummary(response));
-      } catch (err) {
-        if (!mounted) return;
-        setError(err instanceof Error ? err.message : "Unable to load dashboard.");
-      } finally {
-        if (mounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    void loadSummary();
-    const intervalId = window.setInterval(() => void loadSummary(), 30000);
-
-    return () => {
-      mounted = false;
-      window.clearInterval(intervalId);
-    };
+      setSummary(normalizeSummary(response));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load dashboard.");
+    } finally {
+      setIsLoading(false);
+    }
   }, [isManager, globalFilters.locationId, globalFilters.startDate, trendRange, user?.branchId]);
+
+  useEffect(() => {
+    loadSummary();
+    const intervalId = window.setInterval(loadSummary, 30000);
+
+    return () => window.clearInterval(intervalId);
+  }, [loadSummary]);
+
+  useEffect(() => {
+    loadSummary();
+    const intervalId = window.setInterval(loadSummary, 30000);
+
+    return () => window.clearInterval(intervalId);
+  }, [loadSummary]);
 
   const totals = summary?.totals;
   const yesterday = summary?.yesterday;
@@ -526,19 +493,6 @@ export function DashboardSummary() {
     return best;
   }, visibleBranchCards[0])?.branchId;
 
-  const selectedDateLabel = new Date(`${globalFilters.startDate}T00:00:00`).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-
-  const notifications = buildNotifications({
-    branchName: subtitleBranchText,
-    selectedDateLabel,
-    todayStatus: summary?.todayStatus ?? { completed: 0, pending: 0, cancelled: 0 },
-    paymentTotal,
-    topServiceName: topServices[0]?.serviceName,
-  });
   const openServiceReport = () => navigate("/dashboard/reports/services");
   const openSalesReport = () => navigate("/dashboard/reports/sales");
 
@@ -624,54 +578,33 @@ export function DashboardSummary() {
             Reset
           </button>
 
-          <div className="relative" ref={notificationsRef}>
+          <div className="relative" ref={communicationsRef}>
             <button
               type="button"
-              onClick={() => setShowNotifications((value) => !value)}
+              onClick={() => setShowCommunications((value) => !value)}
               className={`relative inline-flex h-10 w-10 items-center justify-center rounded-[14px] border transition-all ${
                 isDark
                   ? "border-[rgba(255,255,255,0.08)] bg-[#1C2030] text-[#F0EBE3] shadow-[0_4px_12px_rgba(0,0,0,0.3)]"
                   : "border-[#eadfd4] bg-white text-[#1F2937] shadow-[0_8px_20px_rgba(84,62,45,0.05)]"
               }`}
-              aria-label="Open notifications"
-              aria-expanded={showNotifications}
+              aria-label="Open messages"
+              aria-expanded={showCommunications}
             >
-              <Bell size={16} />
-              <span className={`absolute right-2.5 top-2.5 h-2.5 w-2.5 rounded-full ${isDark ? "bg-[#F87171]" : "bg-[#FF3B30]"}`} />
+              <MessageSquare size={16} />
+              {unreadTotal > 0 && (
+                <span className={`absolute right-2 top-2 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-bold text-white ${isDark ? "bg-[#F87171]" : "bg-[#FF3B30]"}`}>
+                  {unreadTotal}
+                </span>
+              )}
             </button>
 
-            {showNotifications ? (
-              <div className={`absolute right-0 top-14 z-20 w-[320px] max-w-[calc(100vw-2rem)] rounded-[22px] border p-3 shadow-[0_24px_60px_rgba(0,0,0,0.5)] ${
+            {showCommunications ? (
+              <div className={`absolute right-0 top-14 z-[70] w-[800px] h-[600px] max-w-[calc(100vw-2rem)] rounded-[28px] border overflow-hidden shadow-[0_32px_80px_rgba(0,0,0,0.5)] ${
                 isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)]" : "bg-white border-[#E9E1D8]"
               }`}>
-                <div className="mb-3 flex items-center justify-between">
-                  <p className="text-sm font-semibold">Notifications</p>
-                  <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                    isDark ? "bg-[rgba(201,169,110,0.14)] text-[#E8C98A]" : "bg-[#F8E8DA] text-[#8B5E3C]"
-                  }`}>
-                    {notifications.length} new
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  {notifications.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => {
-                        setShowNotifications(false);
-                        navigate("/dashboard/reports");
-                      }}
-                      className={`w-full rounded-[16px] border border-transparent px-4 py-3 text-left transition-all ${
-                        isDark 
-                          ? "bg-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.06)] hover:border-[rgba(255,255,255,0.08)]" 
-                          : "bg-[#FAF8F5] hover:border-[#EAD7C5] hover:bg-[#F6EFE8]"
-                      }`}
-                    >
-                      <p className={`text-sm font-medium ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>{item.title}</p>
-                      <p className={`mt-1 text-xs ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>{item.description}</p>
-                    </button>
-                  ))}
-                </div>
+                <CommunicationPanel 
+                  onClose={() => setShowCommunications(false)}
+                />
               </div>
             ) : null}
           </div>

@@ -1,6 +1,7 @@
 import { query } from "../../database/pool";
 import { createError } from "../../middleware/errorHandler";
 import type { AuthUserPayload } from "../../shared/types/auth";
+import { NotificationsService } from "../notifications/notifications.service";
 
 export type InventoryRecord = {
   id: string;
@@ -479,6 +480,21 @@ export async function moveStockToService(user: AuthUserPayload, inventoryId: str
   const item = await getInventoryItemById(columns, result.rows[0].id);
   if (!item) {
     throw createError("Inventory item could not be loaded after stock transfer.", 500);
+  }
+
+  // Realtime Low Stock Trigger
+  const finalStock = Number(item.stock);
+  const threshold = Number(item.low_stock_threshold);
+
+  if (finalStock <= threshold) {
+    try {
+      await NotificationsService.triggerEvent(user.tenant_id || "", item.location_id || "", "LOW_STOCK_WARNING", {
+        itemName: item.name,
+        stock: finalStock
+      });
+    } catch (err) {
+      console.error("Failed to trigger stock intelligence", err);
+    }
   }
 
   return mapInventoryRow(item);

@@ -18,6 +18,8 @@ import { clientsRouter } from './modules/clients/clients.routes';
 import salesRouter from './modules/sales/sales.routes';
 import ownerRoutes from './modules/owner/owner.routes';
 import reportsRouter from './modules/reports/reports.routes';
+import notificationsRouter from './modules/notifications/notifications.routes';
+import communicationsRouter from './modules/communications/communications.routes';
 
 const app = express();
 
@@ -37,6 +39,8 @@ app.get('/health', (_req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/notifications', notificationsRouter);
+app.use('/api/communications', communicationsRouter);
 app.use('/api/users', authMiddleware, requireSuperAdmin, usersRoutes);
 app.use('/api/subscriptions', authMiddleware, subscriptionsRoutes);
 app.use('/api/revenue', authMiddleware, requireSuperAdmin, revenueRoutes);

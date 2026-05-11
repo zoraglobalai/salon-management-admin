@@ -2,15 +2,28 @@ import 'reflect-metadata';
 import * as dotenv from 'dotenv';
 dotenv.config();
 
-import type { Server } from 'http';
+import * as http from 'http';
 import { AppDataSource } from './database/config';
 import app from './app';
 import { verifyMailerConnection } from './shared/mail/mailer';
 
+import { Server as SocketServer } from 'socket.io';
+import { setupCommunicationsSocket } from './modules/communications/communications.socket';
+
 const DEFAULT_PORT = parseInt(process.env.PORT || '5000', 10);
 
-const listenOnPort = (port: number): Server => {
-  const server = app.listen(port, () => {
+const listenOnPort = (port: number): http.Server => {
+  const server = http.createServer(app);
+  const io = new SocketServer(server, {
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST"]
+    }
+  });
+
+  setupCommunicationsSocket(io);
+
+  server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}`);
     console.log(`Health check: http://localhost:${port}/health`);
   });
