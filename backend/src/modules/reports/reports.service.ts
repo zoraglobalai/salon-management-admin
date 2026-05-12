@@ -728,13 +728,13 @@ export async function getReportsSummary(user: AuthUserPayload, filters: ReportFi
            JOIN sales s ON (s.location_id = b.id OR s.branch_id = b.id)
            WHERE b.tenant_id = $1
              AND s.tenant_id = $1
-             ${filters.startDate ? ` AND (${salesDateExpr})::date >= $${salesValues.indexOf(filters.startDate) + 1}::date` : ""}
-             ${filters.endDate ? ` AND (${salesDateExpr})::date <= $${salesValues.lastIndexOf(filters.endDate) + 1}::date` : ""}
+             ${filters.startDate ? ` AND (${salesDateExpr})::date >= $2::date` : ""}
+             ${filters.endDate ? ` AND (${salesDateExpr})::date <= $${filters.startDate ? 3 : 2}::date` : ""}
              ${salesStatusCondition}
            GROUP BY b.id, b.name
            ORDER BY revenue DESC
            LIMIT 1`,
-          getInsightValues()
+          [user.tenant_id, ...(filters.startDate ? [filters.startDate] : []), ...(filters.endDate ? [filters.endDate] : [])]
         ),
         // 3. Most Profitable Service (Owner)
         query<any>(
