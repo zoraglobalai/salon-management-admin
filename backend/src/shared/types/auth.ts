@@ -2,6 +2,7 @@ import type { BusinessRole, OperatorUserType, UserMode } from "../../entities/pl
 
 export type AuthUserPayload = {
   id?: string;
+  session_version?: number;
   tenant_id: string | null;
   user_id: string;
   branch_id: string | null;

@@ -1,4 +1,5 @@
 import type { ApiListResponse, DashboardMetrics, DashboardSummaryResponse, ResourceItem } from "./types";
+import { clearOwnerSession } from "../modules/auth/services/sessionSync";
 
 const API_BASE = import.meta.env.VITE_API_URL || "/api";
 const USER_KEY = "salon-growth-engine-user";
@@ -33,11 +34,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (!response.ok) {
     if (response.status === 401) {
       clearSession();
-      sessionStorage.removeItem("owner_user");
-      sessionStorage.removeItem("owner_token");
-      if (window.location.pathname !== '/login') {
-        window.location.href = "/login";
-      }
+      clearOwnerSession({ redirectToLogin: true });
     }
     const errorBody = await response.json().catch(() => ({ message: "Request failed" }));
     throw new Error(errorBody.message || "Request failed");

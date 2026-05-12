@@ -62,10 +62,13 @@ export const loginService = async (
     user.role === UserRole.MANAGER ? 'manager' :
     user.role === UserRole.INDEPENDENT_OWNER ? 'owner' : 'owner';
   const mode = await resolveOwnerMode(user);
+  user.sessionVersion = (user.sessionVersion ?? 0) + 1;
+  await userRepo().save(user);
 
   const token = jwt.sign(
     { 
       id: user.id, 
+      session_version: user.sessionVersion,
       email: user.email, 
       role: user.role,
       tenant_id: user.tenantId,
@@ -184,6 +187,7 @@ export const resetPasswordService = async (email: string, code: string, newPassw
   user.resetPasswordToken = null;
   user.resetPasswordExpires = null;
   user.isDefaultPassword = false;
+  user.sessionVersion = (user.sessionVersion ?? 0) + 1;
 
   await userRepo().save(user);
 
@@ -212,6 +216,7 @@ export const changePasswordService = async (userId: string, oldPassword: string,
   const hashedPassword = await bcrypt.hash(newPassword, 10);
   user.password = hashedPassword;
   user.isDefaultPassword = false;
+  user.sessionVersion = (user.sessionVersion ?? 0) + 1;
 
   await userRepo().save(user);
 

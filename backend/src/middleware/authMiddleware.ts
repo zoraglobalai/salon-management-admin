@@ -72,12 +72,20 @@ export const authMiddleware: RequestHandler = async (req: AuthRequest, res: Resp
   try {
     const decoded = jwt.verify(token, ENV.JWT_SECRET) as Partial<AuthPayload & AuthUserPayload>;
 
-    // Verify user exists in database to handle immediate revocation (e.g. manager removed)
+    // Verify user exists and the token still matches the latest active session.
     if (decoded.id) {
       const userRepo = AppDataSource.getRepository(User);
       const userExists = await userRepo.findOne({ where: { id: decoded.id } });
       if (!userExists || !userExists.isActive) {
         res.status(401).json({ success: false, message: 'Session invalidated. User deactivated or removed.' });
+        return;
+      }
+
+      if (
+        typeof decoded.session_version !== 'number' ||
+        decoded.session_version !== userExists.sessionVersion
+      ) {
+        res.status(401).json({ success: false, message: 'Session invalidated. A newer login is active.' });
         return;
       }
     }
@@ -91,6 +99,7 @@ export const authMiddleware: RequestHandler = async (req: AuthRequest, res: Resp
     ) {
       req.user = {
         id: decoded.id,
+        session_version: decoded.session_version,
         tenant_id: decoded.tenant_id ?? null,
         user_id: decoded.user_id,
         branch_id: decoded.branch_id ?? null,

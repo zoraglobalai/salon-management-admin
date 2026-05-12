@@ -94,4 +94,7 @@ export class User {
 
   @Column({ type: 'boolean', default: false })
   hasManager!: boolean;
+
+  @Column({ type: 'int', default: 0 })
+  sessionVersion!: number;
 }

@@ -26,6 +26,7 @@ import { AddServiceConsumablesTracking1715500000000 } from './migrations/1715500
 import { CreateCommunicationsSchema1715600000000 } from './migrations/1715600000000-CreateCommunicationsSchema';
 import { RefactorCommunicationsSchema1715600000001 } from './migrations/1715600000001-RefactorCommunicationsSchema';
 import { AddCommunicationIndexes1715700000000 } from './migrations/1715700000000-AddCommunicationIndexes';
+import { AddUserSessionVersion1715800000000 } from './migrations/1715800000000-AddUserSessionVersion';
 
 export const databaseConfig = {
   host: ENV.DB_HOST,
@@ -59,5 +60,6 @@ export const AppDataSource = new DataSource({
     CreateCommunicationsSchema1715600000000,
     RefactorCommunicationsSchema1715600000001,
     AddCommunicationIndexes1715700000000,
+    AddUserSessionVersion1715800000000,
   ],
 });

@@ -30,6 +30,30 @@ const roleLabel: Record<ProfileDetails["role"], string> = {
   SUPER_ADMIN: "Super Admin",
 };
 
+const fullNamePattern = /^[A-Za-z]+(?: [A-Za-z]+)*$/;
+const gmailPattern = /^[A-Za-z0-9._%+-]+@gmail\.com$/i;
+const shopNamePattern = /^[A-Za-z0-9]+(?: [A-Za-z0-9]+)*$/;
+
+function normalizeSingleSpaces(value: string) {
+  return value.replace(/\s+/g, " ").replace(/^\s+/, "");
+}
+
+function sanitizeFullName(value: string) {
+  return normalizeSingleSpaces(value).replace(/[^A-Za-z ]/g, "").slice(0, 40);
+}
+
+function sanitizeEmail(value: string) {
+  return value.replace(/\s+/g, "");
+}
+
+function sanitizePhone(value: string) {
+  return value.replace(/\D/g, "").slice(0, 10);
+}
+
+function sanitizeShopName(value: string) {
+  return normalizeSingleSpaces(value).slice(0, 50);
+}
+
 export function ProfileDetailsModal({
   isOpen,
   onClose,
@@ -90,16 +114,59 @@ export function ProfileDetailsModal({
     setEditing((current) => ({ ...current, [field]: !current[field] }));
   };
 
+  const validateForm = () => {
+    const fullName = form.fullName.trim();
+    const email = form.email.trim();
+    const phone = form.phone.trim();
+    const shopName = form.shopName.trim();
+
+    if (!fullName) {
+      return "Full name is required.";
+    }
+
+    if (fullName.length > 40 || !fullNamePattern.test(fullName)) {
+      return "Full name must be 40 characters or fewer and contain only letters with single spaces.";
+    }
+
+    if (!email) {
+      return "Email is required.";
+    }
+
+    if (!gmailPattern.test(email)) {
+      return "Email must be a valid @gmail.com address.";
+    }
+
+    if (!/^\d{10}$/.test(phone)) {
+      return "Phone must contain exactly 10 digits.";
+    }
+
+    if (!shopName) {
+      return "Shop name is required.";
+    }
+
+    if (shopName.length > 50 || !shopNamePattern.test(shopName)) {
+      return "Shop name must be 50 characters or fewer and use only single spaces between words.";
+    }
+
+    return null;
+  };
+
   const handleSave = async () => {
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     setIsSaving(true);
     setError(null);
 
     try {
       const response = await updateOwnerProfile({
-        fullName: form.fullName,
-        email: form.email,
-        phone: form.phone,
-        shopName: form.shopName,
+        fullName: form.fullName.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
+        shopName: form.shopName.trim(),
       });
 
       onUserUpdated({
@@ -146,15 +213,22 @@ export function ProfileDetailsModal({
             label="Full Name:"
             value={form.fullName}
             isEditing={editing.fullName}
-            onChange={(value) => setForm((current) => ({ ...current, fullName: value }))}
+            onChange={(value) => {
+              setForm((current) => ({ ...current, fullName: sanitizeFullName(value) }));
+              setError(null);
+            }}
             onEdit={() => toggleField("fullName")}
+            maxLength={40}
           />
 
           <FieldRow
             label="Email:"
             value={form.email}
             isEditing={editing.email}
-            onChange={(value) => setForm((current) => ({ ...current, email: value }))}
+            onChange={(value) => {
+              setForm((current) => ({ ...current, email: sanitizeEmail(value) }));
+              setError(null);
+            }}
             onEdit={() => toggleField("email")}
             type="email"
           />
@@ -163,17 +237,25 @@ export function ProfileDetailsModal({
             label="Phone:"
             value={form.phone}
             isEditing={editing.phone}
-            onChange={(value) => setForm((current) => ({ ...current, phone: value }))}
+            onChange={(value) => {
+              setForm((current) => ({ ...current, phone: sanitizePhone(value) }));
+              setError(null);
+            }}
             onEdit={() => toggleField("phone")}
             inputMode="tel"
+            maxLength={10}
           />
 
           <FieldRow
             label="Shop Name:"
             value={form.shopName}
             isEditing={editing.shopName}
-            onChange={(value) => setForm((current) => ({ ...current, shopName: value }))}
+            onChange={(value) => {
+              setForm((current) => ({ ...current, shopName: sanitizeShopName(value) }));
+              setError(null);
+            }}
             onEdit={() => toggleField("shopName")}
+            maxLength={50}
           />
         </div>
 
@@ -200,6 +282,7 @@ type FieldRowProps = {
   onEdit: () => void;
   type?: string;
   inputMode?: ComponentProps<"input">["inputMode"];
+  maxLength?: number;
 };
 
 function FieldRow({
@@ -210,6 +293,7 @@ function FieldRow({
   onEdit,
   type = "text",
   inputMode,
+  maxLength,
 }: FieldRowProps) {
   return (
     <label className="block">
@@ -224,6 +308,7 @@ function FieldRow({
         <input
           type={type}
           inputMode={inputMode}
+          maxLength={maxLength}
           value={value}
           onChange={(event) => onChange(event.target.value)}
           disabled={!isEditing}

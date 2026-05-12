@@ -1,22 +1,70 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '../services/auth.api';
 import type { LoginCredentials, User } from '../types/auth.types';
+import {
+  clearOwnerSession,
+  getOwnerTabId,
+  getStoredOwnerToken,
+  getStoredOwnerUser,
+  OWNER_AUTH_CHANGED_EVENT,
+  OWNER_AUTH_EVENT_KEY,
+  parseOwnerBroadcastEvent,
+  storeOwnerSession,
+  updateStoredOwnerUser,
+} from '../services/sessionSync';
 
 const ALLOWED_OWNER_PORTAL_ROLES: User['role'][] = ['OWNER', 'INDEPENDENT_OWNER', 'SUPER_ADMIN', 'MANAGER'];
 
 export const useAuth = () => {
-  const [user, setUser] = useState<User | null>(() => {
-    const stored = sessionStorage.getItem('owner_user');
-    return stored ? JSON.parse(stored) : null;
-  });
-  const [token, setToken] = useState<string | null>(() => sessionStorage.getItem('owner_token'));
+  const [user, setUser] = useState<User | null>(() => getStoredOwnerUser());
+  const [token, setToken] = useState<string | null>(() => getStoredOwnerToken());
   
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDefaultPasswordModal, setShowDefaultPasswordModal] = useState(false);
 
   const navigate = useNavigate();
+
+  useEffect(() => {
+    getOwnerTabId();
+
+    const syncFromSession = () => {
+      setUser(getStoredOwnerUser());
+      setToken(getStoredOwnerToken());
+    };
+
+    const handleSessionChanged = () => {
+      syncFromSession();
+    };
+
+    const handleCrossTabChange = (event: StorageEvent) => {
+      if (event.key !== OWNER_AUTH_EVENT_KEY) {
+        return;
+      }
+
+      const nextEvent = parseOwnerBroadcastEvent(event.newValue);
+      if (!nextEvent || nextEvent.sourceTabId === getOwnerTabId()) {
+        return;
+      }
+
+      const currentUser = getStoredOwnerUser();
+      if (!currentUser || !nextEvent.userId || currentUser.id !== nextEvent.userId) {
+        return;
+      }
+
+      clearOwnerSession({ redirectToLogin: true });
+      syncFromSession();
+    };
+
+    window.addEventListener(OWNER_AUTH_CHANGED_EVENT, handleSessionChanged as EventListener);
+    window.addEventListener("storage", handleCrossTabChange);
+
+    return () => {
+      window.removeEventListener(OWNER_AUTH_CHANGED_EVENT, handleSessionChanged as EventListener);
+      window.removeEventListener("storage", handleCrossTabChange);
+    };
+  }, []);
 
   const login = async (credentials: LoginCredentials) => {
     setIsLoading(true);
@@ -34,8 +82,7 @@ export const useAuth = () => {
 
       setUser(userData);
       setToken(jwt);
-      sessionStorage.setItem('owner_user', JSON.stringify(userData));
-      sessionStorage.setItem('owner_token', jwt);
+      storeOwnerSession(userData, jwt);
 
       if (isDefaultPassword) {
         setShowDefaultPasswordModal(true);
@@ -55,8 +102,7 @@ export const useAuth = () => {
   const logout = () => {
     setUser(null);
     setToken(null);
-    sessionStorage.removeItem('owner_user');
-    sessionStorage.removeItem('owner_token');
+    clearOwnerSession({ broadcast: true });
     navigate('/login');
   };
 
@@ -69,7 +115,7 @@ export const useAuth = () => {
     setUser(prevUser => {
       if (!prevUser) return prevUser;
       const newUser = { ...prevUser, ...updatedUser };
-      sessionStorage.setItem('owner_user', JSON.stringify(newUser));
+      updateStoredOwnerUser(newUser);
       return newUser;
     });
   };
