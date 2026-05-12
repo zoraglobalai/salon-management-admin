@@ -4,10 +4,16 @@ import { CommunicationsService } from "./communications.service";
 export const CommunicationsController = {
   async getConversations(req: Request, res: Response) {
     try {
-      const { id: userId, tenantId, role } = (req as any).user;
-      const conversations = await CommunicationsService.getConversations(userId, tenantId, role);
+      const { id: userId, tenant_id, role } = (req as any).user;
+      
+      if (!tenant_id) {
+        return res.status(400).json({ error: "Tenant ID is required" });
+      }
+
+      const conversations = await CommunicationsService.getConversations(userId, tenant_id, role);
       res.json({ conversations });
     } catch (err: any) {
+      console.error("Error fetching conversations:", err);
       res.status(500).json({ error: err.message });
     }
   },
@@ -35,11 +41,17 @@ export const CommunicationsController = {
 
   async initConversation(req: Request, res: Response) {
     try {
-      const { tenantId, id: userId } = (req as any).user;
+      const { tenant_id, id: userId } = (req as any).user;
       const { type, branchId } = req.body;
-      const conversationId = await CommunicationsService.ensureConversation(tenantId, type, branchId, userId);
+      
+      if (!tenant_id) {
+        return res.status(400).json({ error: "Tenant ID is required" });
+      }
+
+      const conversationId = await CommunicationsService.ensureConversation(tenant_id, type, branchId, userId);
       res.json({ conversationId });
     } catch (err: any) {
+      console.error("Error initializing conversation:", err);
       res.status(500).json({ error: err.message });
     }
   }

@@ -28,13 +28,14 @@ export function CommunicationPanel({ onClose }: CommunicationPanelProps) {
     messages, 
     selectConversation, 
     sendMessage,
-    isConnected 
+    isConnected,
+    isLoading 
   } = useCommunications();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"All" | "Branches" | "Unread">("All");
   const [messageInput, setMessageInput] = useState("");
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const filteredConversations = conversations.filter(c => {
     const matchesSearch = c.branchName?.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -46,7 +47,9 @@ export function CommunicationPanel({ onClose }: CommunicationPanelProps) {
   });
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }
   }, [messages]);
 
   const handleSendMessage = (e: React.FormEvent) => {
@@ -74,7 +77,7 @@ export function CommunicationPanel({ onClose }: CommunicationPanelProps) {
               : (isDark ? "bg-[#1C2030] text-[#F0EBE3] border border-[rgba(255,255,255,0.05)] rounded-tl-none" : "bg-white text-gray-800 border border-[#E9E1D8] rounded-tl-none")
           }`}
         >
-          {msg.content}
+          {msg.message}
         </div>
         <span className={`text-[9px] mt-1 opacity-50 ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>
           {formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true })}
@@ -134,6 +137,13 @@ export function CommunicationPanel({ onClose }: CommunicationPanelProps) {
 
           {/* Conversation List */}
           <div className="flex-1 overflow-y-auto scrollbar-hide p-2 space-y-1">
+            {conversations.length === 0 && !isConnected && (
+               <div className="p-4 space-y-3">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className={`h-16 rounded-xl animate-pulse ${isDark ? "bg-white/5" : "bg-gray-100"}`} />
+                  ))}
+               </div>
+            )}
             {filteredConversations.length > 0 ? (
               filteredConversations.map((c) => (
                 <button
@@ -178,7 +188,12 @@ export function CommunicationPanel({ onClose }: CommunicationPanelProps) {
                   )}
                 </button>
               ))
-            ) : (
+            ) : conversations.length > 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 opacity-40">
+                <MessageSquare size={32} />
+                <p className="text-xs mt-2">No conversations found</p>
+              </div>
+            ) : isConnected && (
               <div className="flex flex-col items-center justify-center py-10 opacity-40">
                 <MessageSquare size={32} />
                 <p className="text-xs mt-2">No conversations</p>
@@ -229,8 +244,17 @@ export function CommunicationPanel({ onClose }: CommunicationPanelProps) {
               </div>
 
               {/* Messages Area */}
-              <div className={`flex-1 overflow-y-auto p-6 scrollbar-hide ${isDark ? "bg-[#0F1115]" : "bg-[#FDFBF9]"}`}>
-                {messages.length > 0 ? (
+              <div 
+                ref={scrollContainerRef}
+                className={`flex-1 overflow-y-auto p-6 scrollbar-hide ${isDark ? "bg-[#0F1115]" : "bg-[#FDFBF9]"}`}
+              >
+                {isLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3, 4].map(i => (
+                      <div key={i} className={`h-12 w-2/3 rounded-2xl animate-pulse ${i % 2 === 0 ? "ml-auto bg-[#C9A96E]/20" : "bg-white/5"}`} />
+                    ))}
+                  </div>
+                ) : messages.length > 0 ? (
                   messages.map((msg, idx) => renderMessage(msg, idx))
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
@@ -241,7 +265,6 @@ export function CommunicationPanel({ onClose }: CommunicationPanelProps) {
                     </p>
                   </div>
                 )}
-                <div ref={messagesEndRef} />
               </div>
 
               {/* Input Area */}

@@ -18,8 +18,9 @@ export interface Message {
   senderId: string;
   senderName: string;
   senderRole: string;
-  content: string;
+  message: string;
   messageType: string;
+  isRead: boolean;
   createdAt: string;
 }
 
@@ -57,7 +58,7 @@ export const CommunicationsService = {
     
     const result = await query<any>(
       `SELECT c.*, b.name as branch_name,
-       (SELECT content FROM messages WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) as last_message,
+       (SELECT message FROM messages WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) as last_message,
        (SELECT created_at FROM messages WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1) as last_message_at,
        (SELECT COUNT(*) FROM messages m 
         LEFT JOIN message_reads mr ON mr.message_id = m.id AND mr.user_id = $${userIdIdx}
@@ -101,18 +102,23 @@ export const CommunicationsService = {
       senderId: row.sender_id,
       senderName: row.sender_name,
       senderRole: row.sender_role,
-      content: row.content,
+      message: row.message,
       messageType: row.message_type,
+      isRead: row.is_read,
       createdAt: row.created_at
     }));
   },
 
-  async sendMessage(conversationId: string, senderId: string, content: string) {
+  async sendMessage(conversationId: string, senderId: string, messageContent: string) {
+    const userResult = await query<any>("SELECT name, role FROM users WHERE id = $1", [senderId]);
+    const senderRole = userResult.rows[0].role;
+    const senderName = userResult.rows[0].name;
+
     const result = await query<any>(
-      `INSERT INTO messages (conversation_id, sender_id, content)
-       VALUES ($1, $2, $3)
+      `INSERT INTO messages (conversation_id, sender_id, sender_role, message)
+       VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [conversationId, senderId, content]
+      [conversationId, senderId, senderRole, messageContent]
     );
 
     await query(
@@ -121,21 +127,29 @@ export const CommunicationsService = {
     );
 
     const message = result.rows[0];
-    const userResult = await query<any>("SELECT name, role FROM users WHERE id = $1", [senderId]);
     
     return {
       id: message.id,
       conversationId: message.conversation_id,
       senderId: message.sender_id,
-      senderName: userResult.rows[0].name,
-      senderRole: userResult.rows[0].role,
-      content: message.content,
+      senderName,
+      senderRole: message.sender_role,
+      message: message.message,
       messageType: message.message_type,
+      isRead: message.is_read,
       createdAt: message.created_at
     };
   },
 
   async markAsRead(conversationId: string, userId: string) {
+    // 1. Update is_read in messages (for direct messages)
+    await query(
+      `UPDATE messages SET is_read = true 
+       WHERE conversation_id = $1 AND sender_id != $2 AND is_read = false`,
+      [conversationId, userId]
+    );
+
+    // 2. Track in message_reads (for broadcast/history)
     await query(
       `INSERT INTO message_reads (message_id, user_id)
        SELECT id, $2 FROM messages 

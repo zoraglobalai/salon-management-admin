@@ -35,6 +35,11 @@ export const setupCommunicationsSocket = (io: Server) => {
     });
 
     socket.on("send_message", async (data: { conversationId: string; content: string }) => {
+      if (!data.conversationId || !data.content) {
+        console.warn(`Invalid send_message data from user ${user.id}`);
+        return;
+      }
+
       try {
         const message = await CommunicationsService.sendMessage(
           data.conversationId,
@@ -42,15 +47,18 @@ export const setupCommunicationsSocket = (io: Server) => {
           data.content
         );
 
-        // Broadcast message to everyone in the room
+        // Broadcast message to everyone in the room (including sender for confirmation)
         io.to(data.conversationId).emit("new_message", message);
         
-        // Notify all participants about updated conversation list (for unread counts/preview)
-        // In a production app, we'd only notify relevant users. 
-        // For now, we emit a global refresh event or specific ones if we had a participant list.
-        io.emit("conversation_updated", { conversationId: data.conversationId });
+        // Notify all participants about updated conversation list
+        io.emit("conversation_updated", { 
+          conversationId: data.conversationId,
+          lastMessage: message.message,
+          lastMessageAt: message.createdAt
+        });
       } catch (err) {
-        console.error("Error sending message via socket:", err);
+        console.error(`Error sending message via socket for user ${user.id}:`, err);
+        socket.emit("error", { message: "Failed to send message" });
       }
     });
 
