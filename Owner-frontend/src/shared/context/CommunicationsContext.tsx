@@ -86,10 +86,23 @@ export function CommunicationsProvider({ children }: { children: React.ReactNode
 
   useEffect(() => {
     const token = localStorage.getItem("token") || sessionStorage.getItem("owner_token");
+    const userStr = sessionStorage.getItem("owner_user");
     if (!token) return;
 
+    let userId = "";
+    let userRole = "";
+    if (userStr) {
+      try {
+        const u = JSON.parse(userStr);
+        userId = u.id;
+        userRole = u.role;
+      } catch (e) {
+        console.error("Failed to parse user from session storage", e);
+      }
+    }
+
     const socket = io(SOCKET_URL, {
-      auth: { token },
+      auth: { token, userId, role: userRole },
       transports: ['websocket', 'polling']
     });
 
@@ -103,8 +116,16 @@ export function CommunicationsProvider({ children }: { children: React.ReactNode
 
     socket.on("disconnect", () => setIsConnected(false));
 
-    socket.on("new_message", (_message: Message) => {
-      // Refresh everything to be sure
+    socket.on("new_message", (message: Message) => {
+      // Append to current chat if we are viewing it
+      if (activeConversationRef.current?.id === message.conversationId) {
+        setMessages((prev) => {
+          if (prev.some(m => m.id === message.id)) return prev;
+          return [...prev, message];
+        });
+      }
+      
+      // Refresh list to update latest message text and unread count
       loadConversations();
       loadUnreadCount();
     });
@@ -125,37 +146,28 @@ export function CommunicationsProvider({ children }: { children: React.ReactNode
     activeConversationRef.current = activeConversation;
   }, [activeConversation]);
 
+  // Handle joining and leaving conversation rooms
+  const prevConversationId = useRef<string | null>(null);
   useEffect(() => {
-    if (!socketRef.current) return;
-
-    const handleNewMessage = (message: Message) => {
-      if (activeConversationRef.current?.id === message.conversationId) {
-        setMessages((prev) => {
-          // Prevent duplicates
-          if (prev.some(m => m.id === message.id)) return prev;
-          return [...prev, message];
-        });
+    const currentId = activeConversation?.id;
+    if (socketRef.current) {
+      if (prevConversationId.current && prevConversationId.current !== currentId) {
+        socketRef.current.emit("leave_conversation", prevConversationId.current);
       }
-    };
-
-    socketRef.current.on("new_message", handleNewMessage);
-    return () => {
-      socketRef.current?.off("new_message", handleNewMessage);
-    };
-  }, []);
+      if (currentId && prevConversationId.current !== currentId) {
+        socketRef.current.emit("join_conversation", currentId);
+      }
+    }
+    prevConversationId.current = currentId || null;
+  }, [activeConversation?.id, isConnected]); // Also re-run if socket reconnects
 
   const selectConversation = useCallback((conversation: Conversation | null) => {
-    if (activeConversation?.id) {
-      socketRef.current?.emit("leave_conversation", activeConversation.id);
-    }
-    
     setActiveConversation(conversation);
     setMessages([]); // Clear previous
     if (conversation) {
       loadMessages(conversation.id);
-      socketRef.current?.emit("join_conversation", conversation.id);
     }
-  }, [activeConversation, loadMessages]);
+  }, [loadMessages]);
 
   const sendMessage = useCallback((content: string) => {
     if (!activeConversation || !content.trim() || !socketRef.current) return;

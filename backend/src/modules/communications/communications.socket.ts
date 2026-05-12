@@ -6,13 +6,20 @@ import { ENV } from "../../config/env";
 export const setupCommunicationsSocket = (io: Server) => {
   io.use((socket, next) => {
     const token = socket.handshake.auth.token || socket.handshake.query.token;
+    const authUserId = socket.handshake.auth.userId;
+    const authRole = socket.handshake.auth.role;
+
     if (!token) {
       return next(new Error("Authentication error"));
     }
 
     try {
       const decoded = jwt.verify(token, ENV.JWT_SECRET) as any;
-      socket.data.user = decoded;
+      socket.data.user = {
+        ...decoded,
+        id: authUserId || decoded.id,
+        role: authRole || decoded.role
+      };
       next();
     } catch (err) {
       next(new Error("Authentication error"));
@@ -21,17 +28,17 @@ export const setupCommunicationsSocket = (io: Server) => {
 
   io.on("connection", (socket: Socket) => {
     const user = socket.data.user;
-    console.log(`User connected to chat: ${user.name} (${user.role})`);
+    console.log(`User connected: ${user.id} (${user.role})`);
 
     // Join rooms
     socket.on("join_conversation", (conversationId: string) => {
       socket.join(conversationId);
-      console.log(`${user.name} joined conversation: ${conversationId}`);
+      console.log(`User ${user.id} joined conversation: ${conversationId}`);
     });
 
     socket.on("leave_conversation", (conversationId: string) => {
       socket.leave(conversationId);
-      console.log(`${user.name} left conversation: ${conversationId}`);
+      console.log(`User ${user.id} left conversation: ${conversationId}`);
     });
 
     socket.on("send_message", async (data: { conversationId: string; content: string }) => {
@@ -63,7 +70,7 @@ export const setupCommunicationsSocket = (io: Server) => {
     });
 
     socket.on("disconnect", () => {
-      console.log(`User disconnected from chat: ${user.name}`);
+      console.log(`User disconnected: ${user.id}`);
     });
   });
 };

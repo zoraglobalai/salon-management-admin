@@ -25,6 +25,7 @@ import { AddSaleServiceComboFields1715400000000 } from './migrations/17154000000
 import { AddServiceConsumablesTracking1715500000000 } from './migrations/1715500000000-AddServiceConsumablesTracking';
 import { CreateCommunicationsSchema1715600000000 } from './migrations/1715600000000-CreateCommunicationsSchema';
 import { RefactorCommunicationsSchema1715600000001 } from './migrations/1715600000001-RefactorCommunicationsSchema';
+import { AddCommunicationIndexes1715700000000 } from './migrations/1715700000000-AddCommunicationIndexes';
 
 export const databaseConfig = {
   host: ENV.DB_HOST,
@@ -57,5 +58,6 @@ export const AppDataSource = new DataSource({
     AddServiceConsumablesTracking1715500000000,
     CreateCommunicationsSchema1715600000000,
     RefactorCommunicationsSchema1715600000001,
+    AddCommunicationIndexes1715700000000,
   ],
 });
