@@ -9,6 +9,8 @@ import { fetchSalesReport } from "../../../core/api";
 import { exportToExcel, exportToPDF } from "../utils/exportUtils";
 import { useReport } from "../hooks/useReport";
 import { ExportModal } from "../components/ExportModal";
+import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
+import { cn } from "../../../shared/utils/cn";
 
 function formatLocalDate(date: Date) {
   const year = date.getFullYear();
@@ -29,131 +31,160 @@ type SalesRecord = {
   products: Array<{ name: string; quantity: number }>;
 };
 
-const columns: Column<SalesRecord>[] = [
-  {
-    header: "Date",
-    accessorKey: "date",
-    sortable: true,
-    cell: (item: SalesRecord) => (
-      <div className="flex flex-col">
-        <span className="font-semibold text-gray-900">{new Date(item.date).toLocaleDateString()}</span>
-        <span className="text-[10px] uppercase text-gray-400">{new Date(item.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-      </div>
-    ),
-  },
-  {
-    header: "Customer",
-    accessorKey: "clientName",
-    cell: (item: SalesRecord) => (
-      <div className="flex flex-col">
-        <span className="font-medium text-gray-900">{item.clientName}</span>
-      </div>
-    ),
-  },
-  {
-    header: "Staff",
-    accessorKey: "services",
-    cell: (item: SalesRecord) => {
-      const services = item.services || [];
-      const staffNames = Array.from(new Set(services.map((s) => s.staff_name).filter(Boolean)));
-      if (staffNames.length === 0) return <span className="text-gray-400 italic text-xs">No staff</span>;
-      return (
-        <div className="flex flex-wrap gap-2 max-w-[180px]">
-          {staffNames.map((name, i) => (
-            <span key={i} className="rounded-md bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-gray-600 border border-gray-100 shadow-sm">
-              {name}
-            </span>
-          ))}
-        </div>
-      );
-    },
-  },
-  {
-    header: "Services",
-    accessorKey: "services",
-    cell: (item: SalesRecord) => {
-      const displayLimit = 3;
-      const services = item.services || [];
-      return (
-        <div className="flex flex-wrap gap-1.5 max-w-[280px]">
-          {services.slice(0, displayLimit).map((s, i) => (
-            <span key={i} className="rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-medium text-blue-700 border border-blue-100 shadow-sm whitespace-nowrap">
-              {s.name}
-            </span>
-          ))}
-          {services.length > displayLimit && (
-            <span
-              className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-medium text-gray-600 cursor-help"
-              title={services.slice(displayLimit).map((s) => s.name).join(", ")}
-            >
-              +{services.length - displayLimit}
-            </span>
-          )}
-        </div>
-      );
-    },
-  },
-  {
-    header: "Products",
-    accessorKey: "products",
-    cell: (item: SalesRecord) => {
-      const displayLimit = 2;
-      const products = item.products || [];
-      if (products.length === 0) return <span className="text-gray-400 text-xs">None</span>;
-      return (
-        <div className="flex flex-wrap gap-1.5 max-w-[220px]">
-          {products.slice(0, displayLimit).map((p, i) => (
-            <span key={i} className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-medium text-amber-700 border border-amber-100 shadow-sm whitespace-nowrap">
-              {p.name} <span className="opacity-60 ml-0.5">x{p.quantity}</span>
-            </span>
-          ))}
-          {products.length > displayLimit && (
-            <span
-              className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[11px] font-medium text-gray-600 cursor-help"
-              title={products.slice(displayLimit).map((p) => `${p.name} x${p.quantity}`).join(", ")}
-            >
-              +{products.length - displayLimit}
-            </span>
-          )}
-        </div>
-      );
-    },
-  },
-  { header: "Branch", accessorKey: "locationName", cell: (item: SalesRecord) => <span className="text-xs font-medium text-gray-600">{item.locationName}</span> },
-  {
-    header: "Revenue",
-    accessorKey: "revenue",
-    sortable: true,
-    align: "right" as const,
-    cell: (item: SalesRecord) => <span className="font-bold text-gray-900">{"\u20B9"}{Number(item.revenue).toLocaleString()}</span>,
-  },
-  {
-    header: "Discount",
-    accessorKey: "discount",
-    align: "right" as const,
-    cell: (item: SalesRecord) => <span className="text-rose-500 font-medium text-xs">{"\u20B9"}{Number(item.discount).toLocaleString()}</span>,
-  },
-  {
-    header: "Payment",
-    accessorKey: "paymentSplit",
-    cell: (item: SalesRecord) => {
-      const method = item.paymentSplit?.toUpperCase() || "UNKNOWN";
-      let colorClass = "bg-gray-100 text-gray-700 border-gray-200";
-      if (method === "CASH") colorClass = "bg-green-50 text-green-700 border-green-200";
-      if (method === "CARD") colorClass = "bg-blue-50 text-blue-700 border-blue-200";
-      if (method === "UPI") colorClass = "bg-purple-50 text-purple-700 border-purple-200";
-
-      return (
-        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider border ${colorClass}`}>
-          {method}
-        </span>
-      );
-    },
-  },
-];
+// columns moved inside SalesReportPage to access theme state
 
 export function SalesReportPage() {
+  const { theme } = useDashboardTheme();
+  const isDark = theme === "dark";
   const { toast } = useNotifications();
+
+  const columns: Column<SalesRecord>[] = [
+    {
+      header: "Date",
+      accessorKey: "date",
+      sortable: true,
+      cell: (item: SalesRecord) => (
+        <div className="flex flex-col">
+          <span className={cn("font-semibold", isDark ? "text-[#F0EBE3]" : "text-gray-900")}>
+            {new Date(item.date).toLocaleDateString()}
+          </span>
+          <span className={cn("text-[10px] uppercase", isDark ? "text-[#7A7572]" : "text-gray-400")}>
+            {new Date(item.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+          </span>
+        </div>
+      ),
+    },
+    {
+      header: "Customer",
+      accessorKey: "clientName",
+      cell: (item: SalesRecord) => (
+        <span className={cn("font-medium", isDark ? "text-[#F0EBE3]" : "text-gray-900")}>
+          {item.clientName}
+        </span>
+      ),
+    },
+    {
+      header: "Staff",
+      accessorKey: "services",
+      cell: (item: SalesRecord) => {
+        const services = item.services || [];
+        const staffNames = Array.from(new Set(services.map((s) => s.staff_name).filter(Boolean)));
+        if (staffNames.length === 0) return <span className="text-gray-400 italic text-xs">No staff</span>;
+        return (
+          <div className="flex flex-wrap gap-2 max-w-[180px]">
+            {staffNames.map((name, i) => (
+              <span key={i} className={cn(
+                "rounded-md px-2 py-0.5 text-[11px] font-medium border shadow-sm",
+                isDark 
+                  ? "bg-[rgba(255,255,255,0.05)] text-[#C8BFB4] border-[rgba(255,255,255,0.1)]" 
+                  : "bg-gray-50 text-gray-600 border-gray-100"
+              )}>
+                {name}
+              </span>
+            ))}
+          </div>
+        );
+      },
+    },
+    {
+      header: "Services",
+      accessorKey: "services",
+      cell: (item: SalesRecord) => {
+        const displayLimit = 3;
+        const services = item.services || [];
+        return (
+          <div className="flex flex-wrap gap-1.5 max-w-[280px]">
+            {services.slice(0, displayLimit).map((s, i) => (
+              <span key={i} className={cn(
+                "rounded-full px-2.5 py-0.5 text-[11px] font-medium border shadow-sm whitespace-nowrap",
+                isDark 
+                  ? "bg-blue-500/10 text-blue-400 border-blue-500/20" 
+                  : "bg-blue-50 text-blue-700 border-blue-100"
+              )}>
+                {s.name}
+              </span>
+            ))}
+            {services.length > displayLimit && (
+              <span
+                className={cn(
+                  "rounded-full px-2.5 py-0.5 text-[11px] font-medium cursor-help",
+                  isDark ? "bg-white/10 text-[#C8BFB4]" : "bg-gray-100 text-gray-600"
+                )}
+                title={services.slice(displayLimit).map((s) => s.name).join(", ")}
+              >
+                +{services.length - displayLimit}
+              </span>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      header: "Products",
+      accessorKey: "products",
+      cell: (item: SalesRecord) => {
+        const displayLimit = 2;
+        const products = item.products || [];
+        if (products.length === 0) return <span className="text-gray-400 text-xs">None</span>;
+        return (
+          <div className="flex flex-wrap gap-1.5 max-w-[220px]">
+            {products.slice(0, displayLimit).map((p, i) => (
+              <span key={i} className={cn(
+                "rounded-full px-2.5 py-0.5 text-[11px] font-medium border shadow-sm whitespace-nowrap",
+                isDark 
+                  ? "bg-amber-500/10 text-amber-400 border-amber-500/20" 
+                  : "bg-amber-50 text-amber-700 border-amber-100"
+              )}>
+                {p.name} <span className="opacity-60 ml-0.5">x{p.quantity}</span>
+              </span>
+            ))}
+            {products.length > displayLimit && (
+              <span
+                className={cn(
+                  "rounded-full px-2.5 py-0.5 text-[11px] font-medium cursor-help",
+                  isDark ? "bg-white/10 text-[#C8BFB4]" : "bg-gray-100 text-gray-600"
+                )}
+                title={products.slice(displayLimit).map((p) => `${p.name} x${p.quantity}`).join(", ")}
+              >
+                +{products.length - displayLimit}
+              </span>
+            )}
+          </div>
+        );
+      },
+    },
+    { header: "Branch", accessorKey: "locationName", cell: (item: SalesRecord) => <span className={cn("text-xs font-medium", isDark ? "text-[#C8BFB4]" : "text-gray-600")}>{item.locationName}</span> },
+    {
+      header: "Revenue",
+      accessorKey: "revenue",
+      sortable: true,
+      align: "right" as const,
+      cell: (item: SalesRecord) => <span className={cn("font-bold", isDark ? "text-[#F0EBE3]" : "text-gray-900")}>{"\u20B9"}{Number(item.revenue).toLocaleString()}</span>,
+    },
+    {
+      header: "Discount",
+      accessorKey: "discount",
+      align: "right" as const,
+      cell: (item: SalesRecord) => <span className="text-rose-500 font-medium text-xs">{"\u20B9"}{Number(item.discount).toLocaleString()}</span>,
+    },
+    {
+      header: "Payment",
+      accessorKey: "paymentSplit",
+      cell: (item: SalesRecord) => {
+        const method = item.paymentSplit?.toUpperCase() || "UNKNOWN";
+        let colorClass = isDark ? "bg-white/5 text-[#C8BFB4] border-white/10" : "bg-gray-100 text-gray-700 border-gray-200";
+        if (method === "CASH") colorClass = isDark ? "bg-green-500/10 text-green-400 border-green-500/20" : "bg-green-50 text-green-700 border-green-200";
+        if (method === "CARD") colorClass = isDark ? "bg-blue-500/10 text-blue-400 border-blue-500/20" : "bg-blue-50 text-blue-700 border-blue-200";
+        if (method === "UPI") colorClass = isDark ? "bg-purple-500/10 text-purple-400 border-purple-500/20" : "bg-purple-50 text-purple-700 border-purple-200";
+
+        return (
+          <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider border", colorClass)}>
+            {method}
+          </span>
+        );
+      },
+    },
+  ];
   const [showExportModal, setShowExportModal] = useState(false);
   const { data, loading, filters, setFilters } = useReport(
     fetchSalesReport,
@@ -180,17 +211,27 @@ export function SalesReportPage() {
   const pagination = data?.pagination || { page: 1, totalPages: 1 };
 
   return (
-    <div className="mx-auto flex w-full max-w-[1380px] flex-col gap-6 pb-2">
-      <div className="flex flex-wrap items-center gap-4 rounded-[28px] border border-[#E8E1D8] bg-[linear-gradient(180deg,#FFFDF9_0%,#FAF7F3_100%)] px-5 py-5 shadow-[0_16px_48px_rgba(94,72,52,0.08)] md:px-7">
+    <div className={cn("mx-auto flex w-full max-w-[1380px] flex-col gap-6 pb-2", isDark ? "text-[#C8BFB4]" : "text-gray-900")}>
+      <div className={cn(
+        "flex flex-wrap items-center gap-4 rounded-[28px] border px-5 py-5 transition-all duration-200 md:px-7",
+        isDark 
+          ? "bg-[#151821] border-[rgba(255,255,255,0.07)] shadow-card-dark" 
+          : "bg-[linear-gradient(180deg,#FFFDF9_0%,#FAF7F3_100%)] border-[#E8E1D8] shadow-[0_16px_48px_rgba(94,72,52,0.08)]"
+      )}>
         <Link
           to="/dashboard/reports"
-          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#E8E1D8] bg-white text-[#4B5563] transition hover:bg-[#FAF7F3] hover:text-[#111827]"
+          className={cn(
+            "flex h-11 w-11 items-center justify-center rounded-2xl border transition-all duration-200",
+            isDark 
+              ? "bg-[#1C2030] border-[rgba(255,255,255,0.07)] text-[#C8BFB4] hover:bg-white/5 hover:text-[#F0EBE3]" 
+              : "bg-white border-[#E8E1D8] text-[#4B5563] hover:bg-[#FAF7F3] hover:text-[#111827]"
+          )}
         >
           <ArrowLeft size={20} />
         </Link>
         <div className="min-w-0 flex-1">
-          <h1 className="text-2xl font-bold tracking-[-0.03em] text-[#111827] md:text-[2rem]">Sales Analytics</h1>
-          <p className="text-sm text-[#6B7280] md:text-[15px]">Advanced business intelligence for your salon's revenue and transactions.</p>
+          <h1 className={cn("text-2xl font-bold tracking-[-0.03em] md:text-[2rem]", isDark ? "text-[#F0EBE3]" : "text-[#111827]")}>Sales Analytics</h1>
+          <p className={cn("text-sm md:text-[15px]", isDark ? "text-[#7A7572]" : "text-[#6B7280]")}>Advanced business intelligence for your salon's revenue and transactions.</p>
         </div>
       </div>
 
@@ -289,13 +330,19 @@ export function SalesReportPage() {
         />
       </div>
 
-      <div className="rounded-[24px] border border-[#E8E1D8] bg-white p-5 shadow-sm md:p-6 overflow-hidden">
+      <div className={cn(
+        "rounded-[24px] border p-5 shadow-sm md:p-6 overflow-hidden transition-all duration-200",
+        isDark ? "bg-[#151821] border-[rgba(255,255,255,0.07)]" : "bg-white border-[#E8E1D8]"
+      )}>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h3 className="font-semibold text-[#111827]">Sales Transaction Ledger</h3>
-            <p className="text-sm text-[#6B7280]">Detailed transactional insights including staff and itemized breakdowns.</p>
+            <h3 className={cn("font-semibold", isDark ? "text-[#F0EBE3]" : "text-[#111827]")}>Sales Transaction Ledger</h3>
+            <p className={cn("text-sm", isDark ? "text-[#7A7572]" : "text-[#6B7280]")}>Detailed transactional insights including staff and itemized breakdowns.</p>
           </div>
-          <div className="rounded-full bg-[#FAF7F3] px-3 py-1 text-sm font-medium text-[#6B7280]">
+          <div className={cn(
+            "rounded-full px-3 py-1 text-sm font-medium",
+            isDark ? "bg-white/5 text-[#7A7572]" : "bg-[#FAF7F3] text-[#6B7280]"
+          )}>
             {loading ? "Loading..." : `${list.length} record${list.length === 1 ? "" : "s"}`}
           </div>
         </div>
