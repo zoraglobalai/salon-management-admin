@@ -5,6 +5,7 @@ import { User } from '../../entities/platform/User';
 import { createError } from '../../middleware/errorHandler';
 import bcrypt from 'bcryptjs';
 import { Log } from '../../entities/platform/Log';
+import { forceLogoutUser } from '../communications/socketGateway';
 
 const userRepo = () => AppDataSource.getRepository(User);
 const branchRepo = () => AppDataSource.getRepository(Branch);
@@ -311,7 +312,18 @@ export const resetOwnerManagerPasswordService = async (ownerId: string, managerI
   const hashedPassword = await bcrypt.hash(newPassword, 10);
   manager.password = hashedPassword;
   manager.isDefaultPassword = true; // They must change it upon login
+  manager.sessionVersion = (manager.sessionVersion ?? 0) + 1;
 
   await userRepo().save(manager);
+  forceLogoutUser(manager.id, 'Your password was reset by the owner. Please log in again.');
+
+  await logRepo().save(
+    logRepo().create({
+      action: 'RESET_MANAGER_PASSWORD',
+      performedBy: owner.email,
+      details: `Manager password reset for ${manager.email}`,
+    })
+  );
+
   return true;
 };

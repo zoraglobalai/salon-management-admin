@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 import { fetchConversations, fetchMessages, fetchUnreadCount } from "../../core/communications";
+import { clearOwnerSession } from "../../modules/auth/services/sessionSync";
 
 const SOCKET_URL = import.meta.env.VITE_API_URL || "http://localhost:5002";
 
@@ -133,6 +134,11 @@ export function CommunicationsProvider({ children }: { children: React.ReactNode
     socket.on("conversation_updated", () => {
       loadConversations();
       loadUnreadCount();
+    });
+
+    socket.on("force_logout", () => {
+      clearOwnerSession({ broadcast: true, redirectToLogin: true });
+      socket.disconnect();
     });
 
     return () => {

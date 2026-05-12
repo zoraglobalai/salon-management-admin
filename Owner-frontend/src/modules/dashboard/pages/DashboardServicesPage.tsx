@@ -794,12 +794,11 @@ export function DashboardServicesPage() {
 
                           <input
                             required
-                            type="number"
-                            min="0.01"
-                            step="0.01"
+                            type="text"
+                            inputMode="decimal"
                             placeholder="Qty"
                             value={product.quantityUsed}
-                            onChange={(e) => handleProductChange(index, "quantityUsed", e.target.value)}
+                            onChange={(e) => handleProductChange(index, "quantityUsed", getDecimalInputValue(e.target.value))}
                             className={`w-20 rounded-xl border px-3 py-2 text-xs outline-none transition-all ${
                               isDark ? "bg-[#151821] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
                             }`}

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
-import { X, User, Mail, Lock, MapPin, ShieldCheck, Zap } from "lucide-react";
+import { X, User, Mail, Lock, MapPin, ShieldCheck, Zap, Eye, EyeOff } from "lucide-react";
 
 type AssignManagerModalProps = {
   isOpen: boolean;
@@ -25,6 +25,7 @@ export function AssignManagerModal({
     password: "",
     branchId: "",
   });
+  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
@@ -42,6 +43,7 @@ export function AssignManagerModal({
         branchId: formData.branchId,
       });
       setFormData({ name: "", email: "", password: "", branchId: "" });
+      setShowPassword(false);
     } finally {
       setIsSubmitting(false);
     }
@@ -124,14 +126,24 @@ export function AssignManagerModal({
               <Lock size={16} className={`absolute left-4 top-3.5 ${isDark ? "text-[#7A7572]" : "text-gray-400"}`} />
               <input
                 required
-                type="password"
+                type={showPassword ? "text" : "password"}
                 placeholder="Secure Cipher (8+ Char)"
-                className={`w-full pl-11 pr-4 py-3 rounded-2xl border outline-none transition-all text-sm font-bold ${
+                className={`w-full pl-11 pr-12 py-3 rounded-2xl border outline-none transition-all text-sm font-bold ${
                   isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E] placeholder:text-[#4A4744]" : "bg-gray-50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
                 }`}
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((current) => !current)}
+                className={`absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1.5 transition-all ${
+                  isDark ? "text-[#7A7572] hover:bg-[rgba(255,255,255,0.06)] hover:text-[#F0EBE3]" : "text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                }`}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
             </div>
             <p className={`text-[9px] font-bold tracking-wider leading-relaxed ${isDark ? "text-[#4A4744]" : "text-gray-400"}`}>
               User will be mandated to refresh credentials on inaugural session.

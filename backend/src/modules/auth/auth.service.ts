@@ -6,6 +6,7 @@ import jwt from 'jsonwebtoken';
 import { ENV } from '../../config/env';
 import { createError } from '../../middleware/errorHandler';
 import { sendMail } from '../../shared/mail/mailer';
+import { forceLogoutUser } from '../communications/socketGateway';
 
 const userRepo = () => AppDataSource.getRepository(User);
 const logRepo = () => AppDataSource.getRepository(Log);
@@ -64,6 +65,7 @@ export const loginService = async (
   const mode = await resolveOwnerMode(user);
   user.sessionVersion = (user.sessionVersion ?? 0) + 1;
   await userRepo().save(user);
+  forceLogoutUser(user.id, 'A newer login is active for this account.');
 
   const token = jwt.sign(
     { 
@@ -190,6 +192,7 @@ export const resetPasswordService = async (email: string, code: string, newPassw
   user.sessionVersion = (user.sessionVersion ?? 0) + 1;
 
   await userRepo().save(user);
+  forceLogoutUser(user.id, 'Your password was reset. Please log in again.');
 
   await logRepo().save(
     logRepo().create({
@@ -219,6 +222,7 @@ export const changePasswordService = async (userId: string, oldPassword: string,
   user.sessionVersion = (user.sessionVersion ?? 0) + 1;
 
   await userRepo().save(user);
+  forceLogoutUser(user.id, 'Your password was changed. Please log in again.');
 
   await logRepo().save(
     logRepo().create({
