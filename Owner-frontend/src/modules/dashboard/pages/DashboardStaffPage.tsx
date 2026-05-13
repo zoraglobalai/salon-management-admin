@@ -41,7 +41,7 @@ const EMPTY: FormState = {
   joiningDate: "", locationId: "",
 };
 
-const ROLE_OPTIONS = ["Hair Stylist", "Colorist", "Nail Technician", "Therapist", "Receptionist", "Trainee", "Manager", "Other"];
+const ROLE_OPTIONS = ["Hair Stylist", "Colorist", "Nail Technician", "Therapist", "Receptionist", "Trainee", "Other"];
 const ID_TYPES = ["Aadhaar", "PAN", "Voter ID", "Passport", "Driving Licence"];
 
 export function DashboardStaffPage() {
