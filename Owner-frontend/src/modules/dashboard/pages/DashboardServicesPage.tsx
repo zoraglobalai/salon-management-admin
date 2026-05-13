@@ -435,7 +435,7 @@ export function DashboardServicesPage() {
           <button
             type="button"
             onClick={openCreateComboModal}
-            className={`flex items-center justify-center gap-2 rounded-full px-6 py-2.5 font-semibold transition-all hover:-translate-y-0.5 ${
+            className={`flex items-center justify-center gap-2 whitespace-nowrap rounded-full px-5 py-2 text-sm font-semibold transition-all hover:-translate-y-0.5 ${
               isDark ? "bg-[rgba(201,169,110,0.12)] text-[#E8C98A] border border-[rgba(201,169,110,0.2)]" : "bg-[#F5EDE4] text-[#8B5E3C] border border-[#E8D4C1] hover:bg-[#EEDCC9]"
             }`}
           >
@@ -445,7 +445,7 @@ export function DashboardServicesPage() {
           <button
             type="button"
             onClick={openCreateServiceModal}
-            className={`flex items-center justify-center gap-2 rounded-full px-6 py-2.5 font-semibold text-white shadow-md transition-all hover:-translate-y-0.5 ${
+            className={`flex items-center justify-center gap-2 whitespace-nowrap rounded-full px-5 py-2 text-sm font-semibold text-white shadow-md transition-all hover:-translate-y-0.5 ${
               isDark ? "bg-[linear-gradient(135deg,#C9A96E_0%,#A67C3D_100%)] shadow-[0_8px_20px_rgba(201,169,110,0.15)]" : "bg-[#8B5E3C] hover:bg-[#744A2E]"
             }`}
           >
