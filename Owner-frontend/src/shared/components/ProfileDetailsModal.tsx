@@ -197,20 +197,20 @@ export function ProfileDetailsModal({
           <X size={18} />
         </button>
 
-        <h2 className="pr-10 text-2xl font-semibold text-[#1d160f] sm:text-[1.9rem]">Profile Details</h2>
+        <h2 className="pr-10 text-3xl font-black font-['Outfit'] tracking-tight text-[#1d160f]">Profile Details</h2>
 
-        <div className="mt-5 space-y-3 overflow-y-auto pr-1">
+        <div className="mt-5 space-y-4 overflow-y-auto pr-1 scrollbar-hide">
           <label className="block">
-            <span className="mb-1.5 block text-lg font-medium text-[#1d160f]">Role:</span>
+            <span className="mb-1.5 block text-[13px] font-bold text-[#1d160f]">Role</span>
             <input
               value={roleLabel[profile.role] || "Owner"}
               disabled
-              className="w-full rounded-[16px] border border-[#d8c8b4] bg-transparent px-4 py-2.5 text-lg text-[#241910] outline-none"
+              className="w-full rounded-[14px] border border-[#d8c8b4] bg-transparent px-3.5 py-2 text-[14px] font-semibold text-[#241910] outline-none"
             />
           </label>
 
           <FieldRow
-            label="Full Name:"
+            label="Full Name"
             value={form.fullName}
             isEditing={editing.fullName}
             onChange={(value) => {
@@ -222,7 +222,7 @@ export function ProfileDetailsModal({
           />
 
           <FieldRow
-            label="Email:"
+            label="Email"
             value={form.email}
             isEditing={editing.email}
             onChange={(value) => {
@@ -234,7 +234,7 @@ export function ProfileDetailsModal({
           />
 
           <FieldRow
-            label="Phone:"
+            label="Phone"
             value={form.phone}
             isEditing={editing.phone}
             onChange={(value) => {
@@ -247,7 +247,7 @@ export function ProfileDetailsModal({
           />
 
           <FieldRow
-            label="Shop Name:"
+            label="Shop Name"
             value={form.shopName}
             isEditing={editing.shopName}
             onChange={(value) => {
@@ -265,7 +265,7 @@ export function ProfileDetailsModal({
           type="button"
           onClick={() => void handleSave()}
           disabled={isSaving}
-          className="mt-5 self-start rounded-full bg-[#eadbc9] px-6 py-3 text-lg font-semibold text-[#241910] transition hover:bg-[#e4d3ba] disabled:cursor-not-allowed disabled:opacity-60"
+          className="mt-6 self-end rounded-full bg-[#8B5E3C] px-6 py-2.5 text-[14px] font-bold text-white shadow-[0_8px_20px_rgba(139,94,60,0.2)] transition hover:-translate-y-0.5 hover:bg-[#744A2E] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
         >
           {isSaving ? "Saving..." : "Save Changes"}
         </button>
@@ -297,9 +297,9 @@ function FieldRow({
 }: FieldRowProps) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-lg font-medium text-[#1d160f]">{label}</span>
+      <span className="mb-1.5 block text-[13px] font-bold text-[#1d160f]">{label}</span>
       <div
-        className={`flex items-center gap-2 rounded-[16px] border px-3.5 py-2.5 transition-colors ${
+        className={`flex items-center gap-2 rounded-[14px] border px-3 py-1.5 transition-colors ${
           isEditing
             ? "border-[#d7b787] bg-[#fff8ef] shadow-[0_0_0_3px_rgba(215,183,135,0.15)]"
             : "border-[#e4d4c1] bg-[#f7efe6]"
@@ -312,15 +312,15 @@ function FieldRow({
           value={value}
           onChange={(event) => onChange(event.target.value)}
           disabled={!isEditing}
-          className="min-w-0 flex-1 bg-transparent text-lg text-[#2a1e14] outline-none placeholder:text-[#a08f7d] disabled:cursor-default disabled:text-[#5f5245]"
+          className="min-w-0 flex-1 bg-transparent text-[14px] font-semibold text-[#2a1e14] outline-none placeholder:text-[#a08f7d] disabled:cursor-default disabled:text-[#5f5245]"
         />
         <button
           type="button"
           onClick={onEdit}
-          className="shrink-0 rounded-full p-1.5 text-[#8a7158] transition hover:bg-white/70"
+          className="shrink-0 rounded-full p-1.5 text-[#8a7158] transition hover:bg-[#eaddcc]"
           aria-label={`Edit ${label}`}
         >
-          <Pencil size={18} />
+          <Pencil size={15} />
         </button>
       </div>
     </label>

@@ -399,7 +399,7 @@ export function AppShell({
             </div>
           </header>
 
-          <section className="flex-1 overflow-y-auto px-4 pb-4 pt-4 md:min-h-0 md:px-6 md:pb-5 md:pt-5 xl:px-7 xl:pb-6 xl:pt-5">
+          <section className="flex-1 overflow-y-auto scrollbar-hide px-4 pb-4 pt-4 md:min-h-0 md:px-6 md:pb-5 md:pt-5 xl:px-7 xl:pb-6 xl:pt-5">
             {children}
           </section>
         </main>

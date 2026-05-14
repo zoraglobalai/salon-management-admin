@@ -29,18 +29,11 @@ export function DashboardAutomationPage() {
       <div className={`rounded-[32px] border p-8 shadow-sm transition-all ${
         isDark ? "bg-[#151821] border-[rgba(255,255,255,0.07)]" : "bg-white border-[#E8E1D8]"
       }`}>
-        <div className="flex items-center gap-4 mb-4">
-          <div className={`h-12 w-12 rounded-2xl flex items-center justify-center shadow-lg transition-transform rotate-3 ${
-            isDark ? "bg-[linear-gradient(135deg,#C9A96E,#A67C3D)] text-[#0F1115]" : "bg-[#8B5E3C] text-white"
-          }`}>
-            <MessageSquare size={24} />
-          </div>
-          <div>
-            <h2 className={`text-3xl font-black font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>Branch WhatsApp Flows</h2>
-            <div className={`flex items-center gap-2 mt-1 text-[10px] font-black uppercase tracking-widest ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`}>
-              <ShieldCheck size={12} />
-              Manager-Safe Controls
-            </div>
+        <div className="mb-4">
+          <h2 className={`text-3xl font-black font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>Branch WhatsApp Flows</h2>
+          <div className={`flex items-center gap-2 mt-1 text-[10px] font-black uppercase tracking-widest ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`}>
+            <ShieldCheck size={12} />
+            Manager-Safe Controls
           </div>
         </div>
         <p className={`text-sm font-medium leading-loose max-w-2xl ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>

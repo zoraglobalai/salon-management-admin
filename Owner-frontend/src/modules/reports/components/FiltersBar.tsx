@@ -160,7 +160,7 @@ export function FiltersBar({
         className
       )}
     >
-      <div className="flex flex-wrap items-stretch gap-2">
+      <div className="flex flex-wrap items-end gap-3">
         {/* Date Range Selector */}
         <div className="relative w-full sm:w-auto">
           <select
@@ -182,8 +182,8 @@ export function FiltersBar({
         </div>
 
         {/* Custom Date Pickers */}
-        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
-          <div className="flex min-w-0 flex-col items-center gap-1.5 sm:min-w-[140px]">
+        <div className="grid w-full grid-cols-2 gap-3 sm:flex sm:w-auto sm:items-end">
+          <div className="flex min-w-0 flex-col gap-1.5 sm:min-w-[140px]">
             <span className={`text-[10px] font-bold uppercase tracking-wider text-center ${isDark ? "text-[#4A4744]" : "text-gray-400"}`}>From</span>
             <input
               type="date"
@@ -193,7 +193,7 @@ export function FiltersBar({
               className={`${inputCls} w-full min-w-0`}
             />
           </div>
-          <div className="flex min-w-0 flex-col items-center gap-1.5 sm:min-w-[140px]">
+          <div className="flex min-w-0 flex-col gap-1.5 sm:min-w-[140px]">
             <span className={`text-[10px] font-bold uppercase tracking-wider text-center ${isDark ? "text-[#4A4744]" : "text-gray-400"}`}>To</span>
             <input
               type="date"
@@ -256,7 +256,7 @@ export function FiltersBar({
         {/* Reset button */}
         <button
           onClick={() => resetFilters()}
-          className={`flex w-full items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all sm:w-auto ${
+          className={`flex w-full items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all sm:w-auto h-[38px] ${
             isDark ? "text-[#C9A96E] hover:bg-white/5" : "text-[#8B5E3C] hover:bg-gray-100"
           }`}
           title="Reset Filters"
