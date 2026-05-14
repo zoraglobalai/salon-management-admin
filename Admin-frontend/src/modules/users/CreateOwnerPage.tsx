@@ -109,7 +109,6 @@ const CreateOwnerPage: React.FC = () => {
     const normalizedEmail = removeAllSpaces(form.email).toLowerCase();
     const normalizedBusinessName = collapseSpaces(form.businessName);
     const normalizedMainBranchLocation = collapseSpaces(form.mainBranchLocation);
-    const normalizedBranchAddresses = form.branchAddresses.map((address) => collapseSpaces(address));
     const normalizedPhone = form.phone ? sanitizePhone(form.phone) : '';
     const normalizedAlternativePhone = form.alternativePhone
       ? sanitizePhone(form.alternativePhone)
@@ -130,10 +129,6 @@ const CreateOwnerPage: React.FC = () => {
     if (normalizedAlternativePhone && normalizedAlternativePhone.length !== 10) {
       return 'Alternative phone must be exactly 10 digits.';
     }
-    if (normalizedBranchAddresses.some((address) => !address)) {
-      return 'Please fill in every extra branch address.';
-    }
-
     return null;
   };
 
@@ -332,10 +327,9 @@ const CreateOwnerPage: React.FC = () => {
                 {form.branchAddresses.map((address, index) => (
                   <div key={`branch-address-${index}`}>
                     <label className="mb-1.5 block text-xs font-semibold text-[var(--color-text-secondary)]">
-                      Branch {index + 2} Address *
+                      Branch {index + 2} Address
                     </label>
                     <textarea
-                      required
                       className="input min-h-[96px] resize-y"
                       placeholder={`Enter branch ${index + 2} address`}
                       value={address}

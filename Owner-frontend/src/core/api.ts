@@ -158,6 +158,8 @@ export type OwnerSubscriptionRecord = {
   plan: "BASIC" | "STANDARD" | "PRO" | "CUSTOM";
   status: "ACTIVE" | "EXPIRED";
   amountPaid: string;
+  basePlanPrice?: string;
+  remainingCredit?: string;
   paymentMethod: string | null;
   transactionReference: string | null;
   startDate: string;
@@ -226,6 +228,8 @@ export async function fetchOwnerSubscriptionOverview() {
 export async function checkoutOwnerSubscription(payload: {
   plan: "STANDARD" | "PRO";
   paymentMethod: "CARD" | "UPI" | "CASH";
+  quotedFinalAmount?: number;
+  quotedRemainingCredit?: number;
 }) {
   const token = sessionStorage.getItem("owner_token");
   return request<{ success: boolean; message: string; data: OwnerSubscriptionOverview }>("/subscriptions/owner/checkout", {

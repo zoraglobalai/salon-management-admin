@@ -110,6 +110,46 @@ function getPlanPrice(plan: SubscriptionPlan) {
   return match.price;
 }
 
+function roundToMoney(value: number) {
+  return Math.max(0, Number(value.toFixed(2)));
+}
+
+function diffInDays(startDate: Date, endDate: Date) {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+  const diffMs = end.getTime() - start.getTime();
+  return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+}
+
+function computeUpgradePricing(currentSubscription: Subscription | null, newPlanPrice: number) {
+  if (!currentSubscription || currentSubscription.status !== SubscriptionStatus.ACTIVE) {
+    return {
+      totalPlanDays: 0,
+      remainingDays: 0,
+      dailyPrice: 0,
+      remainingCredit: 0,
+      finalUpgradePrice: roundToMoney(newPlanPrice),
+    };
+  }
+
+  const totalPlanDays = Math.max(1, diffInDays(new Date(currentSubscription.startDate), new Date(currentSubscription.endDate)));
+  const remainingDays = diffInDays(new Date(), new Date(currentSubscription.endDate));
+  const currentPlanPrice = Number(currentSubscription.amountPaid || 0);
+  const dailyPrice = currentPlanPrice / totalPlanDays;
+  const remainingCredit = roundToMoney(remainingDays * dailyPrice);
+  const finalUpgradePrice = roundToMoney(Math.max(0, newPlanPrice - remainingCredit));
+
+  return {
+    totalPlanDays,
+    remainingDays,
+    dailyPrice: roundToMoney(dailyPrice),
+    remainingCredit,
+    finalUpgradePrice,
+  };
+}
+
 function normalizePlanValue(plan?: string | SubscriptionPlan | null) {
   if (!plan) return null;
   return plan === LEGACY_STANDARD_PLAN ? SubscriptionPlan.STANDARD : plan;
@@ -215,6 +255,8 @@ function formatSubscriptionRecord(subscription: Subscription | null) {
     plan: normalizePlanValue(subscription.plan),
     status: subscription.status,
     amountPaid: Number(subscription.amountPaid || 0).toFixed(2),
+    basePlanPrice: Number(subscription.basePlanPrice || subscription.amountPaid || 0).toFixed(2),
+    remainingCredit: Number(subscription.remainingCredit || 0).toFixed(2),
     paymentMethod: subscription.paymentMethod,
     transactionReference: subscription.transactionReference,
     startDate: toIsoDateOnly(new Date(subscription.startDate)),
@@ -391,7 +433,12 @@ export const getOwnerSubscriptionOverview = async (user?: OwnerUserShape) => {
 
 export const checkoutOwnerSubscription = async (
   user: OwnerUserShape | undefined,
-  payload: { plan: SubscriptionPlan.STANDARD | SubscriptionPlan.PRO; paymentMethod: SubscriptionPaymentMethod }
+  payload: {
+    plan: SubscriptionPlan.STANDARD | SubscriptionPlan.PRO;
+    paymentMethod: SubscriptionPaymentMethod;
+    quotedFinalAmount?: number;
+    quotedRemainingCredit?: number;
+  }
 ) => {
   const tenantId = assertOwnerAccess(user);
 
@@ -407,7 +454,19 @@ export const checkoutOwnerSubscription = async (
     throw createError('This plan is not available for the current subscription state.', 409);
   }
 
-  const price = getPlanPrice(payload.plan);
+  const basePlanPrice = getPlanPrice(payload.plan);
+  const currentSubscription = await getCurrentSubscription(tenantId);
+  const pricing = computeUpgradePricing(currentSubscription, basePlanPrice);
+  const finalPayableAmount = pricing.finalUpgradePrice;
+
+  if (typeof payload.quotedFinalAmount === 'number' && Math.abs(payload.quotedFinalAmount - finalPayableAmount) > 1) {
+    throw createError('Displayed payable amount is outdated. Please refresh and try again.', 409);
+  }
+
+  if (typeof payload.quotedRemainingCredit === 'number' && Math.abs(payload.quotedRemainingCredit - pricing.remainingCredit) > 1) {
+    throw createError('Displayed subscription credit is outdated. Please refresh and try again.', 409);
+  }
+
   const now = new Date();
   const endDate = new Date(now);
   endDate.setDate(endDate.getDate() + 30);
@@ -432,7 +491,9 @@ export const checkoutOwnerSubscription = async (
       tenantId,
       plan: persistedPlan as SubscriptionPlan,
       status: SubscriptionStatus.ACTIVE,
-      amountPaid: price,
+      amountPaid: finalPayableAmount,
+      basePlanPrice,
+      remainingCredit: pricing.remainingCredit,
       paymentMethod: payload.paymentMethod,
       transactionReference,
       startDate: now,
@@ -443,12 +504,14 @@ export const checkoutOwnerSubscription = async (
     const revenueTransaction = manager.create(RevenueTransaction, {
       tenantId,
       subscriptionId: savedSubscription.id,
-      amount: price,
+      amount: finalPayableAmount,
+      basePlanPrice,
+      remainingCredit: pricing.remainingCredit,
       plan: payload.plan,
       paymentMethod: payload.paymentMethod,
       transactionReference,
       status: TransactionStatus.PAID,
-      description: `${payload.plan} subscription activated`,
+      description: `${payload.plan} subscription activated (credit applied: Rs ${pricing.remainingCredit})`,
     });
     await manager.save(revenueTransaction);
 
@@ -458,7 +521,7 @@ export const checkoutOwnerSubscription = async (
       manager.create(Log, {
         action: 'SUBSCRIPTION_PAYMENT',
         performedBy: user?.email || 'unknown',
-        details: `${overview.businessName} paid Rs ${price} for ${payload.plan} subscription via ${payload.paymentMethod}`,
+        details: `${overview.businessName} paid Rs ${finalPayableAmount} for ${payload.plan} subscription via ${payload.paymentMethod} (credit: Rs ${pricing.remainingCredit})`,
       })
     );
   });
@@ -470,6 +533,112 @@ export const checkoutOwnerSubscription = async (
 
   const currentTrial = await getCurrentTrial(tenantId);
   return buildOwnerSubscriptionOverview(tenant, savedSubscription, currentTrial);
+};
+
+export const adminChangeTenantPlan = async (
+  adminUser: OwnerUserShape | undefined,
+  payload: { tenantId: string; plan: SubscriptionPlan.STANDARD | SubscriptionPlan.PRO; paymentMethod?: SubscriptionPaymentMethod }
+) => {
+  const tenantId = String(payload.tenantId || '').trim();
+  if (!tenantId) {
+    throw createError('Tenant id is required.', 400);
+  }
+
+  if (![SubscriptionPlan.STANDARD, SubscriptionPlan.PRO].includes(payload.plan)) {
+    throw createError('Only Standard and Pro plans can be assigned directly.', 400);
+  }
+
+  await syncExpiredState(tenantId);
+
+  const tenant = await tenantRepo().findOne({ where: { id: tenantId } });
+  if (!tenant) {
+    throw createError('Tenant not found.', 404);
+  }
+
+  const currentSubscription = await getCurrentSubscription(tenantId);
+  const basePlanPrice = getPlanPrice(payload.plan);
+  const pricing = computeUpgradePricing(currentSubscription, basePlanPrice);
+  const finalPayableAmount = pricing.finalUpgradePrice;
+  const now = new Date();
+  const endDate = new Date(now);
+  endDate.setDate(endDate.getDate() + 30);
+  const transactionReference = generateTransactionReference(payload.plan);
+  const persistedPlan = await resolvePersistedPlanValue(payload.plan);
+
+  await AppDataSource.transaction(async (manager) => {
+    await manager.update(
+      Subscription,
+      { tenantId, status: SubscriptionStatus.ACTIVE },
+      { status: SubscriptionStatus.EXPIRED }
+    );
+
+    const subscription = manager.create(Subscription, {
+      tenantId,
+      plan: persistedPlan as SubscriptionPlan,
+      status: SubscriptionStatus.ACTIVE,
+      amountPaid: finalPayableAmount,
+      basePlanPrice,
+      remainingCredit: pricing.remainingCredit,
+      paymentMethod: payload.paymentMethod || SubscriptionPaymentMethod.CASH,
+      transactionReference,
+      startDate: now,
+      endDate,
+    });
+    const savedSubscription = await manager.save(subscription);
+
+    const revenueTransaction = manager.create(RevenueTransaction, {
+      tenantId,
+      subscriptionId: savedSubscription.id,
+      amount: finalPayableAmount,
+      basePlanPrice,
+      remainingCredit: pricing.remainingCredit,
+      plan: payload.plan,
+      paymentMethod: payload.paymentMethod || SubscriptionPaymentMethod.CASH,
+      transactionReference,
+      status: TransactionStatus.PAID,
+      description: `${payload.plan} subscription activated by admin (credit applied: Rs ${pricing.remainingCredit})`,
+    });
+    await manager.save(revenueTransaction);
+
+    await manager.update(Tenant, { id: tenantId }, { status: TenantStatus.ACTIVE });
+  });
+
+  return {
+    tenantId,
+    businessName: tenant.businessName,
+    plan: payload.plan,
+    finalPayableAmount,
+    remainingCredit: pricing.remainingCredit,
+  };
+};
+
+export const adminGetTenantUpgradePricing = async (payload: {
+  tenantId: string;
+  plan: SubscriptionPlan.STANDARD | SubscriptionPlan.PRO;
+}) => {
+  const tenantId = String(payload.tenantId || '').trim();
+  if (!tenantId) {
+    throw createError('Tenant id is required.', 400);
+  }
+
+  const tenant = await tenantRepo().findOne({ where: { id: tenantId } });
+  if (!tenant) {
+    throw createError('Tenant not found.', 404);
+  }
+
+  const currentSubscription = await getCurrentSubscription(tenantId);
+  const basePlanPrice = getPlanPrice(payload.plan);
+  const pricing = computeUpgradePricing(currentSubscription, basePlanPrice);
+
+  return {
+    tenantId,
+    businessName: tenant.businessName,
+    currentPlan: normalizePlanValue(currentSubscription?.plan) || null,
+    basePlanPrice,
+    remainingCredit: pricing.remainingCredit,
+    finalPayableAmount: pricing.finalUpgradePrice,
+    remainingDays: pricing.remainingDays,
+  };
 };
 
 export const requestOwnerCustomSubscription = async (user: OwnerUserShape | undefined, message: string) => {

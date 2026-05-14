@@ -30,6 +30,12 @@ export class RevenueTransaction {
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   amount!: number;
 
+  @Column({ name: 'base_plan_price', type: 'decimal', precision: 10, scale: 2, default: 0 })
+  basePlanPrice!: number;
+
+  @Column({ name: 'remaining_credit', type: 'decimal', precision: 10, scale: 2, default: 0 })
+  remainingCredit!: number;
+
   @Column({
     type: 'varchar',
     length: 20,

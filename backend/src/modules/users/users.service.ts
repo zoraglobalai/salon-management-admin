@@ -7,6 +7,8 @@ import { Trial, TrialStatus } from '../../entities/platform/Trial';
 import bcrypt from 'bcryptjs';
 import { createError } from '../../middleware/errorHandler';
 import { calculateTrialEndDate, getTrialPeriodDays } from '../../shared/utils/trialSettings';
+import { sendMail } from '../../shared/mail/mailer';
+import { ENV } from '../../config/env';
 
 const tenantRepo = () => AppDataSource.getRepository(Tenant);
 const userRepo = () => AppDataSource.getRepository(User);
@@ -100,7 +102,9 @@ export const createOwner = async (input: CreateOwnerInput) => {
     })
   );
 
-  const allBranchAddresses = [input.mainBranchLocation, ...input.branchAddresses];
+  const allBranchAddresses = [input.mainBranchLocation, ...input.branchAddresses].map(
+    (address, index) => address || `Address pending for Branch ${index + 1}`
+  );
 
   if (allBranchAddresses.length > 0) {
     const branches = allBranchAddresses.map((address, index) =>
@@ -127,6 +131,68 @@ export const createOwner = async (input: CreateOwnerInput) => {
     isActive: true,
   });
   await userRepo().save(user);
+
+  const ownerTypeLabel =
+    ownerType === 'MULTI_BRANCH' ? 'Multi-branch Owner' : 'Independent Owner';
+  const branchLabel = input.numberOfBranches === 1 ? '1 branch' : `${input.numberOfBranches} branches`;
+
+  try {
+    await sendMail({
+      from: `"Salon Growth Engine" <${ENV.SMTP_FROM}>`,
+      to: input.email,
+      subject: 'Your Salon Owner Account Credentials',
+      text: `Hello ${input.name},
+
+Your owner account has been created successfully.
+
+Login Email: ${input.email}
+Temporary Password: ${rawPassword}
+Business: ${input.businessName}
+Account Type: ${ownerTypeLabel}
+Branches: ${branchLabel}
+
+Please log in and change your password on first login.
+
+If you did not expect this email, please contact support immediately.`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 620px; margin: 0 auto; border: 1px solid #e6e6e6; border-radius: 10px; overflow: hidden;">
+          <div style="background: #111827; color: #ffffff; padding: 16px 20px;">
+            <h2 style="margin: 0; font-size: 18px;">Owner Account Created</h2>
+          </div>
+          <div style="padding: 20px;">
+            <p style="margin-top: 0;">Hello ${input.name},</p>
+            <p>Your owner account has been created successfully. Use the credentials below to log in:</p>
+            <table style="width: 100%; border-collapse: collapse; margin: 14px 0;">
+              <tr>
+                <td style="padding: 8px; border: 1px solid #e6e6e6; background: #f9fafb; width: 180px;"><strong>Login Email</strong></td>
+                <td style="padding: 8px; border: 1px solid #e6e6e6;">${input.email}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; border: 1px solid #e6e6e6; background: #f9fafb;"><strong>Temporary Password</strong></td>
+                <td style="padding: 8px; border: 1px solid #e6e6e6; font-family: monospace;">${rawPassword}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; border: 1px solid #e6e6e6; background: #f9fafb;"><strong>Business</strong></td>
+                <td style="padding: 8px; border: 1px solid #e6e6e6;">${input.businessName}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; border: 1px solid #e6e6e6; background: #f9fafb;"><strong>Account Type</strong></td>
+                <td style="padding: 8px; border: 1px solid #e6e6e6;">${ownerTypeLabel}</td>
+              </tr>
+              <tr>
+                <td style="padding: 8px; border: 1px solid #e6e6e6; background: #f9fafb;"><strong>Branches</strong></td>
+                <td style="padding: 8px; border: 1px solid #e6e6e6;">${branchLabel}</td>
+              </tr>
+            </table>
+            <p style="margin-bottom: 8px;"><strong>Important:</strong> Please change this password immediately after first login.</p>
+            <p style="margin-bottom: 0; color: #6b7280; font-size: 12px;">If you did not expect this email, please contact support immediately.</p>
+          </div>
+        </div>
+      `,
+    });
+  } catch (error) {
+    console.error(`Failed to send owner credential email to ${input.email}:`, error);
+  }
 
   // Audit log
   await logRepo().save(

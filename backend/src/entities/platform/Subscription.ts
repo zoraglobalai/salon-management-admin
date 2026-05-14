@@ -52,6 +52,12 @@ export class Subscription {
   @Column({ name: 'amount_paid', type: 'decimal', precision: 10, scale: 2, default: 0 })
   amountPaid!: number;
 
+  @Column({ name: 'base_plan_price', type: 'decimal', precision: 10, scale: 2, default: 0 })
+  basePlanPrice!: number;
+
+  @Column({ name: 'remaining_credit', type: 'decimal', precision: 10, scale: 2, default: 0 })
+  remainingCredit!: number;
+
   @Column({
     name: 'payment_method',
     type: 'varchar',

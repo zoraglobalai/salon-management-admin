@@ -33,8 +33,8 @@ export type DashboardWorkspaceConfig = {
 const getBaseNavigation = (): DashboardNavigationItem[] => [
   { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
   { label: "Calendar", to: "/dashboard/calendar", icon: Calendar },
-  { label: "Sales", to: "/dashboard/sales/pos", icon: Wallet },
-  { label: "Sales History", to: "/dashboard/sales/history", icon: ReceiptText },
+  { label: "Billing", to: "/dashboard/sales/pos", icon: Wallet },
+  { label: "Billing History", to: "/dashboard/sales/history", icon: ReceiptText },
   { label: "Customers", to: "/dashboard/clients", icon: Users },
   { label: "Staff", to: "/dashboard/staff", icon: UserRound },
   { label: "Attendance", to: "/dashboard/attendance", icon: ClipboardCheck },
@@ -58,7 +58,7 @@ export function getDashboardWorkspaceConfig(
       title: isManager ? "Location Operations" : (isMonitorView ? "Multi-Location Overview" : "Business Overview"),
       subtitle: isManager ? "Location management" : "Business operations",
       navigation: navigation
-        .filter((item) => item.label !== "Sales" && item.label !== "Sales History")
+        .filter((item) => item.label !== "Billing" && item.label !== "Billing History")
         .concat(!isManager ? [{ label: "Managers", to: "/dashboard/managers", icon: UserCog }] : []),
     };
   }

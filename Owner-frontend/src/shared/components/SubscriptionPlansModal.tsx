@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BadgeIndianRupee, Check, Crown, Loader2, MessageSquareMore, Wallet, X } from "lucide-react";
+import { BadgeIndianRupee, Check, ChevronDown, Crown, Loader2, MessageSquareMore, X } from "lucide-react";
 import {
   checkoutOwnerSubscription,
   fetchOwnerSubscriptionOverview,
@@ -13,11 +13,12 @@ type SubscriptionPlansModalProps = {
   onClose: () => void;
 };
 
-type PaymentMethod = "CARD" | "UPI" | "CASH";
+type PaymentMethod = "CARD" | "UPI" | "NETBANKING" | "CASH";
 
 const paymentMethods: Array<{ id: PaymentMethod; label: string }> = [
   { id: "CARD", label: "Card" },
   { id: "UPI", label: "UPI" },
+  { id: "NETBANKING", label: "Netbanking" },
   { id: "CASH", label: "Cash" },
 ];
 
@@ -36,6 +37,28 @@ function formatPlanLabel(plan?: string | null) {
 function formatMoney(value?: string | number | null) {
   const amount = typeof value === "string" ? Number(value) : Number(value || 0);
   return `Rs ${amount.toLocaleString("en-IN")}`;
+}
+
+function toMoney(value: number) {
+  return Math.max(0, Number(value.toFixed(2)));
+}
+
+const upiAppLogoMap: Record<"GPay" | "PhonePe" | "Paytm", string> = {
+  GPay:
+    "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'><rect rx='18' width='64' height='64' fill='white'/><circle cx='24' cy='32' r='12' fill='%234285F4'/><circle cx='34' cy='32' r='12' fill='%2334A853' fill-opacity='0.88'/><text x='32' y='54' text-anchor='middle' font-size='10' fill='%23111827' font-family='Arial'>GPay</text></svg>",
+  PhonePe:
+    "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'><rect rx='18' width='64' height='64' fill='white'/><circle cx='32' cy='28' r='14' fill='%236B21A8'/><text x='32' y='33' text-anchor='middle' font-size='12' fill='white' font-family='Arial' font-weight='700'>P</text><text x='32' y='54' text-anchor='middle' font-size='9' fill='%23111827' font-family='Arial'>PhonePe</text></svg>",
+  Paytm:
+    "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'><rect rx='18' width='64' height='64' fill='white'/><rect x='16' y='16' width='32' height='24' rx='8' fill='%230EA5E9'/><text x='32' y='32' text-anchor='middle' font-size='11' fill='white' font-family='Arial' font-weight='700'>T</text><text x='32' y='54' text-anchor='middle' font-size='10' fill='%23111827' font-family='Arial'>Paytm</text></svg>",
+};
+
+function diffInDays(startDate: Date, endDate: Date) {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+  const ms = end.getTime() - start.getTime();
+  return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
 }
 
 function PlanCard({
@@ -102,6 +125,16 @@ export function SubscriptionPlansModal({ isOpen, onClose }: SubscriptionPlansMod
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showPriceBreakdown, setShowPriceBreakdown] = useState(false);
+  const [isPaymentStepOpen, setIsPaymentStepOpen] = useState(false);
+  const [selectedUpiApp, setSelectedUpiApp] = useState<"GPay" | "PhonePe" | "Paytm">("GPay");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardHolder, setCardHolder] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [accountHolder, setAccountHolder] = useState("");
+  const [netbankRef, setNetbankRef] = useState("");
 
   const loadOverview = async () => {
     const response = await fetchOwnerSubscriptionOverview();
@@ -116,6 +149,7 @@ export function SubscriptionPlansModal({ isOpen, onClose }: SubscriptionPlansMod
     setError(null);
     setSuccess(null);
     setSelectedPlan(null);
+    setIsPaymentStepOpen(false);
 
     loadOverview()
       .catch((err) => setError(err instanceof Error ? err.message : "Unable to load subscriptions."))
@@ -144,10 +178,29 @@ export function SubscriptionPlansModal({ isOpen, onClose }: SubscriptionPlansMod
       : "No active plan";
 
   const handlePlanChoose = (plan: SubscriptionPlanOption) => {
+    if (plan.price !== null) {
+      setSelectedPlan(plan);
+      setError(null);
+      setSuccess(null);
+      setShowPriceBreakdown(false);
+      setPaymentMethod("UPI");
+      setSelectedUpiApp("GPay");
+      setCardNumber("");
+      setCardHolder("");
+      setCardExpiry("");
+      setCardCvv("");
+      setBankName("");
+      setAccountHolder("");
+      setNetbankRef("");
+      setIsPaymentStepOpen(true);
+      return;
+    }
+
     setSelectedPlan(plan);
     setError(null);
     setSuccess(null);
     setCustomMessage("");
+    setShowPriceBreakdown(false);
   };
 
   const handleCheckout = async () => {
@@ -158,14 +211,23 @@ export function SubscriptionPlansModal({ isOpen, onClose }: SubscriptionPlansMod
     setError(null);
     setSuccess(null);
 
+    const apiPaymentMethod = paymentMethod === "NETBANKING" ? "CASH" : paymentMethod;
+
     try {
       const response = await checkoutOwnerSubscription({
         plan: chosenPlan.id as "STANDARD" | "PRO",
-        paymentMethod,
+        paymentMethod: apiPaymentMethod,
+        quotedFinalAmount: selectedPlanPayable,
+        quotedRemainingCredit: selectedPlanCredit,
       });
       setOverview(response.data);
-      setSuccess(`${chosenPlan.label} plan activated successfully.`);
-      setSelectedPlan(null);
+      setSuccess("Payment successful.");
+      setIsPaymentStepOpen(true);
+      window.setTimeout(() => {
+        setSuccess(`${chosenPlan.label} plan activated successfully.`);
+        setSelectedPlan(null);
+        setIsPaymentStepOpen(false);
+      }, 3000);
     } catch (err) {
       try {
         const refreshedOverview = await loadOverview();
@@ -208,9 +270,35 @@ export function SubscriptionPlansModal({ isOpen, onClose }: SubscriptionPlansMod
     }
   };
 
+  const selectedPlanBasePrice = selectedPlan?.price ?? 0;
+  const currentSub = overview?.currentSubscription;
+  const totalPlanDays = currentSub
+    ? Math.max(1, diffInDays(new Date(currentSub.startDate), new Date(currentSub.endDate)))
+    : 0;
+  const remainingDays = currentSub ? diffInDays(new Date(), new Date(currentSub.endDate)) : 0;
+  const currentPlanPaid = Number(currentSub?.amountPaid || 0);
+  const dailyPrice = totalPlanDays > 0 ? currentPlanPaid / totalPlanDays : 0;
+  const selectedPlanCredit = currentSub ? toMoney(remainingDays * dailyPrice) : 0;
+  const selectedPlanPayable = toMoney(Math.max(0, selectedPlanBasePrice - selectedPlanCredit));
+  const hasDiscount = selectedPlanPayable < selectedPlanBasePrice;
+  const isUpiActive = paymentMethod === "UPI";
+  const canPay = true;
+
+  const formatCardInput = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 19);
+    return digits.replace(/(.{4})/g, "$1 ").trim();
+  };
+
+  const formatExpiryInput = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 4);
+    if (digits.length < 3) return digits;
+    return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  };
+
   return (
     <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
       <div className="relative max-h-[calc(100vh-2rem)] w-full max-w-6xl overflow-y-auto rounded-[30px] border border-[var(--theme-border-strong)] bg-[var(--theme-surface-elevated)] p-6 shadow-[var(--theme-shadow-strong)]">
+
         <button
           type="button"
           onClick={onClose}
@@ -300,7 +388,7 @@ export function SubscriptionPlansModal({ isOpen, onClose }: SubscriptionPlansMod
               )}
             </div>
 
-            {selectedPlan ? (
+            {selectedPlan && selectedPlan.price === null ? (
               <div className="mt-6 rounded-[26px] border border-[var(--theme-border-soft)] bg-[var(--theme-card)] p-5">
                 <h3 className="text-[1.3rem] font-semibold text-[var(--theme-heading)]">
                   {selectedPlan.price === null ? "Contact our team" : `Complete ${selectedPlan.label} payment`}
@@ -338,48 +426,7 @@ export function SubscriptionPlansModal({ isOpen, onClose }: SubscriptionPlansMod
                       </div>
                     </div>
                   </div>
-                ) : (
-                  <div className="mt-4 grid gap-5 lg:grid-cols-[1fr_1fr]">
-                    <div className="rounded-[20px] border border-[var(--theme-border-soft)] bg-[var(--theme-card-soft)] p-4">
-                      <div className="text-sm text-[var(--theme-muted)]">Selected plan</div>
-                      <div className="mt-2 text-2xl font-semibold text-[var(--theme-heading)]">
-                        {selectedPlan.label} {formatMoney(selectedPlan.price)}
-                      </div>
-                      <div className="mt-2 text-sm text-[var(--theme-muted)]">Valid for {selectedPlan.durationDays} days from the payment date.</div>
-                    </div>
-
-                    <div>
-                      <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--theme-heading)]">
-                        <Wallet size={16} />
-                        Payment method
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-3">
-                        {paymentMethods.map((method) => (
-                          <button
-                            key={method.id}
-                            type="button"
-                            onClick={() => setPaymentMethod(method.id)}
-                            className={`rounded-[18px] border px-4 py-3 text-sm font-semibold transition ${
-                              paymentMethod === method.id
-                                ? "border-[var(--theme-accent-strong)] bg-[var(--theme-card-soft)] text-[var(--theme-heading)]"
-                                : "border-[var(--theme-border-soft)] bg-[var(--theme-card)] text-[var(--theme-muted)]"
-                            }`}
-                          >
-                            {method.label}
-                          </button>
-                        ))}
-                      </div>
-                      <button
-                        type="button"
-                        disabled={isSubmitting}
-                        onClick={() => void handleCheckout()}
-                        className="mt-4 inline-flex items-center justify-center rounded-[16px] bg-[var(--theme-action-chip)] px-5 py-3 text-sm font-semibold text-[var(--theme-heading)] transition hover:opacity-90 disabled:opacity-60"
-                      >
-                        {isSubmitting ? "Processing payment..." : "Complete transaction"}
-                      </button>
-                    </div>
-                  </div>
-                )}
+                ) : null}
               </div>
             ) : null}
 
@@ -388,6 +435,143 @@ export function SubscriptionPlansModal({ isOpen, onClose }: SubscriptionPlansMod
           </>
         )}
       </div>
+
+      {isPaymentStepOpen && selectedPlan && selectedPlan.price !== null ? (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/45 p-3">
+          <div className="h-[84vh] w-full max-w-[1140px] overflow-hidden rounded-[24px] border border-[var(--theme-border-soft)] bg-[var(--theme-surface-elevated)] p-3 md:p-4">
+            <div className="mb-4 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setIsPaymentStepOpen(false)}
+                className="rounded-[10px] border border-[var(--theme-border-soft)] px-3 py-1.5 text-sm text-[var(--theme-heading)]"
+              >
+                Back
+              </button>
+              <h3 className="text-[2rem] font-semibold text-[var(--theme-heading)]">Select Payment Method</h3>
+              <div className="text-sm font-semibold text-emerald-600">100% Secure Payments</div>
+            </div>
+
+            <div className="grid h-[calc(100%-3.5rem)] gap-3 overflow-hidden lg:grid-cols-[0.95fr_0.75fr_1.15fr]">
+              <div className="rounded-[16px] border border-[var(--theme-border-soft)] bg-[var(--theme-card)] p-3">
+                <div className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--theme-muted)]">Order Summary</div>
+                <div className={`mt-2 rounded-[12px] px-3 py-2 text-[var(--theme-heading)] ${isUpiActive ? "bg-[var(--theme-card-soft)]" : "bg-[var(--theme-action-chip)]"}`}>
+                  <button
+                    type="button"
+                    onClick={() => setShowPriceBreakdown((prev) => !prev)}
+                    className="flex w-full items-center justify-between"
+                  >
+                    <div className="text-left">
+                      <div className="text-[1.6rem] font-semibold leading-none">{formatMoney(selectedPlanPayable)}</div>
+                      <div className="mt-1 text-xs text-[var(--theme-heading)]/75">Amount to pay</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {hasDiscount ? <span className="text-xs text-[var(--theme-heading)]/60 line-through">{formatMoney(selectedPlanBasePrice)}</span> : null}
+                      <ChevronDown size={18} className={`transition ${showPriceBreakdown ? "rotate-180" : ""}`} />
+                    </div>
+                  </button>
+
+                  {showPriceBreakdown ? (
+                    <div className="mt-3 space-y-1 border-t border-[var(--theme-heading)]/15 pt-2 text-xs text-[var(--theme-heading)]/85">
+                      <div className="flex items-center justify-between"><span>Plan price</span><span>{formatMoney(selectedPlanBasePrice)}</span></div>
+                      <div className="flex items-center justify-between"><span>Remaining days</span><span>{remainingDays} days</span></div>
+                      <div className="flex items-center justify-between"><span>Credit applied</span><span>- {formatMoney(selectedPlanCredit)}</span></div>
+                      <div className="flex items-center justify-between border-t border-[var(--theme-heading)]/15 pt-1 font-semibold text-[var(--theme-heading)]"><span>Final payable</span><span>{formatMoney(selectedPlanPayable)}</span></div>
+                    </div>
+                  ) : null}
+                </div>
+                <div className="mt-2 text-sm text-[var(--theme-muted)]">{selectedPlan.label} / month</div>
+              </div>
+
+              <div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--theme-muted)]">Recommended</div>
+                    <div className="space-y-1.5">
+                  {paymentMethods.map((method) => (
+                    <button
+                      key={method.id}
+                      type="button"
+                      onClick={() => setPaymentMethod(method.id)}
+                      className={`w-full rounded-[10px] border px-3 py-2 text-left text-sm font-semibold transition ${
+                        paymentMethod === method.id ? "border-[var(--theme-accent-strong)] bg-[var(--theme-card-soft)] text-[var(--theme-heading)]" : "border-[var(--theme-border-soft)] text-[var(--theme-muted)]"
+                      }`}
+                    >
+                      {method.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-[16px] border border-[var(--theme-border-soft)] bg-[var(--theme-card)] p-3">
+                <h4 className="text-[2.6rem] font-semibold text-[var(--theme-heading)]">{paymentMethod === "UPI" ? "Pay via UPI" : paymentMethod === "CARD" ? "Pay with Card" : paymentMethod === "NETBANKING" ? "Pay via Netbanking" : "Pay with Cash"}</h4>
+                <p className="mt-1 text-sm text-[var(--theme-muted)]">{paymentMethod === "UPI" ? "Select an app or scan QR to complete payment." : "Complete your payment securely."}</p>
+
+                {paymentMethod === "UPI" ? (
+                  <div className="mt-3 space-y-3">
+                    <div className="grid grid-cols-3 gap-2">
+                      {(["GPay", "PhonePe", "Paytm"] as const).map((app) => (
+                        <button
+                          key={app}
+                          type="button"
+                          onClick={() => setSelectedUpiApp(app)}
+                          className={`rounded-[10px] border px-2 py-2 text-sm font-semibold ${selectedUpiApp === app ? "border-[var(--theme-accent-strong)] bg-[var(--theme-card-soft)] text-[var(--theme-heading)]" : "border-[var(--theme-border-soft)] text-[var(--theme-muted)]"}`}
+                        >
+                          <img src={upiAppLogoMap[app]} alt={app} className="mx-auto mb-1 h-7 w-7 rounded-full object-cover" />
+                          {app}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="rounded-[12px] border border-[var(--theme-border-soft)] bg-[var(--theme-card-soft)] p-2.5">
+                      <div className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--theme-muted)]">Sample QR Code</div>
+                      <div className="mx-auto grid h-36 w-36 grid-cols-12 grid-rows-12 gap-1 rounded-[10px] bg-white p-2">
+                        {Array.from({ length: 144 }).map((_, idx) => {
+                          const fill = (idx * 7 + Math.floor(idx / 3)) % 5 === 0 || idx % 11 === 0 || idx % 13 === 0;
+                          return <span key={idx} className={fill ? "rounded-[2px] bg-[var(--theme-heading)]" : "rounded-[2px] bg-transparent"} />;
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                ) : paymentMethod === "CARD" ? (
+                  <div className="mt-3 grid gap-2">
+                    <input value={cardNumber} onChange={(e) => setCardNumber(formatCardInput(e.target.value))} placeholder="Card number" className="rounded-[10px] border border-[var(--theme-border-soft)] bg-[var(--theme-card-soft)] px-3 py-2 text-sm outline-none" />
+                    <input value={cardHolder} onChange={(e) => setCardHolder(e.target.value)} placeholder="Card holder name" className="rounded-[10px] border border-[var(--theme-border-soft)] bg-[var(--theme-card-soft)] px-3 py-2 text-sm outline-none" />
+                    <div className="grid grid-cols-2 gap-3">
+                      <input value={cardExpiry} onChange={(e) => setCardExpiry(formatExpiryInput(e.target.value))} placeholder="MM/YY" className="rounded-[10px] border border-[var(--theme-border-soft)] bg-[var(--theme-card-soft)] px-3 py-2 text-sm outline-none" />
+                      <input value={cardCvv} onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="CVV" className="rounded-[10px] border border-[var(--theme-border-soft)] bg-[var(--theme-card-soft)] px-3 py-2 text-sm outline-none" />
+                    </div>
+                  </div>
+                ) : paymentMethod === "NETBANKING" ? (
+                  <div className="mt-3 grid gap-2.5">
+                    <input value={bankName} onChange={(e) => setBankName(e.target.value)} placeholder="Bank name" className="rounded-[10px] border border-[var(--theme-border-soft)] bg-[var(--theme-card-soft)] px-3 py-2 text-sm outline-none" />
+                    <input value={accountHolder} onChange={(e) => setAccountHolder(e.target.value)} placeholder="Account holder name" className="rounded-[10px] border border-[var(--theme-border-soft)] bg-[var(--theme-card-soft)] px-3 py-2 text-sm outline-none" />
+                    <input value={netbankRef} onChange={(e) => setNetbankRef(e.target.value.toUpperCase())} placeholder="Transaction reference / UTR" className="rounded-[10px] border border-[var(--theme-border-soft)] bg-[var(--theme-card-soft)] px-3 py-2 text-sm outline-none" />
+                  </div>
+                ) : (
+                  <div className="mt-3 rounded-[10px] border border-[var(--theme-border-soft)] bg-[var(--theme-card-soft)] px-3 py-3 text-sm text-[var(--theme-muted)]">
+                    Cash payment selected. Click the button below to confirm collection.
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  disabled={isSubmitting || !canPay}
+                  onClick={() => void handleCheckout()}
+                  className="mt-4 inline-flex w-full items-center justify-center rounded-[12px] bg-[var(--theme-action-chip)] px-4 py-2.5 text-sm font-semibold text-[var(--theme-heading)] transition hover:opacity-90 disabled:opacity-60"
+                >
+                  {isSubmitting ? "Processing payment..." : paymentMethod === "UPI" ? `Pay with ${selectedUpiApp}` : paymentMethod === "CARD" ? "Pay with Card" : paymentMethod === "NETBANKING" ? "Pay with Netbanking" : "Confirm Cash Payment"}
+                </button>
+              </div>
+            </div>
+
+            {success === "Payment successful." ? (
+              <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-4">
+                <div className="w-full max-w-md rounded-[20px] border border-[var(--theme-border-soft)] bg-[var(--theme-surface-elevated)] p-6 text-center">
+                  <div className="text-2xl font-semibold text-emerald-600">Payment Successful</div>
+                  <p className="mt-2 text-sm text-[var(--theme-muted)]">Redirecting to upgrade plans...</p>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

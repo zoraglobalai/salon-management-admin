@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import {
+  adminTenantPlanUpdate,
+  adminTenantPlanPricing,
   listSubscriptions,
   ownerCustomSubscriptionRequest,
   ownerSubscriptionCheckout,
@@ -15,6 +17,8 @@ router.post('/owner/checkout', ownerSubscriptionCheckout);
 router.post('/owner/custom-request', ownerCustomSubscriptionRequest);
 
 router.use(requireSuperAdmin);
+router.get('/admin/pricing', adminTenantPlanPricing);
+router.post('/admin/change-plan', adminTenantPlanUpdate);
 router.get('/', listSubscriptions);
 router.get('/stats', subscriptionStats);
 

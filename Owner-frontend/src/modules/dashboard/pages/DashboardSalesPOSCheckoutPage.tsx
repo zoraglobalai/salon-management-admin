@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+  import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   fetchInventory,
@@ -13,7 +13,7 @@ import {
 } from "../../../core/api";
 import { useNotifications } from "../../../shared/components/NotificationProvider";
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
-import { ArrowLeft, Banknote, ChevronDown, CreditCard, FileText, Smartphone } from "lucide-react";
+import { ArrowLeft, Banknote, ChevronDown, CreditCard, FileText, Info, Smartphone } from "lucide-react";
 
 type DraftSingleService = {
   kind: "service";
@@ -71,7 +71,10 @@ export function DashboardSalesPOSCheckoutPage() {
   const [selectedProducts, setSelectedProducts] = useState<DraftLineProduct[]>([]);
   const [discountValue, setDiscountValue] = useState(0);
   const [discountType, setDiscountType] = useState<"flat" | "percent">("flat");
+  const [discountInput, setDiscountInput] = useState("");
+  const [discountInputType, setDiscountInputType] = useState<"flat" | "percent">("flat");
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "UPI" | "CARD">("CASH");
+  const [referenceNumber, setReferenceNumber] = useState("");
 
   const serviceMap = useMemo(() => new Map(services.map((item) => [item.id, item])), [services]);
   const productMap = useMemo(() => new Map(products.map((item) => [item.id, item])), [products]);
@@ -196,8 +199,14 @@ export function DashboardSalesPOSCheckoutPage() {
             quantity: Number(item.quantity || 1),
           })),
         );
-        setDiscountValue(Number(sale.discount || 0));
-        setDiscountType(sale.discountType === "percent" ? "percent" : "flat");
+        const fetchedDiscount = Number(sale.discount || 0);
+        setDiscountValue(fetchedDiscount);
+        const fetchedDiscountType = sale.discountType === "percent" ? "percent" : "flat";
+        setDiscountType(fetchedDiscountType);
+        if (fetchedDiscount > 0) {
+          setDiscountInput(String(fetchedDiscount));
+          setDiscountInputType(fetchedDiscountType);
+        }
         setPaymentMethod((sale.paymentMethod as "CASH" | "UPI" | "CARD") || "CASH");
 
         const [servicesResponse, inventoryResponse, staffResponse] = await Promise.all([
@@ -258,7 +267,8 @@ export function DashboardSalesPOSCheckoutPage() {
         discountType,
         paymentMethod,
         paidAmount: totalAmount,
-      };
+        ...(referenceNumber.trim() ? { referenceNumber: referenceNumber.trim() } : {}),
+      } as any;
 
       await finalizeSaleDraft(draftId, payload);
       toast("Settlement generated and moved to sales history");
@@ -350,66 +360,19 @@ export function DashboardSalesPOSCheckoutPage() {
                           Includes: {item.services.map((service) => service.serviceName).join(", ")}
                         </div>
                         {item.services.map((service, serviceIndex) => (
-                          <div key={`${service.serviceId}-${serviceIndex}`} className="space-y-2">
-                            <div className={`text-xs font-black uppercase tracking-[0.2em] ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>
+                          <div key={`${service.serviceId}-${serviceIndex}`} className="space-y-1">
+                            <div className={`text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>
                               {service.serviceName}
                             </div>
-                            <div className="relative">
-                              <select
-                                value={service.staffId}
-                                onChange={(event) =>
-                                  setSelectedServices((current) =>
-                                    current.map((row, index) =>
-                                      index !== item.index || row.kind !== "combo"
-                                        ? row
-                                        : {
-                                            ...row,
-                                            services: row.services.map((serviceRow, rowIndex) =>
-                                              rowIndex === serviceIndex ? { ...serviceRow, staffId: event.target.value } : serviceRow,
-                                            ),
-                                          },
-                                    ),
-                                  )
-                                }
-                                className={`w-full appearance-none rounded-2xl border px-4 py-3 pr-10 text-sm font-bold ${
-                                  isDark ? "border-[rgba(255,255,255,0.08)] bg-[#151821] text-[#F0EBE3] [color-scheme:dark]" : "border-[#E8E1D8] bg-white text-gray-900 [color-scheme:light]"
-                                }`}
-                              >
-                                <option value="">Assign staff</option>
-                                {staff.map((member) => (
-                                  <option key={member.id} value={member.id}>
-                                    {member.name}
-                                  </option>
-                                ))}
-                              </select>
-                              <ChevronDown size={14} className={`pointer-events-none absolute right-4 top-4 ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`} />
+                            <div className={`text-xs font-bold ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>
+                              {staff.find((m) => m.id === service.staffId)?.name || "Staff not assigned"}
                             </div>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <div className="relative">
-                        <select
-                          value={item.staffId}
-                          onChange={(event) =>
-                            setSelectedServices((current) =>
-                              current.map((row, index) =>
-                                index === item.index && row.kind === "service" ? { ...row, staffId: event.target.value } : row,
-                              ),
-                            )
-                          }
-                          className={`w-full appearance-none rounded-2xl border px-4 py-3 pr-10 text-sm font-bold ${
-                            isDark ? "border-[rgba(255,255,255,0.08)] bg-[#151821] text-[#F0EBE3] [color-scheme:dark]" : "border-[#E8E1D8] bg-white text-gray-900 [color-scheme:light]"
-                          }`}
-                        >
-                          <option value="">Assign staff</option>
-                          {staff.map((member) => (
-                            <option key={member.id} value={member.id}>
-                              {member.name}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronDown size={14} className={`pointer-events-none absolute right-4 top-4 ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`} />
+                      <div className={`text-xs font-bold mt-1 ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>
+                        {staff.find((m) => m.id === item.staffId)?.name || "Staff not assigned"}
                       </div>
                     )}
                   </div>
@@ -437,9 +400,53 @@ export function DashboardSalesPOSCheckoutPage() {
                 <span className={`text-sm font-bold ${isDark ? "text-[#C8BFB4]" : "text-gray-600"}`}>Subtotal</span>
                 <span className={`text-sm font-black ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>{formatCurrency(subtotal)}</span>
               </div>
-              <div className="mt-2 flex items-center justify-between">
-                <span className={`text-sm font-bold ${isDark ? "text-[#C8BFB4]" : "text-gray-600"}`}>Discount</span>
-                <span className={`text-sm font-black ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>- {formatCurrency(discountAmount)}</span>
+              <div className="mt-2 flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className={`text-sm font-bold ${isDark ? "text-[#C8BFB4]" : "text-gray-600"}`}>Discount</span>
+                  <span className={`text-sm font-black ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>- {formatCurrency(discountAmount)}</span>
+                </div>
+                <div className="mt-1">
+                  <div className="flex gap-2">
+                    <div className={`flex flex-1 items-center rounded-xl border ${isDark ? "border-[rgba(255,255,255,0.08)] bg-[#151821]" : "border-[#E8E1D8] bg-white"} overflow-hidden`}>
+                      <div className={`relative border-r ${isDark ? "border-[rgba(255,255,255,0.08)]" : "border-[#E8E1D8]"}`}>
+                        <select
+                          value={discountInputType}
+                          onChange={(e) => setDiscountInputType(e.target.value as "flat" | "percent")}
+                          className={`appearance-none bg-transparent pl-3 pr-6 py-2.5 text-sm font-bold outline-none ${
+                            isDark ? "text-[#C8BFB4] [color-scheme:dark]" : "text-gray-600 [color-scheme:light]"
+                          }`}
+                        >
+                          <option value="flat">Rs.</option>
+                          <option value="percent">%</option>
+                        </select>
+                        <ChevronDown size={14} className={`pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 ${isDark ? "text-[#C8BFB4]" : "text-gray-500"}`} />
+                      </div>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={discountInput}
+                        onChange={(e) => setDiscountInput(e.target.value.replace(/\D/g, ""))}
+                        placeholder="Enter discount"
+                        className={`w-full bg-transparent px-3 py-2.5 text-sm font-bold outline-none ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDiscountValue(Number(discountInput));
+                        setDiscountType(discountInputType);
+                      }}
+                      className={`rounded-xl px-5 py-2.5 text-sm font-bold transition-colors ${
+                        isDark 
+                          ? "bg-[#C9A96E] text-[#0F1115] hover:bg-[#B39359]" 
+                          : "bg-[#C9A96E] text-white hover:bg-[#B39359]"
+                      }`}
+                    >
+                      Apply
+                    </button>
+                  </div>
+                  <p className={`mt-2 text-[10px] ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Enter amount and click Apply</p>
+                </div>
               </div>
               <div className={`mt-4 flex items-center justify-between border-t pt-4 ${isDark ? "border-[rgba(255,255,255,0.06)]" : "border-[#E8E1D8]"}`}>
                 <span className={`text-xs font-black uppercase tracking-[0.25em] ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Total Amount</span>
@@ -478,16 +485,92 @@ export function DashboardSalesPOSCheckoutPage() {
               </div>
             </div>
 
+            {paymentMethod === "UPI" && (
+              <div className={`mt-6 rounded-[24px] border p-4 ${isDark ? "border-[rgba(255,255,255,0.06)] bg-[#1C2030]" : "border-[#F2EDE7] bg-[#FCFAF8]"}`}>
+                <h4 className={`mb-4 text-sm font-black ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>UPI Payment</h4>
+                <div className="space-y-4">
+                  <div>
+                    <label className={`mb-2 block text-xs font-bold ${isDark ? "text-[#C8BFB4]" : "text-gray-600"}`}>
+                      UPI Reference Number <Info size={12} className="inline ml-1" />
+                    </label>
+                    <input
+                      type="text"
+                      value={referenceNumber}
+                      onChange={(e) => setReferenceNumber(e.target.value)}
+                      placeholder="Enter UPI reference number"
+                      className={`w-full rounded-xl border px-4 py-3 text-sm font-bold outline-none ${
+                        isDark
+                          ? "border-[rgba(255,255,255,0.08)] bg-[#151821] text-[#F0EBE3] placeholder:text-gray-600"
+                          : "border-[#E8E1D8] bg-white text-gray-900 placeholder:text-gray-400"
+                      }`}
+                    />
+                    <p className={`mt-2 text-[10px] ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>
+                      Enter the UPI transaction reference number / UTR.
+                    </p>
+                  </div>
+                  <div className={`flex items-center justify-between border-t pt-4 ${isDark ? "border-[rgba(255,255,255,0.06)]" : "border-[#E8E1D8]"}`}>
+                    <span className={`text-sm font-bold ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>Amount Payable</span>
+                    <span className={`text-sm font-black ${isDark ? "text-[#E8C98A]" : "text-[#8B5E3C]"}`}>{formatCurrency(totalAmount)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {paymentMethod === "CARD" && (
+              <div className={`mt-6 rounded-[24px] border p-4 ${isDark ? "border-[rgba(255,255,255,0.06)] bg-[#1C2030]" : "border-[#F2EDE7] bg-[#FCFAF8]"}`}>
+                <h4 className={`mb-4 text-sm font-black ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>Card Payment</h4>
+                <div className="space-y-4">
+                  <div>
+                    <label className={`mb-2 block text-xs font-bold ${isDark ? "text-[#C8BFB4]" : "text-gray-600"}`}>
+                      Card Reference Number / Transaction ID <Info size={12} className="inline ml-1" />
+                    </label>
+                    <input
+                      type="text"
+                      value={referenceNumber}
+                      onChange={(e) => setReferenceNumber(e.target.value)}
+                      placeholder="Enter card reference number / transaction ID"
+                      className={`w-full rounded-xl border px-4 py-3 text-sm font-bold outline-none ${
+                        isDark
+                          ? "border-[rgba(255,255,255,0.08)] bg-[#151821] text-[#F0EBE3] placeholder:text-gray-600"
+                          : "border-[#E8E1D8] bg-white text-gray-900 placeholder:text-gray-400"
+                      }`}
+                    />
+                    <p className={`mt-2 text-[10px] ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>
+                      Enter the card transaction ID / approval code.
+                    </p>
+                  </div>
+                  <div className={`flex items-center justify-between border-t pt-4 ${isDark ? "border-[rgba(255,255,255,0.06)]" : "border-[#E8E1D8]"}`}>
+                    <span className={`text-sm font-bold ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>Amount Payable</span>
+                    <span className={`text-sm font-black ${isDark ? "text-[#E8C98A]" : "text-[#8B5E3C]"}`}>{formatCurrency(totalAmount)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <button
               type="button"
               onClick={handleGenerateSettlement}
               disabled={isSaving}
-              className={`w-full rounded-[24px] px-6 py-4 text-xs font-black uppercase tracking-[0.25em] ${
+              className={`mt-2 w-full rounded-[24px] px-6 py-4 text-xs font-black uppercase tracking-[0.25em] ${
                 isDark ? "bg-[linear-gradient(135deg,#C9A96E,#A67C3D)] text-[#0F1115]" : "bg-[#8B5E3C] text-white"
               }`}
             >
               {isSaving ? "Completing..." : "Complete Sale"}
             </button>
+
+            {(paymentMethod === "UPI" || paymentMethod === "CARD") && (
+              <button
+                type="button"
+                onClick={() => {
+                  setPaymentMethod("CASH");
+                  setReferenceNumber("");
+                }}
+                className={`mt-4 flex items-center justify-center gap-2 text-xs font-bold w-full ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`}
+              >
+                <ArrowLeft size={14} /> Back to Payment Methods
+              </button>
+            )}
+
           </div>
         </div>
       </section>

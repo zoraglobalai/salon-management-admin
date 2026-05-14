@@ -87,7 +87,7 @@ export function DashboardSalesPOSPage() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             {!isManager && locations.length > 1 && (
               <div className="relative min-w-[220px]">
                 <select
@@ -112,7 +112,7 @@ export function DashboardSalesPOSPage() {
             <button
               type="button"
               onClick={() => navigate("/dashboard/sales/pos/new")}
-              className={`flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-black uppercase tracking-[0.2em] transition-all ${
+              className={`flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap ${
                 isDark ? "bg-[linear-gradient(135deg,#C9A96E,#A67C3D)] text-[#0F1115]" : "bg-[#8B5E3C] text-white"
               }`}
             >
@@ -181,7 +181,7 @@ export function DashboardSalesPOSPage() {
                       isDark ? "bg-[#151821] text-[#F0EBE3]" : "bg-white text-gray-800"
                     }`}
                   >
-                    Continue
+                    Edit
                   </button>
                   <button
                     type="button"

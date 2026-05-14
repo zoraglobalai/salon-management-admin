@@ -42,6 +42,7 @@ export const Login: React.FC = () => {
               type="email"
               autoComplete="email"
               required
+              placeholder="Enter your email address"
               value={email}
               onKeyDown={(e) => {
                 if (e.key === " ") e.preventDefault();
@@ -64,6 +65,8 @@ export const Login: React.FC = () => {
               type={showPassword ? "text" : "password"}
               autoComplete="current-password"
               required
+              placeholder="Enter your password"
+
               value={password}
               onKeyDown={(e) => {
                 if (e.key === " ") e.preventDefault();

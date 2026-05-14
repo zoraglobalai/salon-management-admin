@@ -6,17 +6,19 @@ import {
   fetchClients,
   fetchInventory,
   fetchSaleById,
+  fetchStaff,
   fetchServices,
   updateSaleDraft,
   type ClientRecord,
   type InventoryItem,
   type SaleDraftInput,
   type ServiceItem,
+  type StaffMember,
 } from "../../../core/api";
 import { useNotifications } from "../../../shared/components/NotificationProvider";
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
 import { useAuth } from "../../auth/hooks/useAuth";
-import { ArrowLeft, MapPin, Package, Receipt, Save, Scissors, Search, User } from "lucide-react";
+import { ArrowLeft, ChevronDown, MapPin, Package, Receipt, Save, Scissors, Search, User } from "lucide-react";
 
 type LocationOption = { id: string; name: string; city?: string };
 
@@ -67,6 +69,7 @@ export function DashboardSalesPOSEditPage() {
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [comboServices, setComboServices] = useState<ComboServiceItem[]>([]);
   const [products, setProducts] = useState<InventoryItem[]>([]);
+  const [staff, setStaff] = useState<StaffMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [activeDraftId, setActiveDraftId] = useState<string | null>(draftId || null);
@@ -78,8 +81,6 @@ export function DashboardSalesPOSEditPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedServices, setSelectedServices] = useState<DraftLineService[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<DraftLineProduct[]>([]);
-  const [discountValue, setDiscountValue] = useState("0");
-  const [discountType, setDiscountType] = useState<"flat" | "percent">("flat");
 
   const serviceMap = useMemo(() => new Map(services.map((item) => [item.id, item])), [services]);
   const productMap = useMemo(() => new Map(products.map((item) => [item.id, item])), [products]);
@@ -153,11 +154,12 @@ export function DashboardSalesPOSEditPage() {
     if (!selectedLocationId) return;
 
     setIsLoading(true);
-    Promise.all([fetchServices(selectedLocationId), fetchInventory(selectedLocationId)])
-      .then(([servicesResponse, inventoryResponse]) => {
+    Promise.all([fetchServices(selectedLocationId), fetchInventory(selectedLocationId), fetchStaff(selectedLocationId)])
+      .then(([servicesResponse, inventoryResponse, staffResponse]) => {
         setServices(servicesResponse.services || []);
         setComboServices(servicesResponse.comboServices || []);
         setProducts(inventoryResponse.items || []);
+        setStaff(staffResponse.staff || []);
       })
       .catch((error: Error) => toast(error.message || "Unable to load sale setup", "error"))
       .finally(() => setIsLoading(false));
@@ -264,8 +266,6 @@ export function DashboardSalesPOSEditPage() {
             quantity: Number(item.quantity || 1),
           })),
         );
-        setDiscountValue(sale.discount ? String(Number(sale.discount)) : "");
-        setDiscountType(sale.discountType === "percent" ? "percent" : "flat");
       })
       .catch((error: Error) => {
         toast(error.message || "Unable to load draft", "error");
@@ -369,10 +369,10 @@ export function DashboardSalesPOSEditPage() {
         productId: item.productId,
         quantity: item.quantity,
       })),
-      discount: Number(discountValue || 0),
-      discountType,
+      discount: 0,
+      discountType: "flat",
     }),
-    [clientName, discountType, discountValue, phone, selectedLocationId, selectedProducts, selectedServices],
+    [clientName, phone, selectedLocationId, selectedProducts, selectedServices],
   );
 
   async function persistDraft() {
@@ -637,24 +637,87 @@ export function DashboardSalesPOSEditPage() {
                     key={`${item.kind === "combo" ? item.comboServiceId : item.serviceId}-${item.index}`}
                     className={`rounded-2xl border p-3 ${isDark ? "border-[rgba(255,255,255,0.05)] bg-[#151821]" : "border-white bg-white"}`}
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 w-full">
                         {item.kind === "combo" ? (
-                          <div className="space-y-2">
-                            <div className={`text-sm font-black ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>{item.comboName} (Combo)</div>
-                            <div className={`text-[11px] font-bold ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`}>Combo price Rs.{Number(item.comboPrice || 0).toFixed(0)}</div>
-                            <div className={`text-xs leading-5 ${isDark ? "text-[#C8BFB4]" : "text-gray-600"}`}>
-                              {item.services.map((service) => service.serviceName).join(", ")}
+                          <div className="space-y-3 w-full pr-4">
+                            <div className="space-y-1">
+                              <div className={`text-sm font-black ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>{item.comboName} (Combo)</div>
+                              <div className={`text-[11px] font-bold ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`}>Combo price Rs.{Number(item.comboPrice || 0).toFixed(0)}</div>
+                            </div>
+                            <div className="space-y-3 border-t pt-3 mt-2 border-dashed border-[rgba(0,0,0,0.1)] dark:border-[rgba(255,255,255,0.1)]">
+                              {item.services.map((service, serviceIndex) => (
+                                <div key={`${service.serviceId}-${serviceIndex}`} className="space-y-2">
+                                  <div className={`text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>
+                                    {service.serviceName}
+                                  </div>
+                                  <div className="relative w-fit mt-1">
+                                    <select
+                                      value={service.staffId}
+                                      onChange={(event) =>
+                                        setSelectedServices((current) =>
+                                          current.map((row, index) =>
+                                            index !== item.index || row.kind !== "combo"
+                                              ? row
+                                              : {
+                                                  ...row,
+                                                  services: row.services.map((serviceRow, rowIndex) =>
+                                                    rowIndex === serviceIndex ? { ...serviceRow, staffId: event.target.value } : serviceRow,
+                                                  ),
+                                                },
+                                          ),
+                                        )
+                                      }
+                                      className={`appearance-none rounded-xl border px-3 py-1.5 pr-8 text-xs font-bold outline-none min-w-[120px] ${
+                                        isDark ? "border-[rgba(255,255,255,0.08)] bg-[#1C2030] text-[#F0EBE3] [color-scheme:dark]" : "border-[#E8E1D8] bg-transparent text-gray-900 [color-scheme:light]"
+                                      }`}
+                                    >
+                                      <option value="">Assign staff</option>
+                                      {staff.map((member) => (
+                                        <option key={member.id} value={member.id}>
+                                          {member.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <ChevronDown size={14} className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`} />
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           </div>
                         ) : (
-                          <div className={`text-sm font-black ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>{item.serviceName}</div>
+                          <div className="space-y-2 w-full pr-4">
+                            <div className={`text-sm font-black ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>{item.serviceName}</div>
+                            <div className="relative w-fit">
+                              <select
+                                value={item.staffId}
+                                onChange={(event) =>
+                                  setSelectedServices((current) =>
+                                    current.map((row, index) =>
+                                      index === item.index && row.kind === "service" ? { ...row, staffId: event.target.value } : row,
+                                    ),
+                                  )
+                                }
+                                className={`appearance-none rounded-xl border px-3 py-1.5 pr-8 text-xs font-bold outline-none min-w-[120px] ${
+                                  isDark ? "border-[rgba(255,255,255,0.08)] bg-[#1C2030] text-[#F0EBE3] [color-scheme:dark]" : "border-[#E8E1D8] bg-transparent text-gray-900 [color-scheme:light]"
+                                }`}
+                              >
+                                <option value="">Assign staff</option>
+                                {staff.map((member) => (
+                                  <option key={member.id} value={member.id}>
+                                    {member.name}
+                                  </option>
+                                ))}
+                              </select>
+                              <ChevronDown size={14} className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`} />
+                            </div>
+                          </div>
                         )}
                       </div>
                       <button
                         type="button"
                         onClick={() => setSelectedServices((current) => current.filter((_, index) => index !== item.index))}
-                        className={`text-xs font-black uppercase tracking-widest ${isDark ? "text-[#E8C98A]" : "text-[#8B5E3C]"}`}
+                        className={`text-[10px] pt-1 font-black uppercase tracking-widest flex-shrink-0 ${isDark ? "text-[#E8C98A]" : "text-[#8B5E3C]"}`}
                       >
                         Remove
                       </button>
@@ -721,37 +784,10 @@ export function DashboardSalesPOSEditPage() {
           </div>
 
           <div className={`mt-6 border-t pt-6 ${isDark ? "border-[rgba(255,255,255,0.06)]" : "border-[#F2EDE7]"}`}>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_180px]">
-              <div className="space-y-2">
-                <label className={`text-[10px] font-black uppercase tracking-widest ${isDark ? "text-[#4A4744]" : "text-gray-400"}`}>Discount</label>
-                <div className={`flex items-center rounded-2xl border px-4 py-3 ${isDark ? "border-[rgba(255,255,255,0.08)] bg-[#1C2030]" : "border-[#E8E1D8] bg-gray-50"}`}>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={discountValue}
-                    onChange={(event) => {
-                      const nextValue = event.target.value.replace(/\D/g, "");
-                      setDiscountValue(nextValue);
-                    }}
-                    className={`w-full bg-transparent text-sm font-bold outline-none ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}
-                    placeholder="Enter discount"
-                  />
-                  <select
-                    value={discountType}
-                    onChange={(event) => setDiscountType(event.target.value as "flat" | "percent")}
-                    className={`border-l bg-transparent pl-3 text-sm font-black outline-none ${isDark ? "border-[rgba(255,255,255,0.08)] text-[#E8C98A] [color-scheme:dark]" : "border-gray-200 text-[#8B5E3C] [color-scheme:light]"}`}
-                  >
-                    <option value="flat">Rs</option>
-                    <option value="percent">%</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className={`rounded-[24px] border p-4 ${isDark ? "border-[rgba(255,255,255,0.06)] bg-[#1C2030]" : "border-[#F2EDE7] bg-[#FCFAF8]"}`}>
-                <div className={`text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Pricing</div>
-                <div className={`mt-2 text-sm font-bold ${isDark ? "text-[#C8BFB4]" : "text-gray-600"}`}>
-                  Combo package price is shown on its card. Final bill is shown at checkout.
-                </div>
+            <div className={`rounded-[24px] border p-4 ${isDark ? "border-[rgba(255,255,255,0.06)] bg-[#1C2030]" : "border-[#F2EDE7] bg-[#FCFAF8]"}`}>
+              <div className={`text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Pricing</div>
+              <div className={`mt-2 text-sm font-bold ${isDark ? "text-[#C8BFB4]" : "text-gray-600"}`}>
+                Combo package price is shown on its card. Final bill is shown at checkout.
               </div>
             </div>
           </div>
