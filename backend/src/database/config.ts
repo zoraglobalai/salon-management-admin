@@ -27,6 +27,9 @@ import { CreateCommunicationsSchema1715600000000 } from './migrations/1715600000
 import { RefactorCommunicationsSchema1715600000001 } from './migrations/1715600000001-RefactorCommunicationsSchema';
 import { AddCommunicationIndexes1715700000000 } from './migrations/1715700000000-AddCommunicationIndexes';
 import { AddUserSessionVersion1715800000000 } from './migrations/1715800000000-AddUserSessionVersion';
+import { CreateStaffPayrollTable1715900000000 } from './migrations/1715900000000-CreateStaffPayrollTable';
+import { CreateAttendanceTable1716000000000 } from './migrations/1716000000000-CreateAttendanceTable';
+import { CreateAppointmentsSchema1716100000000 } from './migrations/1716100000000-CreateAppointmentsSchema';
 
 export const databaseConfig = {
   host: ENV.DB_HOST,
@@ -61,5 +64,8 @@ export const AppDataSource = new DataSource({
     RefactorCommunicationsSchema1715600000001,
     AddCommunicationIndexes1715700000000,
     AddUserSessionVersion1715800000000,
+    CreateStaffPayrollTable1715900000000,
+    CreateAttendanceTable1716000000000,
+    CreateAppointmentsSchema1716100000000,
   ],
 });

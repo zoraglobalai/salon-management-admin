@@ -146,22 +146,47 @@ export function StaffDetailPage() {
           <InfoRow label="Assignment" value={member.locationName} isDark={isDark} />
         </Section>
 
-        <Section title="Financial Account" icon={CreditCard} isDark={isDark}>
-          {member.bankName || member.accountNumber || member.ifscCode ? (
+        <Section title="Payroll & Financials" icon={CreditCard} isDark={isDark}>
+          {member.payroll ? (
             <>
-              <InfoRow label="Institution" value={member.bankName} isDark={isDark} />
-              <InfoRow label="IFSC Code" value={member.ifscCode} isDark={isDark} />
-              <div className="sm:col-span-2">
-                <div className="flex flex-col gap-1">
-                  <span className={`text-[10px] font-black uppercase tracking-[0.15em] ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>Account Number</span>
-                  <span className={`text-lg font-black tracking-[0.2em] font-mono ${isDark ? "text-[#E8C98A]" : "text-[#8B5E3C]"}`}>
-                    {mask(member.accountNumber, 4)}
-                  </span>
-                </div>
-              </div>
+              <InfoRow label="Salary Type" value={member.payroll.salaryType === 'monthly' ? 'Monthly' : 'Weekly'} isDark={isDark} />
+              <InfoRow label="Salary Amount" value={`₹${member.payroll.salaryAmount}`} isDark={isDark} />
+              <InfoRow label="Payment Method" value={member.payroll.paymentMethod} isDark={isDark} />
+              {member.payroll.paymentMethod === 'UPI' && (
+                <InfoRow label="UPI ID" value={member.payroll.upiId || "-"} isDark={isDark} />
+              )}
+              {(member.payroll.paymentMethod === 'Bank Transfer' || (!member.payroll.paymentMethod && (member.bankName || member.accountNumber))) && (
+                <>
+                  <InfoRow label="Institution" value={member.payroll.bankName || member.bankName} isDark={isDark} />
+                  <InfoRow label="IFSC Code" value={member.payroll.ifscCode || member.ifscCode} isDark={isDark} />
+                  <div className="sm:col-span-2">
+                    <div className="flex flex-col gap-1">
+                      <span className={`text-[10px] font-black uppercase tracking-[0.15em] ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>Account Number</span>
+                      <span className={`text-lg font-black tracking-[0.2em] font-mono ${isDark ? "text-[#E8C98A]" : "text-[#8B5E3C]"}`}>
+                        {mask(member.payroll.accountNumber || member.accountNumber, 4)}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              )}
             </>
           ) : (
-            <EmptySectionNote message="Bank details have not been added for this staff member yet." isDark={isDark} />
+            member.bankName || member.accountNumber || member.ifscCode ? (
+              <>
+                <InfoRow label="Institution" value={member.bankName} isDark={isDark} />
+                <InfoRow label="IFSC Code" value={member.ifscCode} isDark={isDark} />
+                <div className="sm:col-span-2">
+                  <div className="flex flex-col gap-1">
+                    <span className={`text-[10px] font-black uppercase tracking-[0.15em] ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>Account Number</span>
+                    <span className={`text-lg font-black tracking-[0.2em] font-mono ${isDark ? "text-[#E8C98A]" : "text-[#8B5E3C]"}`}>
+                      {mask(member.accountNumber, 4)}
+                    </span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <EmptySectionNote message="Payroll and bank details have not been added for this staff member yet." isDark={isDark} />
+            )
           )}
         </Section>
 
