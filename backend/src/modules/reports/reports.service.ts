@@ -1,6 +1,10 @@
 import { query } from "../../database/pool";
 import { createError } from "../../middleware/errorHandler";
 import type { AuthUserPayload } from "../../shared/types/auth";
+import {
+  getProfitReportRepository,
+  type ProfitReportFilters,
+} from "./profit-report.repository";
 
 export type ReportFilters = {
   startDate?: string;
@@ -962,6 +966,12 @@ export type ExpenseReportFilters = {
   limit?: number;
 };
 
+export type { ProfitReportFilters } from "./profit-report.repository";
+
+export async function getProfitReport(user: AuthUserPayload, filters: ProfitReportFilters) {
+  return getProfitReportRepository(user, filters);
+}
+
 export async function getAttendanceReport(user: AuthUserPayload, filters: AttendanceReportFilters) {
   if (!user.tenant_id) throw createError("Tenant not found.", 400);
 
@@ -1774,4 +1784,3 @@ export async function getExpenseReport(user: AuthUserPayload, filters: ExpenseRe
     },
   };
 }
-

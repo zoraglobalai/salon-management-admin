@@ -29,44 +29,62 @@ export function exportToExcel(data: any[], fileName: string, columns?: string[])
   XLSX.writeFile(wb, `${fileName}.xlsx`);
 }
 
-export function exportToPDF(data: any[], columns: string[], fileName: string, title: string) {
+export function exportToPDF(data: any[], columns: string[], fileName: string, title: string, meta?: string[]) {
   const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
   
   // Add title
   doc.setFontSize(18);
-  doc.text(title, 40, 30);
-  doc.setFontSize(11);
+  doc.text(title, 30, 30);
+  doc.setFontSize(9);
   doc.setTextColor(100);
-  doc.text(`Generated on: ${new Date().toLocaleString()}`, 40, 48);
+  doc.text(`Generated on: ${new Date().toLocaleString()}`, 30, 45);
+
+  let startY = 60;
+  if (meta && meta.length) {
+    doc.setFontSize(8);
+    doc.setTextColor(80);
+    meta.forEach((line, index) => {
+      doc.text(line, 30, startY + (index * 12));
+    });
+    startY += (meta.length * 12) + 10;
+  }
   
   // Prepare data for autotable
-  // Ensure we map the keys correctly from the columns provided
   const body = data.map(item => columns.map(col => item?.[col] ?? ''));
-  const columnStyles: Record<number, { halign: "left" | "center" | "right"; cellWidth?: "auto" | "wrap" | number }> = {};
+  const columnCount = columns.length;
+  let fontSize = 8;
+  if (columnCount > 10) fontSize = 7;
+  if (columnCount > 15) fontSize = 6.5;
+  if (columnCount > 20) fontSize = 5.5;
 
-  columns.forEach((_, index) => {
-    const hasNumericData = body.some((row) => isNumericLike(row[index]));
-    columnStyles[index] = {
-      halign: hasNumericData ? "right" : "left",
-      cellWidth: "auto",
-    };
-  });
-  
   autoTable(doc, {
-    head: [columns.map(c => c.toUpperCase())],
+    head: [columns],
     body: body,
-    startY: 62,
-    theme: 'striped',
-    headStyles: { fillColor: [139, 94, 60] }, // #8B5E3C
+    startY: startY,
+    theme: 'grid',
+    headStyles: { 
+      fillColor: [139, 94, 60], 
+      fontSize: fontSize + 0.5,
+      halign: 'center',
+      cellPadding: 3,
+      textColor: [255, 255, 255]
+    },
     styles: {
-      fontSize: 8,
-      cellPadding: 4,
+      fontSize: fontSize,
+      cellPadding: 2,
       overflow: "linebreak",
       valign: "middle",
-      lineWidth: 0.2,
+      lineWidth: 0.1,
     },
-    columnStyles,
-    margin: { left: 40, right: 40, top: 24, bottom: 24 },
+    margin: { left: 20, right: 20, bottom: 20 },
+    didParseCell: (data) => {
+      if (data.section === 'body') {
+        const val = data.cell.raw;
+        if (isNumericLike(val)) {
+          data.cell.styles.halign = 'right';
+        }
+      }
+    }
   });
   
   doc.save(`${fileName}.pdf`);
