@@ -335,10 +335,12 @@ export function DashboardStaffPage() {
             <Search size={16} className={`absolute left-3.5 top-3 ${isDark ? "text-[#7A7572]" : "text-gray-400"}`} />
           </div>
           <button onClick={openCreate} type="button"
-            className={`flex items-center justify-center gap-2 rounded-full px-6 py-2.5 font-semibold text-white shadow-md transition-all hover:-translate-y-0.5 ${
-              isDark ? "bg-[linear-gradient(135deg,#C9A96E_0%,#A67C3D_100%)] shadow-[0_8px_20px_rgba(201,169,110,0.15)]" : "bg-[#8B5E3C] hover:bg-[#744A2E]"
+            className={`flex shrink-0 items-center gap-2 rounded-full px-5 py-2 text-sm font-semibold text-white transition-all ${
+              isDark
+                ? "bg-[linear-gradient(135deg,#C9A96E_0%,#A67C3D_100%)]"
+                : "bg-[#8B5E3C] hover:bg-[#744A2E]"
             }`}>
-            <Plus size={18} />
+            <Plus size={16} />
             Add Staff
           </button>
         </div>
@@ -711,13 +713,13 @@ export function DashboardStaffPage() {
                     </div>
                     <div>
                       <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Salary Amount</label>
-                      <input type="number" name="salaryAmount" value={form.salaryAmount} 
+                      <input type="text" inputMode="numeric" name="salaryAmount" value={form.salaryAmount} 
                         onChange={(e) => {
-                          const val = e.target.value.replace(/[^0-9.]/g, "");
+                          const val = e.target.value.replace(/\D/g, "");
                           setForm(c => ({ ...c, salaryAmount: val }));
                         }}
                         placeholder="Enter Amount"
-                        className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
+                        className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
                           isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
                         }`} />
                     </div>

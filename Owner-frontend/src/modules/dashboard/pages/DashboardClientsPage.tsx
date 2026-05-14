@@ -209,10 +209,10 @@ export function DashboardClientsPage() {
             </div>
           )}
           <button onClick={openCreate} type="button"
-            className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-all hover:-translate-y-0.5 ${
+            className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white shadow-md transition-all hover:-translate-y-0.5 ${
               isDark ? "bg-[linear-gradient(135deg,#C9A96E_0%,#A67C3D_100%)] shadow-[0_8px_20px_rgba(201,169,110,0.15)]" : "bg-[#8B5E3C] hover:bg-[#744A2E]"
             }`}>
-            <Plus size={18} />
+            <Plus size={16} />
             Add Customer
           </button>
         </div>

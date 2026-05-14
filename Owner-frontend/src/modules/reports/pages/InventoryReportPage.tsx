@@ -187,7 +187,7 @@ export function InventoryReportPage() {
         </Link>
         <div className="min-w-0 flex-1">
           <h1 className={cn("text-2xl font-bold tracking-[-0.03em] md:text-[2rem]", isDark ? "text-[#F0EBE3]" : "text-[#111827]")}>Inventory Report</h1>
-          <p className={cn("text-sm md:text-[15px]", isDark ? "text-[#7A7572]" : "text-[#6B7280]")}>Real-time stock analytics and movement insights.</p>
+          {/* <p className={cn("text-sm md:text-[15px]", isDark ? "text-[#7A7572]" : "text-[#6B7280]")}>Real-time stock analytics and movement insights.</p> */}
         </div>
       </div>
 

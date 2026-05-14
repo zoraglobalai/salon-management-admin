@@ -139,7 +139,6 @@ export function PurchaseReportPage() {
   }, [rows]);
 
   const columns: Column<PurchaseReportRow>[] = useMemo(() => [
-    { header: "Purchase ID", accessorKey: "purchase_id", cell: (item) => <span className={cn("font-mono text-xs", isDark ? "text-[#C8BFB4]" : "text-gray-600")}>{item.purchase_id.slice(0, 8)}</span> },
     { header: "Purchase Date", accessorKey: "purchase_date", cell: (item) => <span className={cn("font-medium", isDark ? "text-[#F0EBE3]" : "text-gray-900")}>{new Date(item.purchase_date).toLocaleDateString("en-GB")}</span> },
     { header: "Invoice", accessorKey: "invoice_number" },
     { header: "Vendor", accessorKey: "vendor_name" },
@@ -167,7 +166,7 @@ export function PurchaseReportPage() {
         </Link>
         <div className="min-w-0 flex-1">
           <h1 className={cn("text-2xl font-bold tracking-[-0.03em] md:text-[2rem]", isDark ? "text-[#F0EBE3]" : "text-[#111827]")}>Purchase Report</h1>
-          <p className={cn("text-sm md:text-[15px]", isDark ? "text-[#7A7572]" : "text-[#6B7280]")}>End-to-end purchase details from vendor to inventory updates.</p>
+          {/* <p className={cn("text-sm md:text-[15px]", isDark ? "text-[#7A7572]" : "text-[#6B7280]")}>End-to-end purchase details from vendor to inventory updates.</p> */}
         </div>
       </div>
 
