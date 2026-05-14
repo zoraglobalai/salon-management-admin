@@ -50,7 +50,11 @@ export function exportToPDF(data: any[], columns: string[], fileName: string, ti
   }
   
   // Prepare data for autotable
-  const body = data.map(item => columns.map(col => item?.[col] ?? ''));
+  const body = data.map(item => columns.map(col => {
+    const val = item?.[col] ?? '';
+    // Replace Rupee symbol with Rs. because standard PDF fonts don't support it
+    return typeof val === 'string' ? val.replace(/\u20B9/g, 'Rs.') : val;
+  }));
   const columnCount = columns.length;
   let fontSize = 8;
   if (columnCount > 10) fontSize = 7;
