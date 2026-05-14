@@ -24,6 +24,8 @@ type StaffPerformance = {
   staff_name: string;
   services_count: number;
   revenue: number;
+  total_clients_served: number;
+  avg_bill_value: number;
 };
 
 // columns moved inside StaffReportPage to access theme state
@@ -55,8 +57,18 @@ export function StaffReportPage() {
       cell: (item: StaffPerformance) => <span className={cn("font-medium", isDark ? "text-[#F0EBE3]" : "text-gray-900")}>{"\u20B9"}{Number(item.revenue).toLocaleString()}</span>,
     },
     {
-      header: "Efficiency",
-      cell: (item: StaffPerformance) => <span className={isDark ? "text-[#7A7572]" : "text-gray-500"}>`\u20B9${Math.round(Number(item.revenue) / Math.max(1, Number(item.services_count))).toLocaleString()} / service`</span>,
+      header: "Total Clients Served",
+      accessorKey: "total_clients_served",
+      align: "center" as const,
+      sortable: true,
+      cell: (item: StaffPerformance) => <span className={isDark ? "text-[#C8BFB4]" : "text-gray-600"}>{Number(item.total_clients_served).toLocaleString()}</span>,
+    },
+    {
+      header: "Avg Bill Value",
+      accessorKey: "avg_bill_value",
+      align: "right" as const,
+      sortable: true,
+      cell: (item: StaffPerformance) => <span className={isDark ? "text-[#7A7572]" : "text-gray-500"}>{"\u20B9"}{Math.round(Number(item.avg_bill_value || 0)).toLocaleString()}</span>,
     },
   ];
   const [showExportModal, setShowExportModal] = useState(false);
@@ -126,10 +138,11 @@ export function StaffReportPage() {
         title="Staff Report"
         onExport={(type) => {
           const formatData = staffPerformance.map((item: StaffPerformance) => ({
-            Name: item.staff_name,
-            Services: item.services_count,
-            Revenue: item.revenue,
-            Efficiency: Math.round(Number(item.revenue) / Math.max(1, Number(item.services_count))),
+            "Staff Member": item.staff_name,
+            "Services Count": Number(item.services_count),
+            "Revenue Generated": `\u20B9${Number(item.revenue).toLocaleString()}`,
+            "Total Clients Served": Number(item.total_clients_served),
+            "Avg Bill Value": `\u20B9${Math.round(Number(item.avg_bill_value || 0)).toLocaleString()}`,
           }));
 
           if (type === "excel") {
@@ -138,7 +151,7 @@ export function StaffReportPage() {
           } else {
             exportToPDF(
               formatData,
-              ["Name", "Services", "Revenue", "Efficiency"],
+              ["Staff Member", "Services Count", "Revenue Generated", "Total Clients Served", "Avg Bill Value"],
               `Staff_Performance_Report_${new Date().toISOString().split("T")[0]}`,
               "Staff Performance Report"
             );
@@ -188,7 +201,7 @@ export function StaffReportPage() {
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div>
             <h3 className={cn("font-semibold", isDark ? "text-[#F0EBE3]" : "text-[#111827]")}>Performance Breakdown</h3>
-            <p className={cn("text-sm", isDark ? "text-[#7A7572]" : "text-[#6B7280]")}>Staff output, revenue contribution, and efficiency in one place.</p>
+            <p className={cn("text-sm", isDark ? "text-[#7A7572]" : "text-[#6B7280]")}>Staff output, revenue contribution, client coverage, and bill value in one place.</p>
           </div>
           <div className={cn(
             "rounded-full px-3 py-1 text-sm font-medium",
