@@ -18,13 +18,26 @@ export function useReport<T, F extends Record<string, any>>(
   const [filters, setFilters] = useState<F>(initialFilters);
 
   const getMergedFilters = useCallback(() => {
-    const locId = globalFilters.locationId === "all" ? undefined : globalFilters.locationId;
+    const localLocation = (filters as Record<string, any>)?.locationId;
+    const localStartDate = (filters as Record<string, any>)?.startDate;
+    const localEndDate = (filters as Record<string, any>)?.endDate;
+    const localPaymentMethod = (filters as Record<string, any>)?.paymentMethod;
+
+    const locationId =
+      localLocation !== undefined
+        ? localLocation === "all"
+          ? undefined
+          : localLocation
+        : globalFilters.locationId === "all"
+          ? undefined
+          : globalFilters.locationId;
+
     return {
       ...filters,
-      startDate: globalFilters.startDate,
-      endDate: globalFilters.endDate,
-      locationId: locId,
-      paymentMethod: globalFilters.paymentMethod,
+      startDate: localStartDate ?? globalFilters.startDate,
+      endDate: localEndDate ?? globalFilters.endDate,
+      locationId,
+      paymentMethod: localPaymentMethod ?? globalFilters.paymentMethod,
     } as unknown as F;
   }, [filters, globalFilters]);
 

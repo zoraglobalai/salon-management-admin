@@ -86,6 +86,10 @@ export type InventoryItem = {
   benefits: string;
   locationId: string;
   locationName: string;
+  vendorId: string | null;
+  vendorName: string | null;
+  lastPurchaseId: string | null;
+  lastPurchaseDate: string | null;
   createdAt: string;
 };
 
@@ -311,6 +315,186 @@ export async function moveStockToService(id: string, quantity: number) {
   });
 }
 
+export type VendorRecord = {
+  id: string;
+  vendorName: string;
+  companyName: string;
+  category: string;
+  phone: string;
+  email: string;
+  address: string;
+  gstNumber: string;
+  status: "ACTIVE" | "INACTIVE";
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type VendorInput = {
+  vendorName: string;
+  companyName?: string;
+  category?: string;
+  phone: string;
+  email?: string;
+  address?: string;
+  gstNumber?: string;
+  status?: "ACTIVE" | "INACTIVE";
+  notes?: string;
+};
+
+export async function fetchVendors(filters: { search?: string; status?: "ACTIVE" | "INACTIVE" | "ALL" } = {}) {
+  const token = sessionStorage.getItem("owner_token");
+  const params = new URLSearchParams();
+  if (filters.search) params.set("search", filters.search);
+  if (filters.status && filters.status !== "ALL") params.set("status", filters.status);
+  const qs = params.toString();
+  return request<{ vendors: VendorRecord[] }>(`/vendors${qs ? `?${qs}` : ""}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+}
+
+export async function createVendor(payload: VendorInput) {
+  const token = sessionStorage.getItem("owner_token");
+  return request<{ vendor: VendorRecord }>("/vendors", {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateVendor(id: string, payload: VendorInput) {
+  const token = sessionStorage.getItem("owner_token");
+  return request<{ vendor: VendorRecord }>(`/vendors/${id}`, {
+    method: "PUT",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteVendor(id: string) {
+  const token = sessionStorage.getItem("owner_token");
+  return request<{ success: boolean; message: string }>(`/vendors/${id}`, {
+    method: "DELETE",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+}
+
+export type PurchaseItemInput = {
+  productName: string;
+  category?: string;
+  unit: "ML" | "PCS" | "KG" | "Litre";
+  costPrice: number;
+  gst: number;
+  gstType?: "AMOUNT" | "PERCENT";
+  initialStock: number;
+  initialQuantity: number;
+  lowStockAlert: number;
+  serviceStock: number;
+  expiryDate?: string;
+  batchNumber?: string;
+};
+
+export type PurchaseRecord = {
+  id: string;
+  vendorId: string;
+  vendorName: string;
+  locationId: string;
+  locationName: string;
+  purchaseDate: string;
+  invoiceNumber: string;
+  paymentStatus: string;
+  paymentMethod: string;
+  totalAmount: number;
+  notes: string;
+  createdAt: string;
+  productsBought?: string;
+  totalStock?: number;
+  perProductCost?: number;
+  perProductGst?: number;
+  items?: Array<{
+    id: string;
+    purchaseId: string;
+    productName: string;
+    category: string;
+    unit: string;
+    costPrice: number;
+    gst: number;
+    gstType?: "AMOUNT" | "PERCENT";
+    initialStock: number;
+    initialQuantity: number;
+    lowStockAlert: number;
+    serviceStock: number;
+    expiryDate: string | null;
+    batchNumber: string;
+    createdAt: string;
+  }>;
+};
+
+export async function fetchPurchases(locationId?: string) {
+  const token = sessionStorage.getItem("owner_token");
+  const params = new URLSearchParams();
+  if (locationId && locationId !== "all") params.set("locationId", locationId);
+  const qs = params.toString();
+  return request<{ purchases: PurchaseRecord[] }>(`/purchases${qs ? `?${qs}` : ""}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+}
+
+export async function fetchPurchaseById(id: string) {
+  const token = sessionStorage.getItem("owner_token");
+  return request<{ purchase: PurchaseRecord }>(`/purchases/${id}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+}
+
+export async function createPurchase(payload: {
+  vendorId: string;
+  locationId?: string;
+  purchaseDate: string;
+  invoiceNumber?: string;
+  paymentStatus: string;
+  paymentMethod: string;
+  notes?: string;
+  items: PurchaseItemInput[];
+}) {
+  const token = sessionStorage.getItem("owner_token");
+  return request<{ purchase: PurchaseRecord; items: PurchaseRecord["items"] }>("/purchases", {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updatePurchase(id: string, payload: {
+  vendorId: string;
+  locationId?: string;
+  purchaseDate: string;
+  invoiceNumber?: string;
+  paymentStatus: string;
+  paymentMethod: string;
+  notes?: string;
+  items: PurchaseItemInput[];
+}) {
+  const token = sessionStorage.getItem("owner_token");
+  try {
+    return await request<{ purchase: PurchaseRecord; items: PurchaseRecord["items"] }>(`/purchases/${id}`, {
+      method: "PUT",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (!message.toLowerCase().includes("route not found")) {
+      throw error;
+    }
+    return request<{ purchase: PurchaseRecord; items: PurchaseRecord["items"] }>(`/purchases/${id}`, {
+      method: "PATCH",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: JSON.stringify(payload),
+    });
+  }
+}
+
 export type ServiceProduct = {
   id?: string;
   productId: string;
@@ -495,6 +679,16 @@ export async function resetOwnerManagerPassword(managerId: string, newPassword: 
 
 // ─── Staff API ────────────────────────────────────────────────────────────────
 
+export type StaffPayroll = {
+  salaryType: "monthly" | "weekly";
+  salaryAmount: number;
+  paymentMethod: "Cash" | "Bank Transfer" | "UPI";
+  bankName?: string;
+  accountNumber?: string;
+  ifscCode?: string;
+  upiId?: string;
+};
+
 export type StaffMember = {
   id: string;
   name: string;
@@ -519,6 +713,7 @@ export type StaffMember = {
   notes: string;
   locationId: string;
   locationName: string;
+  payroll?: StaffPayroll;
   createdAt: string;
 };
 
@@ -544,6 +739,7 @@ export type StaffInput = {
   joiningDate?: string | null;
   notes?: string;
   locationId?: string;
+  payroll?: StaffPayroll;
 };
 
 function getStaffAuthHeaders() {
@@ -579,6 +775,22 @@ type StaffResponseShape = Partial<StaffMember> & {
     bank_name?: string;
     account_number?: string;
     ifsc_code?: string;
+  };
+  payroll?: {
+    salaryType?: "monthly" | "weekly";
+    salary_type?: "monthly" | "weekly";
+    salaryAmount?: number;
+    salary_amount?: string | number;
+    paymentMethod?: "Cash" | "Bank Transfer" | "UPI";
+    payment_method?: "Cash" | "Bank Transfer" | "UPI";
+    bankName?: string;
+    bank_name?: string;
+    accountNumber?: string;
+    account_number?: string;
+    ifscCode?: string;
+    ifsc_code?: string;
+    upiId?: string;
+    upi_id?: string;
   };
 };
 
@@ -620,6 +832,19 @@ function normalizeIdentificationDetails(raw: StaffResponseShape) {
 function normalizeStaffMember(raw: StaffResponseShape): StaffMember {
   const financialAccount = raw.financialAccount ?? {};
   const identificationDetails = normalizeIdentificationDetails(raw);
+  const payrollRaw = (raw.payroll ?? {}) as any;
+
+  const payroll: StaffPayroll | undefined = (payrollRaw.salaryType || payrollRaw.salary_type)
+    ? {
+        salaryType: (payrollRaw.salaryType ?? payrollRaw.salary_type) as "monthly" | "weekly",
+        salaryAmount: Number(payrollRaw.salaryAmount ?? payrollRaw.salary_amount ?? 0),
+        paymentMethod: (payrollRaw.paymentMethod ?? payrollRaw.payment_method ?? "Cash") as "Cash" | "Bank Transfer" | "UPI",
+        bankName: normalizeText(payrollRaw.bankName ?? payrollRaw.bank_name),
+        accountNumber: normalizeText(payrollRaw.accountNumber ?? payrollRaw.account_number),
+        ifscCode: normalizeText(payrollRaw.ifscCode ?? payrollRaw.ifsc_code),
+        upiId: normalizeText(payrollRaw.upiId ?? payrollRaw.upi_id),
+      }
+    : undefined;
 
   return {
     id: normalizeText(raw.id),
@@ -632,9 +857,9 @@ function normalizeStaffMember(raw: StaffResponseShape): StaffMember {
     state: normalizeText(raw.state),
     city: normalizeText(raw.city),
     addressLine: normalizeText(raw.addressLine ?? raw.address_line),
-    bankName: normalizeText(raw.bankName ?? raw.bank_name ?? financialAccount.bankName ?? financialAccount.bank_name),
-    accountNumber: normalizeText(raw.accountNumber ?? raw.account_number ?? financialAccount.accountNumber ?? financialAccount.account_number),
-    ifscCode: normalizeText(raw.ifscCode ?? raw.ifsc_code ?? financialAccount.ifscCode ?? financialAccount.ifsc_code),
+    bankName: normalizeText(raw.bankName ?? raw.bank_name ?? financialAccount.bankName ?? financialAccount.bank_name ?? payroll?.bankName),
+    accountNumber: normalizeText(raw.accountNumber ?? raw.account_number ?? financialAccount.accountNumber ?? financialAccount.account_number ?? payroll?.accountNumber),
+    ifscCode: normalizeText(raw.ifscCode ?? raw.ifsc_code ?? financialAccount.ifscCode ?? financialAccount.ifsc_code ?? payroll?.ifscCode),
     idType: identificationDetails[0]?.idType ?? normalizeText(raw.idType ?? raw.id_type),
     idNumber: identificationDetails[0]?.idNumber ?? normalizeText(raw.idNumber ?? raw.id_number),
     identificationDetails,
@@ -642,6 +867,7 @@ function normalizeStaffMember(raw: StaffResponseShape): StaffMember {
     notes: normalizeText(raw.notes),
     locationId: normalizeText(raw.locationId ?? raw.location_id),
     locationName: normalizeText(raw.locationName ?? raw.location_name),
+    payroll,
     createdAt: normalizeText(raw.createdAt ?? raw.created_at),
   };
 }
@@ -1027,6 +1253,34 @@ export async function fetchReportsSummary(filters: { startDate?: string; endDate
     headers: getOwnerAuthHeaders(),
   });
 }
+
+export async function fetchPurchaseReport(filters: {
+  startDate?: string;
+  endDate?: string;
+  locationId?: string;
+  vendorId?: string;
+  product?: string;
+  category?: string;
+  paymentStatus?: string;
+  paymentMethod?: string;
+  createdBy?: string;
+}) {
+  const params = new URLSearchParams();
+  if (filters.startDate) params.set("startDate", filters.startDate);
+  if (filters.endDate) params.set("endDate", filters.endDate);
+  if (filters.locationId && filters.locationId !== "all") params.set("locationId", filters.locationId);
+  if (filters.vendorId && filters.vendorId !== "all") params.set("vendorId", filters.vendorId);
+  if (filters.product) params.set("product", filters.product);
+  if (filters.category && filters.category !== "all") params.set("category", filters.category);
+  if (filters.paymentStatus && filters.paymentStatus !== "all") params.set("paymentStatus", filters.paymentStatus);
+  if (filters.paymentMethod && filters.paymentMethod !== "all") params.set("paymentMethod", filters.paymentMethod);
+  if (filters.createdBy) params.set("createdBy", filters.createdBy);
+
+  const qs = params.toString();
+  return request<{ success: boolean; data: any }>(`/reports/purchases${qs ? `?${qs}` : ""}`, {
+    headers: getOwnerAuthHeaders(),
+  });
+}
 // ─── Notifications API ──────────────────────────────────────────────────────────
 
 export type NotificationCategory = "REVENUE" | "STAFF" | "SERVICE" | "CUSTOMER" | "BRANCH" | "INVENTORY";
@@ -1064,5 +1318,180 @@ export async function markAllNotificationsAsRead() {
   return request<{ success: boolean }>("/notifications/read-all", {
     method: "PATCH",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+}
+
+// ─── Attendance API ──────────────────────────────────────────────────────────
+
+export type AttendanceStatus = "present" | "half_day" | "paid_leave" | "lop" | "week_off" | "holiday";
+
+export type MonthlyAttendanceData = {
+  staff: Array<{ id: string; name: string; role: string }>;
+  attendance: Record<string, Record<string, AttendanceStatus>>;
+};
+
+export type StaffCalendarData = {
+  events: Array<{ id: string; date: string; status: AttendanceStatus }>;
+  summary: Record<string, number>;
+};
+
+export async function fetchMonthlyAttendance(month: number, year: number, branchId?: string): Promise<MonthlyAttendanceData> {
+  const params = new URLSearchParams({ month: month.toString(), year: year.toString() });
+  if (branchId) params.append("branchId", branchId);
+  const r = await request<MonthlyAttendanceData>(`/attendance/monthly?${params}`, { headers: getOwnerAuthHeaders() });
+  return r;
+}
+
+export async function upsertAttendance(data: {
+  employeeId: string;
+  branchId: string;
+  attendanceDate: string;
+  status: AttendanceStatus;
+  remarks?: string;
+}) {
+  return request<{ success: boolean; record: any }>("/attendance", {
+    method: "POST",
+    headers: getOwnerAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+}
+
+export async function bulkMarkPresent(branchId: string, date: string) {
+  return request<{ success: boolean; count: number }>("/attendance/bulk", {
+    method: "POST",
+    headers: getOwnerAuthHeaders(),
+    body: JSON.stringify({ branchId, date }),
+  });
+}
+
+export async function fetchStaffCalendar(employeeId: string): Promise<StaffCalendarData> {
+  return request<StaffCalendarData>(`/attendance/calendar/${employeeId}`, {
+    headers: getOwnerAuthHeaders(),
+  });
+}
+
+export async function deleteAttendance(employeeId: string, attendanceDate: string) {
+  const params = new URLSearchParams({ employeeId, attendanceDate });
+  return request<{ success: boolean }>(`/attendance?${params}`, {
+    method: "DELETE",
+    headers: getOwnerAuthHeaders(),
+  });
+}
+
+// ─── Appointments API ────────────────────────────────────────────────────────
+
+export type AppointmentStatus = 'booked' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
+
+export interface Appointment {
+  id: string;
+  tenant_id: string;
+  branch_id: string;
+  customer_id?: string;
+  staff_id: string;
+  service_id: string;
+  appointment_date: string;
+  start_time: string;
+  end_time: string;
+  status: AppointmentStatus;
+  notes?: string;
+  customer_name?: string;
+  staff_name?: string;
+  service_name?: string;
+}
+
+export interface AppointmentCalendarEvent {
+  id: string;
+  title: string;
+  start: string;
+  end: string;
+  extendedProps: Appointment;
+}
+
+export interface AppointmentInput {
+  customerId?: string;
+  branchId: string;
+  staffId: string;
+  serviceId: string;
+  appointmentDate: string;
+  startTime: string;
+  endTime: string;
+  status?: AppointmentStatus;
+  notes?: string;
+}
+
+export interface Holiday {
+  id: string;
+  holiday_name: string;
+  holiday_date: string;
+  is_recurring: boolean;
+  branch_id?: string;
+}
+
+export async function fetchDailyAppointments(date: string, branchId?: string): Promise<Appointment[]> {
+  const params = new URLSearchParams({ date });
+  if (branchId && branchId !== 'all') params.append("branchId", branchId);
+  return request<Appointment[]>(`/appointments/daily?${params}`, { headers: getOwnerAuthHeaders() });
+}
+
+export async function fetchCalendarAppointments(startDate: string, endDate: string, branchId?: string): Promise<AppointmentCalendarEvent[]> {
+  const params = new URLSearchParams({ startDate, endDate });
+  if (branchId && branchId !== 'all') params.append("branchId", branchId);
+  return request<AppointmentCalendarEvent[]>(`/appointments/calendar?${params}`, { headers: getOwnerAuthHeaders() });
+}
+
+export async function createAppointment(data: AppointmentInput): Promise<Appointment> {
+  return request<Appointment>("/appointments", {
+    method: "POST",
+    headers: getOwnerAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateAppointment(id: string, data: AppointmentInput): Promise<Appointment> {
+  return request<Appointment>(`/appointments/${id}`, {
+    method: "PUT",
+    headers: getOwnerAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateAppointmentStatus(id: string, status: AppointmentStatus): Promise<Appointment> {
+  return request<Appointment>(`/appointments/${id}/status`, {
+    method: "PUT",
+    headers: getOwnerAuthHeaders(),
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function deleteAppointment(id: string): Promise<{ id: string }> {
+  return request<{ id: string }>(`/appointments/${id}`, {
+    method: "DELETE",
+    headers: getOwnerAuthHeaders(),
+  });
+}
+
+export async function fetchHolidays(branchId?: string): Promise<Holiday[]> {
+  const params = new URLSearchParams();
+  if (branchId && branchId !== 'all') params.append("branchId", branchId);
+  return request<Holiday[]>(`/appointments/holidays?${params}`, { headers: getOwnerAuthHeaders() });
+}
+
+export async function createHoliday(data: { branchId?: string, holidayName: string, holidayDate: string, isRecurring?: boolean }): Promise<Holiday> {
+  return request<Holiday>("/appointments/holidays", {
+    method: "POST",
+    headers: getOwnerAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteHoliday(id: string): Promise<{ id: string }> {
+  return request<{ id: string }>(`/appointments/holidays/${id}`, {
+    method: "DELETE",
+    headers: getOwnerAuthHeaders(),
+  });
+}
+export async function fetchBusySlots(staffId: string, date: string) {
+  return request<{ start_time: string; end_time: string }[]>(`/appointments/busy-slots?staffId=${staffId}&date=${date}`, {
+    headers: getOwnerAuthHeaders(),
   });
 }

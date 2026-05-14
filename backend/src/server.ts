@@ -9,8 +9,9 @@ import { verifyMailerConnection } from './shared/mail/mailer';
 
 import { Server as SocketServer } from 'socket.io';
 import { setupCommunicationsSocket } from './modules/communications/communications.socket';
+import { autoExpireAppointments } from './modules/appointments/appointments.service';
 
-const DEFAULT_PORT = parseInt(process.env.PORT || '5000', 10);
+const DEFAULT_PORT = parseInt(process.env.PORT || '5002', 10);
 
 const listenOnPort = (port: number): http.Server => {
   const server = http.createServer(app);
@@ -49,6 +50,16 @@ AppDataSource.initialize()
     await AppDataSource.runMigrations();
     await verifyMailerConnection();
     listenOnPort(DEFAULT_PORT);
+
+    // Start background tasks
+    console.log('Starting background tasks...');
+    setInterval(async () => {
+      try {
+        await autoExpireAppointments();
+      } catch (err) {
+        console.error('Error in autoExpireAppointments task:', err);
+      }
+    }, 5 * 60 * 1000); // Every 5 minutes
   })
   .catch((error) => {
     console.error('Database connection failed:', error);

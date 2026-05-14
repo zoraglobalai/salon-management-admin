@@ -20,6 +20,10 @@ import ownerRoutes from './modules/owner/owner.routes';
 import reportsRouter from './modules/reports/reports.routes';
 import notificationsRouter from './modules/notifications/notifications.routes';
 import communicationsRouter from './modules/communications/communications.routes';
+import attendanceRouter from './modules/attendance/attendance.routes';
+import appointmentsRouter from './modules/appointments/appointments.routes';
+import { vendorsRouter } from './modules/vendors/vendors.routes';
+import { purchasesRouter } from './modules/purchases/purchases.routes';
 
 const app = express();
 
@@ -49,11 +53,15 @@ app.use('/api/support', supportRoutes);
 app.use('/api/logs', authMiddleware, requireSuperAdmin, logsRoutes);
 app.use('/api/owner', ownerRoutes);
 app.use('/api/inventory', authMiddleware, inventoryRouter);
+app.use('/api/vendors', authMiddleware, vendorsRouter);
+app.use('/api/purchases', authMiddleware, purchasesRouter);
 app.use('/api/services', authMiddleware, servicesRouter);
 app.use('/api/staff', authMiddleware, staffRouter);
 app.use('/api/clients', authMiddleware, clientsRouter);
 app.use('/api/sales', authMiddleware, salesRouter);
 app.use('/api/reports', reportsRouter);
+app.use('/api/attendance', authMiddleware, attendanceRouter);
+app.use('/api/appointments', authMiddleware, appointmentsRouter);
 app.use('/api', authMiddleware, operatorRoutes);
 
 app.use((_req, res) => {
