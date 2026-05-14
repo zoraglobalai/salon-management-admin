@@ -3,7 +3,7 @@ import { useNavigate, useOutletContext } from "react-router-dom";
 import { fetchSaleDrafts, type SaleRecord } from "../../../core/api";
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
 import { useAuth } from "../../auth/hooks/useAuth";
-import { MapPin, Plus, Receipt, UserPlus } from "lucide-react";
+import { MapPin, Plus, Receipt } from "lucide-react";
 
 type LocationOption = { id: string; name: string; city?: string };
 
@@ -71,20 +71,11 @@ export function DashboardSalesPOSPage() {
         }`}
       >
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-start gap-3">
-            <div
-              className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
-                isDark ? "bg-[rgba(201,169,110,0.1)] text-[#E8C98A]" : "bg-[#FBF9F6] text-[#8B5E3C]"
-              }`}
-            >
-              <UserPlus size={20} />
-            </div>
-            <div>
-              <h2 className={`text-xl font-black font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>Sales Workflow</h2>
-              <p className={`mt-1 text-sm ${isDark ? "text-[#C8BFB4]" : "text-gray-600"}`}>
-                Start a new sale on a dedicated page, save it as a draft, and finish payment only at checkout.
-              </p>
-            </div>
+          <div>
+            <h2 className={`text-xl font-black font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>Sales Workflow</h2>
+            <p className={`mt-1 text-sm ${isDark ? "text-[#C8BFB4]" : "text-gray-600"}`}>
+              Start a new sale on a dedicated page, save it as a draft, and finish payment only at checkout.
+            </p>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">

@@ -1634,3 +1634,29 @@ th {
   color: var(--dk-heading);
 }
 
+/* ── Autofill styling fix ── */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px white inset !important;
+  -webkit-text-fill-color: #333 !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+:root[data-theme="dark"] input:-webkit-autofill,
+:root[data-theme="dark"] input:-webkit-autofill:hover, 
+:root[data-theme="dark"] input:-webkit-autofill:focus, 
+:root[data-theme="dark"] input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--theme-card) inset !important;
+  -webkit-text-fill-color: var(--dk-heading) !important;
+}
+
+/* ── Hide scrollbar class ── */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

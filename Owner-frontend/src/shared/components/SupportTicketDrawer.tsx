@@ -7,6 +7,8 @@ import {
   type OwnerSupportTicket,
   type SupportContact,
 } from "../../core/api";
+import { useDashboardTheme } from "../theme/ThemeProvider";
+import { cn } from "../utils/cn";
 
 type SupportTicketDrawerProps = {
   isOpen: boolean;
@@ -23,11 +25,23 @@ const ISSUE_OPTIONS = [
   "Other",
 ];
 
-const STATUS_STYLES: Record<OwnerSupportTicket["status"], string> = {
-  OPEN: "bg-red-50 text-red-700 border-red-200",
-  IN_PROGRESS: "bg-amber-50 text-amber-700 border-amber-200",
-  RESOLVED: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  CLOSED: "bg-slate-100 text-slate-700 border-slate-200",
+const STATUS_STYLES: Record<OwnerSupportTicket["status"], { light: string; dark: string }> = {
+  OPEN: {
+    light: "bg-red-50 text-red-700 border-red-200",
+    dark: "bg-red-500/10 text-red-400 border-red-500/20",
+  },
+  IN_PROGRESS: {
+    light: "bg-amber-50 text-amber-700 border-amber-200",
+    dark: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+  },
+  RESOLVED: {
+    light: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    dark: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+  },
+  CLOSED: {
+    light: "bg-slate-100 text-slate-700 border-slate-200",
+    dark: "bg-white/5 text-[#7A7572] border-white/10",
+  },
 };
 
 function formatStatus(status: OwnerSupportTicket["status"]) {
@@ -35,6 +49,8 @@ function formatStatus(status: OwnerSupportTicket["status"]) {
 }
 
 export function SupportTicketDrawer({ isOpen, onClose, shopName }: SupportTicketDrawerProps) {
+  const { theme } = useDashboardTheme();
+  const isDark = theme === "dark";
   const [issue, setIssue] = useState(ISSUE_OPTIONS[0]);
   const [description, setDescription] = useState("");
   const [tickets, setTickets] = useState<OwnerSupportTicket[]>([]);
@@ -116,17 +132,36 @@ export function SupportTicketDrawer({ isOpen, onClose, shopName }: SupportTicket
 
   return (
     <>
-      <div className="fixed inset-0 z-[70] bg-[#1b1208]/30 backdrop-blur-[1px]" onClick={onClose} />
+      <div className={cn(
+        "fixed inset-0 z-[70] transition-colors duration-300",
+        isDark ? "bg-black/60 backdrop-blur-sm" : "bg-[#1b1208]/30 backdrop-blur-[1px]"
+      )} onClick={onClose} />
 
-      <aside className="fixed inset-y-0 right-0 z-[80] flex w-full max-w-[460px] flex-col border-l border-[#eadfce] bg-[#fffaf4] shadow-[0_18px_60px_rgba(45,27,6,0.18)]">
-        <div className="flex items-start justify-between border-b border-[#eadfce] px-5 py-4">
+      <aside className={cn(
+        "fixed inset-y-0 right-0 z-[80] flex w-full max-w-[460px] flex-col border-l transition-all duration-300",
+        "bg-[#fffaf4] border-[#eadfce] shadow-[0_18px_60px_rgba(45,27,6,0.18)]",
+        "dark:bg-[#151821] dark:border-[rgba(255,255,255,0.07)] dark:shadow-card-dark"
+      )}>
+        <div className={cn(
+          "flex items-start justify-between border-b px-5 py-4 transition-colors",
+          "border-[#eadfce] dark:border-[rgba(255,255,255,0.07)]"
+        )}>
           <div>
-            <div className="flex items-center gap-2 text-[#6f5f4c]">
+            <div className={cn(
+              "flex items-center gap-2 transition-colors",
+              "text-[#6f5f4c] dark:text-[#C8BFB4]"
+            )}>
               <CircleHelp size={18} />
               <span className="text-sm font-medium">Owner Helpdesk</span>
             </div>
-            <h2 className="mt-2 text-xl font-semibold text-[#241910]">Raise a support ticket</h2>
-            <p className="mt-1 text-sm text-[#7a6a58]">
+            <h2 className={cn(
+              "mt-2 text-xl font-semibold transition-colors",
+              "text-[#241910] dark:text-[#F0EBE3]"
+            )}>Raise a support ticket</h2>
+            <p className={cn(
+              "mt-1 text-sm transition-colors",
+              "text-[#7a6a58] dark:text-[#7A7572]"
+            )}>
               {shopName ? `${shopName} can reach support here.` : "Reach admin support from your dashboard."}
             </p>
           </div>
@@ -134,24 +169,42 @@ export function SupportTicketDrawer({ isOpen, onClose, shopName }: SupportTicket
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full border border-[#e6dac8] p-2 text-[#6f5f4c] transition hover:bg-white"
+            className={cn(
+              "rounded-full border p-2 transition-all",
+              "border-[#e6dac8] text-[#6f5f4c] hover:bg-white",
+              "dark:border-[rgba(255,255,255,0.07)] dark:bg-[#1C2030] dark:text-[#C8BFB4] dark:hover:bg-white/5 dark:hover:text-[#F0EBE3]"
+            )}
             aria-label="Close helpdesk"
           >
             <X size={18} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 py-5">
-          <div className="rounded-[24px] border border-[#eadfce] bg-white/90 p-4 shadow-[0_10px_24px_rgba(87,57,18,0.06)]">
+        <div className="flex-1 overflow-y-auto px-5 py-5 scrollbar-hide">
+          <div className={cn(
+            "rounded-[24px] border p-4 shadow-sm transition-all",
+            "border-[#eadfce] bg-white/90 shadow-[0_10px_24px_rgba(87,57,18,0.06)]",
+            "dark:border-[rgba(255,255,255,0.07)] dark:bg-[#1C2030]"
+          )}>
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-semibold text-[#241910]">{contact?.name || "Support team"}</p>
-                <p className="mt-1 text-sm text-[#7a6a58]">{contact?.phone || "Contact number unavailable"}</p>
+                <p className={cn(
+                  "text-sm font-semibold transition-colors",
+                  "text-[#241910] dark:text-[#F0EBE3]"
+                )}>{contact?.name || "Support team"}</p>
+                <p className={cn(
+                  "mt-1 text-sm transition-colors",
+                  "text-[#7a6a58] dark:text-[#7A7572]"
+                )}>{contact?.phone || "Contact number unavailable"}</p>
               </div>
               {contact?.phone ? (
                 <a
                   href={`tel:${contact.phone.replace(/\s+/g, "")}`}
-                  className="inline-flex items-center gap-2 rounded-full bg-[#241910] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#3a2919]"
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white transition-all",
+                    "bg-[#241910] hover:bg-[#3a2919]",
+                    "dark:bg-[#C9A96E] dark:text-[#0F1115] dark:hover:brightness-110"
+                  )}
                 >
                   <Phone size={15} />
                   Call
@@ -160,13 +213,24 @@ export function SupportTicketDrawer({ isOpen, onClose, shopName }: SupportTicket
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="mt-5 rounded-[28px] border border-[#eadfce] bg-white p-5 shadow-[0_14px_36px_rgba(87,57,18,0.08)]">
+          <form onSubmit={handleSubmit} className={cn(
+            "mt-5 rounded-[28px] border p-5 shadow-sm transition-all",
+            "border-[#eadfce] bg-white shadow-[0_14px_36px_rgba(87,57,18,0.08)]",
+            "dark:border-[rgba(255,255,255,0.07)] dark:bg-[#1C2030]"
+          )}>
             <div>
-              <label className="mb-2 block text-sm font-semibold text-[#241910]">Ticket issue</label>
+              <label className={cn(
+                "mb-2 block text-sm font-semibold transition-colors",
+                "text-[#241910] dark:text-[#F0EBE3]"
+              )}>Ticket issue</label>
               <select
                 value={issue}
                 onChange={(event) => setIssue(event.target.value)}
-                className="w-full rounded-2xl border border-[#e8dcc8] bg-[#fffaf4] px-4 py-3 text-sm text-[#2d2117] outline-none transition focus:border-[#c89f62]"
+                className={cn(
+                  "w-full rounded-2xl border px-4 py-3 text-sm outline-none transition-all",
+                  "border-[#e8dcc8] bg-[#fffaf4] text-[#2d2117] focus:border-[#c89f62]",
+                  "dark:border-[rgba(255,255,255,0.07)] dark:bg-[#151821] dark:text-[#F0EBE3] dark:focus:border-[#C9A96E]"
+                )}
               >
                 {ISSUE_OPTIONS.map((option) => (
                   <option key={option} value={option}>
@@ -177,13 +241,20 @@ export function SupportTicketDrawer({ isOpen, onClose, shopName }: SupportTicket
             </div>
 
             <div className="mt-4">
-              <label className="mb-2 block text-sm font-semibold text-[#241910]">Ticket description</label>
+              <label className={cn(
+                "mb-2 block text-sm font-semibold transition-colors",
+                "text-[#241910] dark:text-[#F0EBE3]"
+              )}>Ticket description</label>
               <textarea
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
                 placeholder="Tell admin what happened and what help you need."
                 rows={5}
-                className="w-full resize-none rounded-2xl border border-[#e8dcc8] bg-[#fffaf4] px-4 py-3 text-sm text-[#2d2117] outline-none transition focus:border-[#c89f62]"
+                className={cn(
+                  "w-full resize-none rounded-2xl border px-4 py-3 text-sm outline-none transition-all",
+                  "border-[#e8dcc8] bg-[#fffaf4] text-[#2d2117] focus:border-[#c89f62]",
+                  "dark:border-[rgba(255,255,255,0.07)] dark:bg-[#151821] dark:text-[#F0EBE3] dark:focus:border-[#C9A96E]"
+                )}
               />
             </div>
 
@@ -193,40 +264,74 @@ export function SupportTicketDrawer({ isOpen, onClose, shopName }: SupportTicket
             <button
               type="submit"
               disabled={isSubmitting}
-              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#241910] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#3a2919] disabled:cursor-not-allowed disabled:opacity-70"
+              className={cn(
+                "mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3 text-sm font-semibold text-white transition-all",
+                "bg-[#241910] hover:bg-[#3a2919]",
+                "dark:bg-[#C9A96E] dark:text-[#0F1115] dark:hover:brightness-110",
+                "disabled:cursor-not-allowed disabled:opacity-70"
+              )}
             >
               {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
               {isSubmitting ? "Submitting..." : "Raise ticket"}
             </button>
           </form>
 
-          <div className="mt-5 rounded-[28px] border border-[#eadfce] bg-white p-5 shadow-[0_14px_36px_rgba(87,57,18,0.08)]">
+          <div className={cn(
+            "mt-5 rounded-[28px] border p-5 shadow-sm transition-all",
+            "border-[#eadfce] bg-white shadow-[0_14px_36px_rgba(87,57,18,0.08)]",
+            "dark:border-[rgba(255,255,255,0.07)] dark:bg-[#1C2030]"
+          )}>
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h3 className="text-base font-semibold text-[#241910]">Your recent tickets</h3>
-                <p className="mt-1 text-sm text-[#7a6a58]">Track the current support workflow from your dashboard.</p>
+                <h3 className={cn(
+                  "text-base font-semibold transition-colors",
+                  "text-[#241910] dark:text-[#F0EBE3]"
+                )}>Your recent tickets</h3>
+                <p className={cn(
+                  "mt-1 text-sm transition-colors",
+                  "text-[#7a6a58] dark:text-[#7A7572]"
+                )}>Track the current support workflow from your dashboard.</p>
               </div>
             </div>
 
             {isLoading ? (
-              <div className="flex items-center justify-center py-8 text-[#7a6a58]">
+              <div className={cn(
+                "flex items-center justify-center py-8 transition-colors",
+                "text-[#7a6a58] dark:text-[#7A7572]"
+              )}>
                 <Loader2 size={18} className="animate-spin" />
                 <span className="ml-2 text-sm">Loading support tickets...</span>
               </div>
             ) : tickets.length ? (
               <div className="mt-4 space-y-3">
                 {tickets.map((ticket) => (
-                  <div key={ticket.id} className="rounded-[22px] border border-[#efe4d5] bg-[#fffaf4] p-4">
+                  <div key={ticket.id} className={cn(
+                    "rounded-[22px] border p-4 transition-all",
+                    "border-[#efe4d5] bg-[#fffaf4]",
+                    "dark:border-[rgba(255,255,255,0.07)] dark:bg-[#151821]"
+                  )}>
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold text-[#241910]">{ticket.issue}</p>
-                        <p className="mt-1 text-sm text-[#6f5f4c]">{ticket.description}</p>
+                        <p className={cn(
+                          "text-sm font-semibold transition-colors",
+                          "text-[#241910] dark:text-[#F0EBE3]"
+                        )}>{ticket.issue}</p>
+                        <p className={cn(
+                          "mt-1 text-sm transition-colors",
+                          "text-[#6f5f4c] dark:text-[#C8BFB4]"
+                        )}>{ticket.description}</p>
                       </div>
-                      <span className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${STATUS_STYLES[ticket.status]}`}>
+                      <span className={cn(
+                        "rounded-full border px-3 py-1 text-[11px] font-semibold transition-all",
+                        isDark ? STATUS_STYLES[ticket.status].dark : STATUS_STYLES[ticket.status].light
+                      )}>
                         {formatStatus(ticket.status)}
                       </span>
                     </div>
-                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#8a7865]">
+                    <div className={cn(
+                      "mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs transition-colors",
+                      "text-[#8a7865] dark:text-[#7A7572]"
+                    )}>
                       <span>Raised {new Date(ticket.createdAt).toLocaleDateString("en-IN")}</span>
                       {ticket.resolution ? <span>{ticket.resolution}</span> : null}
                     </div>
@@ -234,7 +339,11 @@ export function SupportTicketDrawer({ isOpen, onClose, shopName }: SupportTicket
                 ))}
               </div>
             ) : (
-              <div className="mt-4 rounded-[22px] border border-dashed border-[#eadfce] bg-[#fffaf4] px-4 py-6 text-sm text-[#7a6a58]">
+              <div className={cn(
+                "mt-4 rounded-[22px] border border-dashed px-4 py-6 text-sm transition-all",
+                "border-[#eadfce] bg-[#fffaf4] text-[#7a6a58]",
+                "dark:border-[rgba(255,255,255,0.07)] dark:bg-[#151821] dark:text-[#7A7572]"
+              )}>
                 No support tickets yet.
               </div>
             )}

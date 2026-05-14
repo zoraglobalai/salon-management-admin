@@ -6,7 +6,7 @@ import { useAuth } from "../../auth/hooks/useAuth";
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
 import { useNotifications } from "../../../shared/components/NotificationProvider";
 import { createOwnerManager, deleteOwnerManager, fetchOwnerManagers, resetOwnerManagerPassword, type OwnerManager } from "../../../core/api";
-import { UserPlus, Shield, Mail, Phone, MapPin, Trash2, Key, Users } from "lucide-react";
+import { UserPlus, Mail, Phone, MapPin, Trash2, Key, Users } from "lucide-react";
 
 export function ManagerList() {
   const { theme } = useDashboardTheme();
@@ -108,18 +108,11 @@ export function ManagerList() {
       <div className={`flex flex-col md:flex-row md:items-center justify-between p-6 rounded-[32px] border shadow-sm transition-all ${
         isDark ? "bg-[#151821] border-[rgba(255,255,255,0.07)]" : "bg-white border-[#E8E1D8]"
       }`}>
-        <div className="flex items-center gap-4">
-          <div className={`h-12 w-12 rounded-2xl flex items-center justify-center shadow-lg transition-transform rotate-3 ${
-            isDark ? "bg-[linear-gradient(135deg,#C9A96E,#A67C3D)] text-[#0F1115]" : "bg-[#8B5E3C] text-white"
-          }`}>
-            <Shield size={24} />
-          </div>
-          <div>
-            <h2 className={`text-2xl font-black font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>Personnel Oversight</h2>
-            <p className={`text-xs font-bold uppercase tracking-widest mt-1 ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>
-              Manage branch supervisors and access controls
-            </p>
-          </div>
+        <div>
+          <h2 className={`text-2xl font-black font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>Personnel Oversight</h2>
+          <p className={`text-xs font-bold uppercase tracking-widest mt-1 ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>
+            Manage branch supervisors and access controls
+          </p>
         </div>
         <div className="mt-4 md:mt-0 flex flex-col items-end gap-2">
           <button
@@ -155,7 +148,7 @@ export function ManagerList() {
         isDark ? "bg-[#151821] border-[rgba(255,255,255,0.07)]" : "bg-white border-[#E8E1D8]"
       }`}>
         {/* Desktop Table View */}
-        <div className="hidden md:block overflow-x-auto h-full">
+        <div className="hidden md:block overflow-auto h-full scrollbar-hide">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className={`border-b transition-all ${isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.05)]" : "bg-gray-50/50 border-[#F2EDE7]"}`}>
@@ -262,7 +255,7 @@ export function ManagerList() {
         </div>
 
         {/* Mobile Card View */}
-        <div className="md:hidden flex flex-col gap-4 p-4 overflow-y-auto">
+        <div className="md:hidden flex flex-col gap-4 p-4 overflow-y-auto scrollbar-hide">
           {managers.map((manager) => (
             <div key={manager.id} className={`rounded-3xl border p-5 shadow-sm transition-all ${
               isDark ? "bg-[#151821] border-[rgba(255,255,255,0.07)]" : "bg-white border-[#E8E1D8]"

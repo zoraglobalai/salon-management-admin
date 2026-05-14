@@ -228,7 +228,7 @@ function LineAreaChart({
     <div className="h-full space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h3 className={`text-[1.5rem] font-semibold tracking-[-0.04em] ${isDark ? "text-[#F0EBE3]" : "text-[#17181F]"}`}>Revenue Overview</h3>
+          <h3 className={`text-[1.5rem] font-bold font-['Outfit'] tracking-[-0.04em] ${isDark ? "text-[#F0EBE3]" : "text-[#17181F]"}`}>Revenue Overview</h3>
           <p className={`mt-3 text-[2rem] font-semibold leading-none tracking-[-0.04em] ${isDark ? "text-[#F0EBE3]" : "text-[#17181F]"}`}>
             {formatCurrency(totalRevenue)}
           </p>
@@ -516,7 +516,7 @@ export function DashboardSummary() {
     <div className="flex flex-col gap-4 xl:gap-3">
       <div className="shrink-0 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
         <div className="min-w-0">
-          <h1 className={`text-[2rem] font-semibold tracking-[-0.05em] xl:text-[2.2rem] ${isDark ? "text-[#F0EBE3]" : "text-[#17181F]"}`}>
+          <h1 className={`text-[2rem] font-bold font-['Outfit'] tracking-[-0.05em] xl:text-[2.2rem] ${isDark ? "text-[#F0EBE3]" : "text-[#17181F]"}`}>
             Welcome back, {user?.name || "Owner"}
           </h1>
           <p className={`mt-1 text-[15px] ${isDark ? "text-[#7A7572]" : "text-[#7C7B87]"}`}>Here&apos;s what&apos;s happening at {subtitleBranchText} today.</p>
@@ -659,7 +659,7 @@ export function DashboardSummary() {
       <div className="shrink-0 grid grid-cols-1 gap-3 xl:grid-cols-2 xl:items-stretch">
         <DashboardCard className="shrink-0 p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <h3 className={`text-[1.45rem] font-semibold tracking-[-0.04em] ${isDark ? "text-[#F0EBE3]" : "text-[#17181F]"}`}>Top Services</h3>
+            <h3 className={`text-[1.45rem] font-bold font-['Outfit'] tracking-[-0.04em] ${isDark ? "text-[#F0EBE3]" : "text-[#17181F]"}`}>Top Services</h3>
             <button
               type="button"
               onClick={openServiceReport}
@@ -696,7 +696,7 @@ export function DashboardSummary() {
 
         <DashboardCard className="p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <h3 className={`text-[1.45rem] font-semibold tracking-[-0.04em] ${isDark ? "text-[#F0EBE3]" : "text-[#17181F]"}`}>Recent Sales</h3>
+            <h3 className={`text-[1.45rem] font-bold font-['Outfit'] tracking-[-0.04em] ${isDark ? "text-[#F0EBE3]" : "text-[#17181F]"}`}>Recent Sales</h3>
             <button
               type="button"
               onClick={openSalesReport}
@@ -744,7 +744,7 @@ export function DashboardSummary() {
       <div className="shrink-0 grid grid-cols-1 gap-3 xl:grid-cols-2">
         <DashboardCard className="p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <h3 className={`text-[1.45rem] font-semibold tracking-[-0.04em] ${isDark ? "text-[#F0EBE3]" : "text-[#17181F]"}`}>Payment Overview</h3>
+            <h3 className={`text-[1.45rem] font-bold font-['Outfit'] tracking-[-0.04em] ${isDark ? "text-[#F0EBE3]" : "text-[#17181F]"}`}>Payment Overview</h3>
             <button
               type="button"
               onClick={openSalesReport}
@@ -786,7 +786,7 @@ export function DashboardSummary() {
 
         <DashboardCard className="p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
-            <h3 className={`text-[1.45rem] font-semibold tracking-[-0.04em] ${isDark ? "text-[#F0EBE3]" : "text-[#17181F]"}`}>Branch Performance</h3>
+            <h3 className={`text-[1.45rem] font-bold font-['Outfit'] tracking-[-0.04em] ${isDark ? "text-[#F0EBE3]" : "text-[#17181F]"}`}>Branch Performance</h3>
             <p className={`text-[13px] ${isDark ? "text-[#7A7572]" : "text-[#8a7e74]"}`}>Comparing active locations</p>
           </div>
           <div className="space-y-4">

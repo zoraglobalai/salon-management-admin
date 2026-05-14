@@ -182,7 +182,7 @@ export function ReportsLandingPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <div className="flex flex-col gap-1">
-        <h1 className={`text-2xl font-bold ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>Reports & Analytics</h1>
+        <h1 className={`text-2xl font-bold font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>Reports & Analytics</h1>
         <p className={`text-sm ${isDark ? "text-[#7A7572]" : "text-[#6B7280]"}`}>Analyze your business performance and track growth.</p>
       </div>
 
@@ -303,7 +303,7 @@ export function ReportsLandingPage() {
         )}
       </div>
 
-      <h2 className={`pt-2 text-xl font-semibold ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>Detailed Reports</h2>
+      <h2 className={`pt-2 text-xl font-semibold font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>Detailed Reports</h2>
 
       <div className="grid gap-3 sm:gap-5 grid-cols-2 lg:grid-cols-3">
         <ReportCard

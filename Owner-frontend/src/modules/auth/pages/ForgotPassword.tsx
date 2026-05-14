@@ -83,7 +83,7 @@ export const ForgotPassword: React.FC = () => {
         </div>
 
         <div className="text-center mt-4">
-          <Link to="/login" className="font-medium text-indigo-600 hover:text-indigo-500 text-sm">
+          <Link to="/login" className="font-medium text-[#8B5E3C] hover:text-[5a3422] text-sm">
             Back to login
           </Link>
         </div>

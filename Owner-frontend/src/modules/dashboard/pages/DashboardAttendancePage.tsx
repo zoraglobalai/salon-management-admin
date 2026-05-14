@@ -11,7 +11,6 @@ import {
   startOfToday
 } from "date-fns";
 import { 
-  Calendar as CalendarIcon, 
   Search, 
   ChevronLeft, 
   ChevronRight, 
@@ -190,19 +189,12 @@ export function DashboardAttendancePage() {
       <div className={`flex flex-col md:flex-row md:items-center justify-between gap-6 p-8 rounded-[40px] border shadow-sm transition-all ${
         isDark ? "bg-[#151821] border-[rgba(255,255,255,0.07)]" : "bg-white border-[#E8E1D8]"
       }`}>
-        <div className="flex items-center gap-5">
-          <div className={`h-14 w-14 rounded-[20px] flex items-center justify-center ${
-            isDark ? "bg-[rgba(201,169,110,0.1)] text-[#C9A96E]" : "bg-[#FCFAF7] text-[#8B5E3C]"
-          }`}>
-            <CalendarIcon size={28} />
-          </div>
-          <div>
-            <h1 className={`text-3xl font-black font-['Outfit'] tracking-tight ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>Attendance</h1>
-            <div className="flex items-center gap-2 mt-1">
-              <span className={`text-xs font-black uppercase tracking-[0.2em] ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`}>
-                {format(currentDate, "MMMM yyyy")}
-              </span>
-            </div>
+        <div>
+          <h1 className={`text-3xl font-black font-['Outfit'] tracking-tight ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>Attendance</h1>
+          <div className="flex items-center gap-2 mt-1">
+            <span className={`text-xs font-black uppercase tracking-[0.2em] ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`}>
+              {format(currentDate, "MMMM yyyy")}
+            </span>
           </div>
         </div>
 
