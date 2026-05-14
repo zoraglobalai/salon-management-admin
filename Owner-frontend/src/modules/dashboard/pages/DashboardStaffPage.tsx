@@ -27,6 +27,7 @@ type FormState = {
   state: string; city: string; addressLine: string;
   sameAsCurrentAddress: boolean;
   bankName: string; accountNumber: string; ifscCode: string;
+  salaryType: string; salaryAmount: string; paymentMethod: string; upiId: string;
   identificationDetails: IdentificationFormItem[];
   joiningDate: string; locationId: string;
 };
@@ -37,6 +38,7 @@ const EMPTY: FormState = {
   state: "", city: "", addressLine: "",
   sameAsCurrentAddress: false,
   bankName: "", accountNumber: "", ifscCode: "",
+  salaryType: "Monthly", salaryAmount: "", paymentMethod: "Cash", upiId: "",
   identificationDetails: [{ idType: "", idNumber: "" }],
   joiningDate: "", locationId: "",
 };
@@ -144,9 +146,13 @@ export function DashboardStaffPage() {
       city: member.city,
       addressLine: member.addressLine,
       sameAsCurrentAddress,
-      bankName: member.bankName,
-      accountNumber: member.accountNumber,
-      ifscCode: member.ifscCode,
+      bankName: member.payroll?.bankName || member.bankName,
+      accountNumber: member.payroll?.accountNumber || member.accountNumber,
+      ifscCode: member.payroll?.ifscCode || member.ifscCode,
+      salaryType: member.payroll?.salaryType === "weekly" ? "Weekly" : "Monthly",
+      salaryAmount: member.payroll?.salaryAmount?.toString() || "",
+      paymentMethod: member.payroll?.paymentMethod || "Cash",
+      upiId: member.payroll?.upiId || "",
       identificationDetails,
       joiningDate: member.joiningDate?.split("T")[0] || "",
       locationId: member.locationId,
@@ -258,6 +264,15 @@ export function DashboardStaffPage() {
       identificationDetails: form.identificationDetails,
       joiningDate: form.joiningDate || null,
       locationId: isManager ? defaultLocationId : form.locationId,
+      payroll: {
+        salaryType: form.salaryType.toLowerCase() as "monthly" | "weekly",
+        salaryAmount: Number(form.salaryAmount || 0),
+        paymentMethod: form.paymentMethod as "Cash" | "Bank Transfer" | "UPI",
+        bankName: form.bankName,
+        accountNumber: form.accountNumber,
+        ifscCode: form.ifscCode,
+        upiId: form.upiId,
+      }
     };
     try {
       if (editingId) await updateStaffMember(editingId, payload);
@@ -678,31 +693,84 @@ export function DashboardStaffPage() {
                 <section>
                   <div className="flex items-center gap-2 mb-4">
                     <Banknote size={14} className={isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"} />
-                    <h3 className={`text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`}>Payroll / Bank Details</h3>
+                    <h3 className={`text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`}>Payroll Details</h3>
                   </div>
-                  <p className={`mb-4 text-xs font-medium ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>These bank details are optional and can be added later.</p>
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
-                      <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Bank Name (Optional)</label>
-                      <input name="bankName" value={form.bankName} onChange={f} placeholder="Enter Bank Name"
+                      <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Salary Type</label>
+                      <div className="relative">
+                        <select name="salaryType" value={form.salaryType} onChange={f}
+                          className={`w-full appearance-none rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
+                            isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E] [color-scheme:dark]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C] [color-scheme:light]"
+                          }`}>
+                          <option value="Monthly">Monthly</option>
+                          <option value="Weekly">Weekly</option>
+                        </select>
+                        <ChevronDown size={16} className={`absolute right-4 top-3.5 pointer-events-none ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Salary Amount</label>
+                      <input type="number" name="salaryAmount" value={form.salaryAmount} 
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^0-9.]/g, "");
+                          setForm(c => ({ ...c, salaryAmount: val }));
+                        }}
+                        placeholder="Enter Amount"
                         className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
                           isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
                         }`} />
                     </div>
                     <div>
-                      <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>IFSC Code (Optional)</label>
-                      <input name="ifscCode" value={form.ifscCode} onChange={f} placeholder="Enter IFSC Code"
-                        className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
-                          isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
-                        }`} />
+                      <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Payment Method</label>
+                      <div className="relative">
+                        <select name="paymentMethod" value={form.paymentMethod} onChange={f}
+                          className={`w-full appearance-none rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
+                            isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E] [color-scheme:dark]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C] [color-scheme:light]"
+                          }`}>
+                          <option value="Cash">Cash</option>
+                          <option value="Bank Transfer">Bank Transfer</option>
+                          <option value="UPI">UPI</option>
+                        </select>
+                        <ChevronDown size={16} className={`absolute right-4 top-3.5 pointer-events-none ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`} />
+                      </div>
                     </div>
-                    <div className="md:col-span-2">
-                      <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Account Number (Optional)</label>
-                      <input name="accountNumber" value={form.accountNumber} onChange={f} placeholder="Standard Savings/Current No."
-                        className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
-                          isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
-                        }`} />
-                    </div>
+
+                    {form.paymentMethod === "Bank Transfer" && (
+                      <>
+                        <div>
+                          <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Bank Name</label>
+                          <input name="bankName" value={form.bankName} onChange={f} placeholder="Enter Bank Name"
+                            className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
+                              isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
+                            }`} />
+                        </div>
+                        <div>
+                          <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>IFSC Code</label>
+                          <input name="ifscCode" value={form.ifscCode} onChange={f} placeholder="Enter IFSC Code"
+                            className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
+                              isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
+                            }`} />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Account Number</label>
+                          <input name="accountNumber" value={form.accountNumber} onChange={f} placeholder="Standard Savings/Current No."
+                            className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
+                              isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
+                            }`} />
+                        </div>
+                      </>
+                    )}
+
+                    {form.paymentMethod === "UPI" && (
+                      <div className="md:col-span-2">
+                        <label className={`mb-1.5 block text-[10px] font-bold uppercase ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>UPI ID</label>
+                        <input name="upiId" value={form.upiId} onChange={f} placeholder="example@upi"
+                          className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all ${
+                            isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C]"
+                          }`} />
+                      </div>
+                    )}
                   </div>
                 </section>
 

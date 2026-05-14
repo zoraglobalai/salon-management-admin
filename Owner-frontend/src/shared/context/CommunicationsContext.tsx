@@ -3,7 +3,7 @@ import { io, Socket } from "socket.io-client";
 import { fetchConversations, fetchMessages, fetchUnreadCount } from "../../core/communications";
 import { clearOwnerSession } from "../../modules/auth/services/sessionSync";
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || "http://localhost:5002";
+const SOCKET_URL = import.meta.env.VITE_API_URL || "";
 
 export interface Message {
   id: string;

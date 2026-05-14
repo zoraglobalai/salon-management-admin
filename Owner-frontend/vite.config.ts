@@ -7,8 +7,21 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: process.env.VITE_PROXY_TARGET || 'http://localhost:5002',
+        target: process.env.VITE_PROXY_TARGET || 'http://127.0.0.1:5002',
         changeOrigin: true,
+      },
+      '/socket.io': {
+        target: process.env.VITE_PROXY_TARGET || 'http://127.0.0.1:5002',
+        ws: true,
+        changeOrigin: true,
+        secure: false,
+        configure: (proxy) => {
+          proxy.on('error', (err, _req, _res) => {
+            if ((err as any).code !== 'ECONNABORTED') {
+              console.error('proxy error', err);
+            }
+          });
+        },
       },
     },
   },
