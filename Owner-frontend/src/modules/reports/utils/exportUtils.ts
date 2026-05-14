@@ -9,10 +9,19 @@ function isNumericLike(value: unknown) {
   return normalized !== "" && !Number.isNaN(Number(normalized));
 }
 
-export function exportToExcel(data: any[], fileName: string, columns?: string[]) {
+export function exportToExcel(data: any[], fileName: string, columns?: string[], meta?: string[]) {
   const orderedColumns = columns && columns.length ? columns : Object.keys(data[0] || {});
   const bodyRows = data.map((row) => orderedColumns.map((key) => row?.[key] ?? ""));
-  const ws = XLSX.utils.aoa_to_sheet([orderedColumns, ...bodyRows]);
+  
+  const finalAoa: any[][] = [];
+  if (meta && meta.length) {
+    meta.forEach(m => finalAoa.push([m]));
+    finalAoa.push([]); // Gap row
+  }
+  finalAoa.push(orderedColumns);
+  bodyRows.forEach(r => finalAoa.push(r));
+
+  const ws = XLSX.utils.aoa_to_sheet(finalAoa);
 
   ws["!cols"] = orderedColumns.map((header, index) => {
     const maxBodyLength = bodyRows.reduce((max, row) => {
