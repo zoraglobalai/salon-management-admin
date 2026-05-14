@@ -240,7 +240,6 @@ export function ProfileDetailsModal({
             label="Full Name"
             value={form.fullName}
             isEditing={editing.fullName}
-            isDark={isDark}
             onChange={(value) => {
               setForm((current) => ({ ...current, fullName: sanitizeFullName(value) }));
               setError(null);
@@ -253,7 +252,6 @@ export function ProfileDetailsModal({
             label="Email"
             value={form.email}
             isEditing={editing.email}
-            isDark={isDark}
             onChange={(value) => {
               setForm((current) => ({ ...current, email: sanitizeEmail(value) }));
               setError(null);
@@ -266,7 +264,6 @@ export function ProfileDetailsModal({
             label="Phone"
             value={form.phone}
             isEditing={editing.phone}
-            isDark={isDark}
             onChange={(value) => {
               setForm((current) => ({ ...current, phone: sanitizePhone(value) }));
               setError(null);
@@ -280,7 +277,6 @@ export function ProfileDetailsModal({
             label="Shop Name"
             value={form.shopName}
             isEditing={editing.shopName}
-            isDark={isDark}
             onChange={(value) => {
               setForm((current) => ({ ...current, shopName: sanitizeShopName(value) }));
               setError(null);
@@ -314,7 +310,6 @@ type FieldRowProps = {
   label: string;
   value: string;
   isEditing: boolean;
-  isDark: boolean;
   onChange: (value: string) => void;
   onEdit: () => void;
   type?: string;
@@ -326,7 +321,6 @@ function FieldRow({
   label,
   value,
   isEditing,
-  isDark,
   onChange,
   onEdit,
   type = "text",

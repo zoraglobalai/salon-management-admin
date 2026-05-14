@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, Building2, Download, Landmark, ReceiptText, Tags, Wallet } from "lucide-react";
-import { Link } from "react-router-dom";
-import { fetchExpenseReport, type ExpenseRecord, type ExpenseReportData } from "../../../core/api";
+import { ArrowLeft, Building2, Download, Landmark, Plus, ReceiptText, Tags, Wallet, X } from "lucide-react";
+import { Link, useOutletContext } from "react-router-dom";
+import { createExpense, fetchExpenseReport, type ExpenseInput, type ExpenseRecord, type ExpenseReportData } from "../../../core/api";
 import { useReport } from "../hooks/useReport";
 import { SummaryCard } from "../components/SummaryCard";
 import { ReportDataTable, type Column } from "../components/Tables/ReportDataTable";
@@ -11,6 +11,7 @@ import { useNotifications } from "../../../shared/components/NotificationProvide
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
 import { cn } from "../../../shared/utils/cn";
 import { FiltersBar } from "../components/FiltersBar";
+import { useAuth } from "../../auth/hooks/useAuth";
 
 function formatCurrency(value: number | string) {
   return `\u20B9${Math.round(Number(value || 0)).toLocaleString("en-IN")}`;
@@ -29,13 +30,34 @@ type ExpenseReportFilters = {
   limit?: number;
 };
 
+type LocationOption = { id: string; name: string; city?: string };
+type OutletContext = { ownerLocations?: LocationOption[] };
+
+function formatDateInput(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export function ExpenseReportPage() {
   const { theme } = useDashboardTheme();
   const { toast } = useNotifications();
+  const { user } = useAuth();
+  const { ownerLocations } = useOutletContext<OutletContext>() || {};
   const isDark = theme === "dark";
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showAddExpenseModal, setShowAddExpenseModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [manualExpenseForm, setManualExpenseForm] = useState({
+    expenseCategory: "",
+    amount: "",
+    paymentMethod: "CASH",
+    expenseDate: formatDateInput(new Date()),
+    branchId: user?.role === "MANAGER" ? user.branchId || "" : "",
+  });
 
-  const { data, loading, filters, setFilters } = useReport<ExpenseReportData, ExpenseReportFilters>(
+  const { data, loading, filters, setFilters, refresh } = useReport<ExpenseReportData, ExpenseReportFilters>(
     fetchExpenseReport,
     {
       locationId: "all",
@@ -58,11 +80,6 @@ export function ExpenseReportPage() {
   const categoryOptions = [...new Set(categories.map((item) => item.category))];
 
   const columns: Column<ExpenseRecord>[] = useMemo(() => [
-    {
-      header: "Expense ID",
-      accessorKey: "id",
-      cell: (item) => <span className={cn("font-mono text-xs", isDark ? "text-[#C8BFB4]" : "text-gray-600")}>{item.id.slice(0, 8)}</span>,
-    },
     { header: "Expense Category", accessorKey: "sub_category" },
     { header: "Amount", accessorKey: "amount", align: "right" as const, cell: (item) => formatCurrency(item.amount) },
     { header: "Payment Method", accessorKey: "payment_method" },
@@ -73,6 +90,51 @@ export function ExpenseReportPage() {
     { header: "Branch", accessorKey: "branch_name" },
   ], [isDark]);
 
+  const submitManualExpense = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const expenseCategory = manualExpenseForm.expenseCategory.trim();
+    const amount = Number(manualExpenseForm.amount || 0);
+
+    if (!expenseCategory) {
+      toast("Expense category is required.", "error");
+      return;
+    }
+    if (!amount || amount < 0) {
+      toast("Amount must be greater than 0.", "error");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const payload: ExpenseInput = {
+        expenseCategory: "Other Expenses",
+        subCategory: expenseCategory,
+        amount,
+        gstAmount: 0,
+        paymentMethod: manualExpenseForm.paymentMethod,
+        expenseDate: manualExpenseForm.expenseDate,
+        branchId: user?.role === "MANAGER" ? user.branchId || null : manualExpenseForm.branchId || null,
+        status: "PAID",
+      };
+
+      await createExpense(payload);
+      toast("Expense added.");
+      setShowAddExpenseModal(false);
+      setManualExpenseForm({
+        expenseCategory: "",
+        amount: "",
+        paymentMethod: "CASH",
+        expenseDate: formatDateInput(new Date()),
+        branchId: user?.role === "MANAGER" ? user.branchId || "" : "",
+      });
+      await refresh();
+    } catch (error) {
+      toast(error instanceof Error ? error.message : "Failed to add expense.", "error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className={cn("mx-auto flex w-full max-w-[1500px] flex-col gap-6 pb-2", isDark ? "text-[#C8BFB4]" : "text-gray-900")}>
       <div className={cn("flex flex-wrap items-center gap-4 rounded-[28px] border px-5 py-5 md:px-7", isDark ? "bg-[#151821] border-[rgba(255,255,255,0.07)]" : "bg-white border-[#E8E1D8]")}>
@@ -81,8 +143,15 @@ export function ExpenseReportPage() {
         </Link>
         <div className="min-w-0 flex-1">
           <h1 className={cn("text-2xl font-bold tracking-[-0.03em] md:text-[2rem]", isDark ? "text-[#F0EBE3]" : "text-[#111827]")}>Expense Report</h1>
-          <p className={cn("text-sm md:text-[15px]", isDark ? "text-[#7A7572]" : "text-[#6B7280]")}>Weekly, monthly, and custom expense analytics from attendance salary, purchase cost, GST paid, and sales discounts.</p>
+          {/* <p className={cn("text-sm md:text-[15px]", isDark ? "text-[#7A7572]" : "text-[#6B7280]")}>Weekly, monthly, and custom expense analytics from attendance salary, purchase cost, GST paid, and sales discounts.</p> */}
         </div>
+        <button
+          onClick={() => setShowAddExpenseModal(true)}
+          className={cn("inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white", isDark ? "bg-[linear-gradient(135deg,#C9A96E_0%,#A67C3D_100%)]" : "bg-[#8B5E3C]")}
+        >
+          <Plus size={16} />
+          Add Expense
+        </button>
       </div>
 
       <FiltersBar
@@ -143,7 +212,6 @@ export function ExpenseReportPage() {
         title="Expense Report"
         onExport={(type) => {
           const exportRows = rows.map((row) => ({
-            "Expense ID": row.id,
             "Expense Category": row.sub_category,
             Amount: formatCurrency(row.amount),
             "Payment Method": row.payment_method,
@@ -154,7 +222,7 @@ export function ExpenseReportPage() {
             Branch: row.branch_name,
           }));
 
-          const headers = ["Expense ID", "Expense Category", "Amount", "Payment Method", "Expense Date", "Product Bought", "Vendor", "Staff", "Branch"];
+          const headers = ["Expense Category", "Amount", "Payment Method", "Expense Date", "Product Bought", "Vendor", "Staff", "Branch"];
 
           if (type === "excel") {
             exportToExcel(exportRows, `Expense_Report_${new Date().toISOString().split("T")[0]}`, headers);
@@ -180,6 +248,83 @@ export function ExpenseReportPage() {
           <ReportDataTable columns={columns} data={rows} sortKey="expense_date" sortDirection="desc" page={pagination.page} totalPages={pagination.totalPages} onPageChange={(page) => setFilters((current) => ({ ...current, page }))} />
         </div>
       </div>
+
+      {showAddExpenseModal && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md">
+          <div className={cn("w-full max-w-2xl rounded-[28px] border", isDark ? "bg-[#151821] border-[rgba(255,255,255,0.08)]" : "bg-white border-[#E8E1D8]")}>
+            <div className={cn("flex items-center justify-between border-b px-6 py-5", isDark ? "border-[rgba(255,255,255,0.06)]" : "border-[#E8E1D8]")}>
+              <h3 className={cn("text-xl font-bold", isDark ? "text-[#F0EBE3]" : "text-gray-900")}>Add Expense</h3>
+              <button onClick={() => setShowAddExpenseModal(false)}>
+                <X size={18} className={isDark ? "text-[#7A7572]" : "text-gray-500"} />
+              </button>
+            </div>
+            <form onSubmit={submitManualExpense} className="grid gap-4 p-6 md:grid-cols-2">
+              <div>
+                <label className={cn("mb-1.5 block text-xs font-bold", isDark ? "text-[#7A7572]" : "text-gray-600")}>Expense Category</label>
+                <input
+                  value={manualExpenseForm.expenseCategory}
+                  onChange={(event) => setManualExpenseForm((current) => ({ ...current, expenseCategory: event.target.value }))}
+                  placeholder="Enter Expense Category"
+                  className={cn("w-full rounded-xl border px-4 py-3 text-sm outline-none", isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3]" : "bg-gray-50/50 border-[#E8E1D8]")}
+                />
+              </div>
+              <div>
+                <label className={cn("mb-1.5 block text-xs font-bold", isDark ? "text-[#7A7572]" : "text-gray-600")}>Amount</label>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={manualExpenseForm.amount}
+                  onChange={(event) => setManualExpenseForm((current) => ({ ...current, amount: event.target.value }))}
+                  placeholder="Enter Amount"
+                  className={cn("w-full rounded-xl border px-4 py-3 text-sm outline-none", isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3]" : "bg-gray-50/50 border-[#E8E1D8]")}
+                />
+              </div>
+              <div>
+                <label className={cn("mb-1.5 block text-xs font-bold", isDark ? "text-[#7A7572]" : "text-gray-600")}>Payment Method</label>
+                <select
+                  value={manualExpenseForm.paymentMethod}
+                  onChange={(event) => setManualExpenseForm((current) => ({ ...current, paymentMethod: event.target.value }))}
+                  className={cn("w-full rounded-xl border px-4 py-3 text-sm outline-none", isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3]" : "bg-gray-50/50 border-[#E8E1D8]")}
+                >
+                  <option value="CASH">CASH</option>
+                  <option value="UPI">UPI</option>
+                  <option value="CARD">CARD</option>
+                  <option value="BANK">BANK</option>
+                </select>
+              </div>
+              <div>
+                <label className={cn("mb-1.5 block text-xs font-bold", isDark ? "text-[#7A7572]" : "text-gray-600")}>Expense Date</label>
+                <input
+                  type="date"
+                  value={manualExpenseForm.expenseDate}
+                  onChange={(event) => setManualExpenseForm((current) => ({ ...current, expenseDate: event.target.value }))}
+                  className={cn("w-full rounded-xl border px-4 py-3 text-sm outline-none", isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3]" : "bg-gray-50/50 border-[#E8E1D8]")}
+                />
+              </div>
+              {user?.role !== "MANAGER" && (
+                <div className="md:col-span-2">
+                  <label className={cn("mb-1.5 block text-xs font-bold", isDark ? "text-[#7A7572]" : "text-gray-600")}>Branch</label>
+                  <select
+                    value={manualExpenseForm.branchId}
+                    onChange={(event) => setManualExpenseForm((current) => ({ ...current, branchId: event.target.value }))}
+                    className={cn("w-full rounded-xl border px-4 py-3 text-sm outline-none", isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3]" : "bg-gray-50/50 border-[#E8E1D8]")}
+                  >
+                    <option value="">All Branches</option>
+                    {(ownerLocations || []).map((location) => (
+                      <option key={location.id} value={location.id}>{location.city || location.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div className="md:col-span-2 flex justify-end gap-3">
+                <button type="button" onClick={() => setShowAddExpenseModal(false)} className={cn("rounded-full px-5 py-2 text-sm font-semibold", isDark ? "bg-[rgba(255,255,255,0.08)] text-[#C8BFB4]" : "bg-gray-100 text-gray-700")}>Cancel</button>
+                <button disabled={isSubmitting} type="submit" className={cn("rounded-full px-5 py-2 text-sm font-semibold text-white", isDark ? "bg-[linear-gradient(135deg,#C9A96E_0%,#A67C3D_100%)]" : "bg-[#8B5E3C]")}>{isSubmitting ? "Adding..." : "Add Expense"}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

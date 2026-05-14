@@ -1267,6 +1267,30 @@ type SalesDiscountQueryRow = {
   created_at: string | null;
 };
 
+type ManualExpenseQueryRow = {
+  id: string;
+  expense_category: string;
+  sub_category: string;
+  amount: string | number;
+  gst_amount: string | number;
+  total_amount: string | number;
+  payment_method: string;
+  expense_date: string;
+  branch_id: string | null;
+  vendor_id: string | null;
+  purchase_id: string | null;
+  staff_id: string | null;
+  added_by: string;
+  notes: string;
+  invoice_file: string;
+  status: string;
+  created_at: string | null;
+  updated_at: string | null;
+  branch_name: string;
+  vendor_name: string;
+  staff_name: string;
+};
+
 function mapDerivedExpenseStatus(value?: string | null): "PAID" | "PENDING" | "PARTIAL" | "CANCELLED" {
   const normalized = String(value || "").trim().toUpperCase();
   if (normalized === "PAID") return "PAID";
@@ -1307,7 +1331,7 @@ export async function getExpenseReport(user: AuthUserPayload, filters: ExpenseRe
 
   const salesColumns = await getTableColumns("sales");
 
-  const [salaryRows, purchaseRows, salesDiscountRows, vendorsResult, branchesResult] = await Promise.all([
+  const [salaryRows, purchaseRows, salesDiscountRows, manualExpenseRows, vendorsResult, branchesResult] = await Promise.all([
     (async () => {
       const values: Array<string | number | null> = [user.tenant_id];
       let staffWhere = "sm.tenant_id = $1";
@@ -1465,6 +1489,56 @@ export async function getExpenseReport(user: AuthUserPayload, filters: ExpenseRe
         values,
       );
     })(),
+    (async () => {
+      const values: Array<string | null> = [user.tenant_id];
+      const conditions = ["e.tenant_id = $1", "e.purchase_id IS NULL"];
+      if (selectedLocationId) {
+        values.push(selectedLocationId);
+        conditions.push(`e.branch_id = $${values.length}`);
+      }
+      values.push(startDate);
+      conditions.push(`e.expense_date >= $${values.length}`);
+      values.push(endDate);
+      conditions.push(`e.expense_date <= $${values.length}`);
+      if (normalizedPaymentMethod) {
+        values.push(normalizedPaymentMethod);
+        conditions.push(`UPPER(COALESCE(e.payment_method, '')) = $${values.length}`);
+      }
+
+      return query<ManualExpenseQueryRow>(
+        `
+          SELECT
+            e.id,
+            e.expense_category,
+            e.sub_category,
+            e.amount,
+            e.gst_amount,
+            e.total_amount,
+            e.payment_method,
+            e.expense_date,
+            e.branch_id,
+            e.vendor_id,
+            e.purchase_id,
+            e.staff_id,
+            e.added_by,
+            e.notes,
+            e.invoice_file,
+            e.status,
+            e.created_at,
+            e.updated_at,
+            COALESCE(b.name, 'All Branches') AS branch_name,
+            COALESCE(v.vendor_name, '-') AS vendor_name,
+            COALESCE(sm.name, '-') AS staff_name
+          FROM expenses e
+          LEFT JOIN branches b ON b.id = e.branch_id
+          LEFT JOIN vendors v ON v.id = e.vendor_id
+          LEFT JOIN staff_members sm ON sm.id = e.staff_id
+          WHERE ${conditions.join(" AND ")}
+          ORDER BY e.expense_date DESC, e.created_at DESC
+        `,
+        values,
+      );
+    })(),
     query<{ id: string; vendor_name: string }>(
       `SELECT id, vendor_name FROM vendors WHERE tenant_id = $1 ORDER BY vendor_name ASC`,
       [user.tenant_id],
@@ -1597,6 +1671,34 @@ export async function getExpenseReport(user: AuthUserPayload, filters: ExpenseRe
       branch_name: row.branch_name || "All Branches",
       vendor_name: "-",
       staff_name: "-",
+      purchase_invoice: null,
+      products_bought: null,
+    });
+  });
+
+  manualExpenseRows.rows.forEach((row: ManualExpenseQueryRow) => {
+    derivedRows.push({
+      id: row.id,
+      expense_category: row.expense_category,
+      sub_category: row.sub_category,
+      amount: Number(row.amount || 0),
+      gst_amount: Number(row.gst_amount || 0),
+      total_amount: Number(row.total_amount || 0),
+      payment_method: String(row.payment_method || "").toUpperCase(),
+      expense_date: formatDateOnly(row.expense_date),
+      branch_id: row.branch_id || null,
+      vendor_id: row.vendor_id || null,
+      purchase_id: row.purchase_id || null,
+      staff_id: row.staff_id || null,
+      added_by: row.added_by || "System",
+      notes: row.notes || "",
+      invoice_file: row.invoice_file || "",
+      status: mapDerivedExpenseStatus(row.status),
+      created_at: row.created_at || `${formatDateOnly(row.expense_date)}T00:00:00.000Z`,
+      updated_at: row.updated_at || row.created_at || `${formatDateOnly(row.expense_date)}T00:00:00.000Z`,
+      branch_name: row.branch_name || "All Branches",
+      vendor_name: row.vendor_name || "-",
+      staff_name: row.staff_name || "-",
       purchase_invoice: null,
       products_bought: null,
     });
