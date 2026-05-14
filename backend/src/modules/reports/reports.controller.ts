@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { isAuthUserPayload } from "../../middleware/authMiddleware";
 import * as reportsService from "./reports.service";
+import type { AttendanceReportFilters } from "./reports.service";
 
 export async function handleGetSalesReport(req: Request, res: Response, next: NextFunction) {
   try {
@@ -100,3 +101,21 @@ export async function handleGetPurchaseReport(req: Request, res: Response, next:
     return res.status(200).json({ success: true, data });
   } catch (err) { next(err); }
 }
+
+export async function handleGetAttendanceReport(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!isAuthUserPayload(req.user)) return res.status(401).json({ message: "Unauthorized" });
+    const filters: AttendanceReportFilters = {
+      startDate:  req.query.startDate  as string | undefined,
+      endDate:    req.query.endDate    as string | undefined,
+      locationId: req.query.locationId as string | undefined,
+      staffId:    req.query.staffId    as string | undefined,
+      salaryType: req.query.salaryType as string | undefined,
+      page:  req.query.page  ? parseInt(req.query.page  as string) : 1,
+      limit: req.query.limit ? parseInt(req.query.limit as string) : 10,
+    };
+    const data = await reportsService.getAttendanceReport(req.user, filters);
+    return res.status(200).json({ success: true, data });
+  } catch (err) { next(err); }
+}
+
