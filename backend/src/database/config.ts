@@ -41,6 +41,10 @@ import { UpdateInventoryForPurchase1716200000000 } from './migrations/1716200000
 import { AddPurchaseItemGst1716300000000 } from './migrations/1716300000000-AddPurchaseItemGst';
 import { AddPurchaseItemGstType1716400000000 } from './migrations/1716400000000-AddPurchaseItemGstType';
 import { AddPurchasesCreatedBy1716500000000 } from './migrations/1716500000000-AddPurchasesCreatedBy';
+import { CreateExpenseCategories1716600000000 } from './migrations/1716600000000-CreateExpenseCategories';
+import { CreateExpenses1716610000000 } from './migrations/1716610000000-CreateExpenses';
+import { UpdatePurchaseExpenseRelation1716620000000 } from './migrations/1716620000000-UpdatePurchaseExpenseRelation';
+import { UpdateSalaryExpenseRelation1716630000000 } from './migrations/1716630000000-UpdateSalaryExpenseRelation';
 
 export const databaseConfig = {
   host: ENV.DB_HOST,
@@ -86,5 +90,9 @@ export const AppDataSource = new DataSource({
     AddPurchaseItemGst1716300000000,
     AddPurchaseItemGstType1716400000000,
     AddPurchasesCreatedBy1716500000000,
+    CreateExpenseCategories1716600000000,
+    CreateExpenses1716610000000,
+    UpdatePurchaseExpenseRelation1716620000000,
+    UpdateSalaryExpenseRelation1716630000000,
   ],
 });

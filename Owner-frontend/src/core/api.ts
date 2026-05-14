@@ -1306,6 +1306,143 @@ export async function fetchAttendanceReport(filters: {
   });
 }
 
+export type ExpenseStatus = "PAID" | "PENDING" | "PARTIAL" | "CANCELLED";
+
+export type ExpenseRecord = {
+  id: string;
+  expense_category: string;
+  sub_category: string;
+  amount: number;
+  gst_amount: number;
+  total_amount: number;
+  payment_method: string;
+  expense_date: string;
+  branch_id: string | null;
+  vendor_id: string | null;
+  purchase_id: string | null;
+  staff_id: string | null;
+  added_by: string;
+  notes: string;
+  invoice_file: string;
+  status: ExpenseStatus;
+  created_at: string;
+  updated_at: string;
+  branch_name: string;
+  vendor_name: string;
+  staff_name: string;
+  purchase_invoice?: string | null;
+  products_bought?: string | null;
+};
+
+export type ExpenseReportData = {
+  rows: ExpenseRecord[];
+  summary: {
+    total_weekly_expense: number;
+    total_monthly_expense: number;
+    salary_expense_total: number;
+    purchase_expense_total: number;
+    gst_paid_total: number;
+    highest_expense_category: string;
+    total_vendors_paid: number;
+    total_transactions: number;
+  };
+  filterMeta: {
+    vendors: Array<{ id: string; vendor_name: string }>;
+    branches: Array<{ id: string; name: string }>;
+    categories: Array<{ category: string; sub_category: string }>;
+  };
+  pagination: {
+    page: number;
+    limit: number;
+    totalCount: number;
+    totalPages: number;
+  };
+};
+
+export type ExpenseInput = {
+  expenseCategory: string;
+  subCategory: string;
+  amount: number;
+  gstAmount?: number;
+  paymentMethod: string;
+  expenseDate: string;
+  branchId?: string | null;
+  vendorId?: string | null;
+  purchaseId?: string | null;
+  staffId?: string | null;
+  notes?: string;
+  invoiceFile?: string;
+  status?: ExpenseStatus;
+};
+
+export async function fetchExpenses(filters: {
+  startDate?: string;
+  endDate?: string;
+  locationId?: string;
+  expenseCategory?: string;
+  subCategory?: string;
+  paymentMethod?: string;
+  vendorId?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const params = new URLSearchParams();
+  if (filters.startDate) params.set("startDate", filters.startDate);
+  if (filters.endDate) params.set("endDate", filters.endDate);
+  if (filters.locationId && filters.locationId !== "all") params.set("locationId", filters.locationId);
+  if (filters.expenseCategory && filters.expenseCategory !== "all") params.set("expenseCategory", filters.expenseCategory);
+  if (filters.subCategory && filters.subCategory !== "all") params.set("subCategory", filters.subCategory);
+  if (filters.paymentMethod && filters.paymentMethod !== "all") params.set("paymentMethod", filters.paymentMethod);
+  if (filters.vendorId && filters.vendorId !== "all") params.set("vendorId", filters.vendorId);
+  if (filters.status && filters.status !== "all") params.set("status", filters.status);
+  if (filters.page) params.set("page", filters.page.toString());
+  if (filters.limit) params.set("limit", filters.limit.toString());
+
+  const qs = params.toString();
+  return request<{ success: boolean; data: ExpenseReportData }>(`/expenses${qs ? `?${qs}` : ""}`, {
+    headers: getOwnerAuthHeaders(),
+  });
+}
+
+export async function createExpense(payload: ExpenseInput) {
+  return request<{ success: boolean; data: ExpenseRecord; message?: string }>("/expenses", {
+    method: "POST",
+    headers: getOwnerAuthHeaders(),
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchExpenseReport(filters: {
+  startDate?: string;
+  endDate?: string;
+  locationId?: string;
+  expenseCategory?: string;
+  subCategory?: string;
+  paymentMethod?: string;
+  vendorId?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const params = new URLSearchParams();
+  if (filters.startDate) params.set("startDate", filters.startDate);
+  if (filters.endDate) params.set("endDate", filters.endDate);
+  if (filters.locationId && filters.locationId !== "all") params.set("locationId", filters.locationId);
+  if (filters.expenseCategory && filters.expenseCategory !== "all") params.set("expenseCategory", filters.expenseCategory);
+  if (filters.subCategory && filters.subCategory !== "all") params.set("subCategory", filters.subCategory);
+  if (filters.paymentMethod && filters.paymentMethod !== "all") params.set("paymentMethod", filters.paymentMethod);
+  if (filters.vendorId && filters.vendorId !== "all") params.set("vendorId", filters.vendorId);
+  if (filters.status && filters.status !== "all") params.set("status", filters.status);
+  if (filters.page) params.set("page", filters.page.toString());
+  if (filters.limit) params.set("limit", filters.limit.toString());
+
+  const qs = params.toString();
+  return request<{ success: boolean; data: ExpenseReportData }>(`/reports/expenses${qs ? `?${qs}` : ""}`, {
+    headers: getOwnerAuthHeaders(),
+  });
+}
+
 // ─── Notifications API ──────────────────────────────────────────────────────────
 
 

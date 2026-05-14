@@ -13,6 +13,7 @@ import {
   UserSquare2,
   Users,
   ShoppingBag,
+  Wallet,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../auth/hooks/useAuth";
@@ -340,6 +341,12 @@ export function ReportsLandingPage() {
           description="Track vendor purchases, product-level costs, stock additions, and payment status."
           icon={<ShoppingBag />}
           to="/dashboard/reports/purchases"
+        />
+        <ReportCard
+          title="Expense Report"
+          description="Track attendance-based salary, purchase cost, GST paid, and sales-side discount expenses with exports and filters."
+          icon={<Wallet />}
+          to="/dashboard/reports/expenses"
         />
         <ReportCard
           title="Attendance Report"

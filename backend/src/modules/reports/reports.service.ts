@@ -949,6 +949,19 @@ export type AttendanceReportFilters = {
   limit?: number;
 };
 
+export type ExpenseReportFilters = {
+  startDate?: string;
+  endDate?: string;
+  locationId?: string;
+  paymentMethod?: string;
+  expenseCategory?: string;
+  subCategory?: string;
+  vendorId?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+};
+
 export async function getAttendanceReport(user: AuthUserPayload, filters: AttendanceReportFilters) {
   if (!user.tenant_id) throw createError("Tenant not found.", 400);
 
@@ -1187,6 +1200,475 @@ export async function getAttendanceReport(user: AuthUserPayload, filters: Attend
       limit,
       totalCount,
       totalPages: Math.ceil(totalCount / limit),
+    },
+  };
+}
+
+type DerivedExpenseRow = {
+  id: string;
+  expense_category: string;
+  sub_category: string;
+  amount: number;
+  gst_amount: number;
+  total_amount: number;
+  payment_method: string;
+  expense_date: string;
+  branch_id: string | null;
+  vendor_id: string | null;
+  purchase_id: string | null;
+  staff_id: string | null;
+  added_by: string;
+  notes: string;
+  invoice_file: string;
+  status: "PAID" | "PENDING" | "PARTIAL" | "CANCELLED";
+  created_at: string;
+  updated_at: string;
+  branch_name: string;
+  vendor_name: string;
+  staff_name: string;
+  purchase_invoice: string | null;
+  products_bought?: string | null;
+};
+
+type SalaryExpenseQueryRow = {
+  staff_id: string;
+  staff_name: string;
+  branch_id: string | null;
+  branch_name: string;
+  payment_method: string;
+  final_salary: string | number;
+};
+
+type PurchaseExpenseQueryRow = {
+  purchase_id: string;
+  purchase_date: string;
+  invoice_number: string | null;
+  payment_status: string | null;
+  payment_method: string | null;
+  vendor_id: string | null;
+  vendor_name: string;
+  branch_id: string | null;
+  branch_name: string;
+  base_amount: string | number;
+  gst_amount: string | number;
+  total_purchase_amount: string | number;
+  created_by: string | null;
+  created_at: string | null;
+  products_bought: string | null;
+};
+
+type SalesDiscountQueryRow = {
+  sale_id: string;
+  sale_date: string;
+  discount_amount: string | number;
+  payment_method: string | null;
+  branch_id: string | null;
+  branch_name: string;
+  created_at: string | null;
+};
+
+function mapDerivedExpenseStatus(value?: string | null): "PAID" | "PENDING" | "PARTIAL" | "CANCELLED" {
+  const normalized = String(value || "").trim().toUpperCase();
+  if (normalized === "PAID") return "PAID";
+  if (normalized === "PARTIAL") return "PARTIAL";
+  if (normalized === "CANCELLED") return "CANCELLED";
+  return "PENDING";
+}
+
+function formatDateOnly(value: string | Date) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
+  return date.toISOString().split("T")[0];
+}
+
+function buildExpenseCategoryMeta() {
+  return [
+    { category: "Staff Expenses", sub_category: "Staff Salary" },
+    { category: "Purchase Expenses", sub_category: "Product Purchase Amount" },
+    { category: "Tax Expenses", sub_category: "GST Paid" },
+    { category: "Sales Adjustments", sub_category: "Sales Discount" },
+  ];
+}
+
+export async function getExpenseReport(user: AuthUserPayload, filters: ExpenseReportFilters) {
+  if (!user.tenant_id) throw createError("Tenant not found.", 400);
+
+  const selectedLocationId = user.type === "manager" ? user.branch_id : normalizeLocationId(filters.locationId);
+  const today = new Date();
+  const todayStr = formatDateOnly(today);
+  const startDate = filters.startDate || todayStr;
+  const endDate = filters.endDate || todayStr;
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const workingDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
+  const normalizedPaymentMethod = filters.paymentMethod && filters.paymentMethod !== "all"
+    ? filters.paymentMethod.toUpperCase()
+    : undefined;
+
+  const salesColumns = await getTableColumns("sales");
+
+  const [salaryRows, purchaseRows, salesDiscountRows, vendorsResult, branchesResult] = await Promise.all([
+    (async () => {
+      const values: Array<string | number | null> = [user.tenant_id];
+      let staffWhere = "sm.tenant_id = $1";
+      if (selectedLocationId) {
+        values.push(selectedLocationId);
+        staffWhere += ` AND sm.location_id = $${values.length}`;
+      }
+      values.push(startDate);
+      const startDateParam = `$${values.length}`;
+      values.push(endDate);
+      const endDateParam = `$${values.length}`;
+      values.push(workingDays);
+      const workingDaysParam = `$${values.length}`;
+      if (normalizedPaymentMethod) {
+        values.push(normalizedPaymentMethod);
+        staffWhere += ` AND UPPER(COALESCE(sp.payment_method, '')) = $${values.length}`;
+      }
+
+      return query<SalaryExpenseQueryRow>(
+        `WITH attendance_agg AS (
+           SELECT
+             a.employee_id,
+             COUNT(CASE WHEN a.status = 'half_day' THEN 1 END)::int AS half_days,
+             COUNT(CASE WHEN a.status = 'lop' THEN 1 END)::int AS lop_days
+           FROM attendance a
+           WHERE a.attendance_date BETWEEN ${startDateParam}::date AND ${endDateParam}::date
+             AND a.branch_id IN (
+               SELECT id
+               FROM branches
+               WHERE tenant_id = $1
+               ${selectedLocationId ? `AND id = $2` : ""}
+             )
+           GROUP BY a.employee_id
+         )
+         SELECT
+           sm.id AS staff_id,
+           sm.name AS staff_name,
+           sm.location_id AS branch_id,
+           COALESCE(b.name, 'All Branches') AS branch_name,
+           COALESCE(sp.payment_method, 'SALARY') AS payment_method,
+           ROUND(
+             COALESCE(sp.salary_amount, 0) - (
+               (COALESCE(agg.lop_days, 0) * (
+                 CASE
+                   WHEN LOWER(COALESCE(sp.salary_type, 'monthly')) = 'weekly'
+                   THEN COALESCE(sp.salary_amount, 0) / 7.0
+                   ELSE COALESCE(sp.salary_amount, 0) / ${workingDaysParam}::numeric
+                 END
+               )) +
+               (COALESCE(agg.half_days, 0) * (
+                 CASE
+                   WHEN LOWER(COALESCE(sp.salary_type, 'monthly')) = 'weekly'
+                   THEN COALESCE(sp.salary_amount, 0) / 7.0
+                   ELSE COALESCE(sp.salary_amount, 0) / ${workingDaysParam}::numeric
+                 END
+               ) / 2.0)
+             ),
+             2
+           ) AS final_salary
+         FROM staff_members sm
+         LEFT JOIN staff_payroll sp ON sp.staff_id = sm.id
+         LEFT JOIN branches b ON b.id = sm.location_id
+         LEFT JOIN attendance_agg agg ON agg.employee_id = sm.id
+         WHERE ${staffWhere}
+           AND COALESCE(sp.salary_amount, 0) > 0
+         ORDER BY sm.name ASC`,
+        values,
+      );
+    })(),
+    (async () => {
+      const values: Array<string | null> = [user.tenant_id];
+      const conditions = ["p.tenant_id = $1"];
+      if (selectedLocationId) {
+        values.push(selectedLocationId);
+        conditions.push(`p.location_id = $${values.length}`);
+      }
+      values.push(startDate);
+      conditions.push(`p.purchase_date >= $${values.length}::date`);
+      values.push(endDate);
+      conditions.push(`p.purchase_date <= $${values.length}::date`);
+      if (filters.vendorId && filters.vendorId !== "all") {
+        values.push(filters.vendorId);
+        conditions.push(`p.vendor_id = $${values.length}`);
+      }
+      if (normalizedPaymentMethod) {
+        values.push(normalizedPaymentMethod);
+        conditions.push(`UPPER(COALESCE(p.payment_method, '')) = $${values.length}`);
+      }
+
+      return query<PurchaseExpenseQueryRow>(
+        `SELECT
+           p.id AS purchase_id,
+           p.purchase_date,
+           p.invoice_number,
+           p.payment_status,
+           p.payment_method,
+           p.vendor_id,
+           COALESCE(v.vendor_name, '-') AS vendor_name,
+           p.location_id AS branch_id,
+           COALESCE(b.name, 'All Branches') AS branch_name,
+           COALESCE(SUM(pi.cost_price * pi.initial_stock), 0) AS base_amount,
+           COALESCE(SUM((CASE WHEN pi.gst_type = 'PERCENT' THEN (pi.cost_price * pi.gst / 100) ELSE pi.gst END) * pi.initial_stock), 0) AS gst_amount,
+           COALESCE(p.total_amount, 0) AS total_purchase_amount,
+           COALESCE(string_agg(pi.product_name, ', ' ORDER BY pi.created_at), '') AS products_bought,
+           COALESCE(p.created_by, 'System') AS created_by,
+           p.created_at
+         FROM purchases p
+         JOIN purchase_items pi ON pi.purchase_id = p.id
+         LEFT JOIN vendors v ON v.id = p.vendor_id
+         LEFT JOIN branches b ON b.id = p.location_id
+         WHERE ${conditions.join(" AND ")}
+         GROUP BY p.id, p.purchase_date, p.invoice_number, p.payment_status, p.payment_method, p.vendor_id, v.vendor_name, p.location_id, b.name, p.total_amount, p.created_by, p.created_at
+         ORDER BY p.purchase_date DESC, p.created_at DESC`,
+        values,
+      );
+    })(),
+    (async () => {
+      const salesLocationExpr: string = salesColumns.has("location_id")
+        ? (salesColumns.has("branch_id") ? "COALESCE(s.location_id, s.branch_id)" : "s.location_id")
+        : "s.branch_id";
+      const salesDateExpr: string = salesColumns.has("created_at")
+        ? (salesColumns.has("sale_date") ? "COALESCE(s.created_at, s.sale_date)" : "s.created_at")
+        : "s.sale_date";
+      const values: Array<string | null> = [user.tenant_id];
+      const conditions = ["s.tenant_id = $1", "COALESCE(s.discount, 0) > 0"];
+      if (salesColumns.has("status")) {
+        conditions.push(`COALESCE(s.status, 'COMPLETED') = 'COMPLETED'`);
+      }
+      if (selectedLocationId) {
+        values.push(selectedLocationId);
+        conditions.push(`${salesLocationExpr} = $${values.length}`);
+      }
+      values.push(startDate);
+      conditions.push(`DATE(${salesDateExpr}) >= $${values.length}::date`);
+      values.push(endDate);
+      conditions.push(`DATE(${salesDateExpr}) <= $${values.length}::date`);
+      if (normalizedPaymentMethod) {
+        values.push(normalizedPaymentMethod);
+        conditions.push(`UPPER(COALESCE(s.payment_method, '')) = $${values.length}`);
+      }
+
+      return query<SalesDiscountQueryRow>(
+        `SELECT
+           s.id AS sale_id,
+           ${salesDateExpr} AS sale_date,
+           COALESCE(s.discount, 0) AS discount_amount,
+           COALESCE(s.payment_method, 'SALE') AS payment_method,
+           ${salesLocationExpr} AS branch_id,
+           COALESCE(b.name, 'All Branches') AS branch_name,
+           s.created_at
+         FROM sales s
+         LEFT JOIN branches b ON b.id = ${salesLocationExpr}
+         WHERE ${conditions.join(" AND ")}
+         ORDER BY ${salesDateExpr} DESC, s.created_at DESC`,
+        values,
+      );
+    })(),
+    query<{ id: string; vendor_name: string }>(
+      `SELECT id, vendor_name FROM vendors WHERE tenant_id = $1 ORDER BY vendor_name ASC`,
+      [user.tenant_id],
+    ),
+    query<{ id: string; name: string }>(
+      `SELECT id, name FROM branches WHERE tenant_id = $1 ORDER BY name ASC`,
+      [user.tenant_id],
+    ),
+  ]);
+
+  const derivedRows: DerivedExpenseRow[] = [];
+
+  salaryRows.rows.forEach((row: SalaryExpenseQueryRow) => {
+    const amount = Number(row.final_salary || 0);
+    if (amount <= 0) return;
+    derivedRows.push({
+      id: `salary-${row.staff_id}-${endDate}`,
+      expense_category: "Staff Expenses",
+      sub_category: "Staff Salary",
+      amount,
+      gst_amount: 0,
+      total_amount: amount,
+      payment_method: String(row.payment_method || "SALARY").toUpperCase(),
+      expense_date: endDate,
+      branch_id: row.branch_id || null,
+      vendor_id: null,
+      purchase_id: null,
+      staff_id: row.staff_id,
+      added_by: "System",
+      notes: `Attendance-based salary expense for ${row.staff_name}`,
+      invoice_file: "",
+      status: "PAID",
+      created_at: `${endDate}T00:00:00.000Z`,
+      updated_at: `${endDate}T00:00:00.000Z`,
+      branch_name: row.branch_name || "All Branches",
+      vendor_name: "-",
+        staff_name: row.staff_name || "-",
+        purchase_invoice: null,
+        products_bought: null,
+      });
+  });
+
+  purchaseRows.rows.forEach((row: PurchaseExpenseQueryRow) => {
+    const baseAmount = Number(row.base_amount || 0);
+    const gstAmount = Number(row.gst_amount || 0);
+    const purchaseStatus = mapDerivedExpenseStatus(row.payment_status);
+    const paymentMethod = String(row.payment_method || "PURCHASE").toUpperCase();
+    const expenseDate = formatDateOnly(row.purchase_date);
+
+    if (baseAmount > 0) {
+      derivedRows.push({
+        id: `purchase-${row.purchase_id}`,
+        expense_category: "Purchase Expenses",
+        sub_category: "Product Purchase Amount",
+        amount: baseAmount,
+        gst_amount: 0,
+        total_amount: baseAmount,
+        payment_method: paymentMethod,
+        expense_date: expenseDate,
+        branch_id: row.branch_id || null,
+        vendor_id: row.vendor_id || null,
+        purchase_id: row.purchase_id,
+        staff_id: null,
+        added_by: row.created_by || "System",
+        notes: `Purchase expense for invoice ${row.invoice_number || "-"}`,
+        invoice_file: "",
+        status: purchaseStatus,
+        created_at: row.created_at || `${expenseDate}T00:00:00.000Z`,
+        updated_at: row.created_at || `${expenseDate}T00:00:00.000Z`,
+        branch_name: row.branch_name || "All Branches",
+        vendor_name: row.vendor_name || "-",
+        staff_name: "-",
+        purchase_invoice: row.invoice_number || null,
+        products_bought: row.products_bought || null,
+      });
+    }
+
+    if (gstAmount > 0) {
+      derivedRows.push({
+        id: `gst-${row.purchase_id}`,
+        expense_category: "Tax Expenses",
+        sub_category: "GST Paid",
+        amount: gstAmount,
+        gst_amount: 0,
+        total_amount: gstAmount,
+        payment_method: paymentMethod,
+        expense_date: expenseDate,
+        branch_id: row.branch_id || null,
+        vendor_id: row.vendor_id || null,
+        purchase_id: row.purchase_id,
+        staff_id: null,
+        added_by: row.created_by || "System",
+        notes: `GST paid for invoice ${row.invoice_number || "-"}`,
+        invoice_file: "",
+        status: purchaseStatus,
+        created_at: row.created_at || `${expenseDate}T00:00:00.000Z`,
+        updated_at: row.created_at || `${expenseDate}T00:00:00.000Z`,
+        branch_name: row.branch_name || "All Branches",
+        vendor_name: row.vendor_name || "-",
+        staff_name: "-",
+        purchase_invoice: row.invoice_number || null,
+        products_bought: row.products_bought || null,
+      });
+    }
+  });
+
+  salesDiscountRows.rows.forEach((row: SalesDiscountQueryRow) => {
+    const amount = Number(row.discount_amount || 0);
+    if (amount <= 0) return;
+    const expenseDate = formatDateOnly(row.sale_date);
+    derivedRows.push({
+      id: `sale-discount-${row.sale_id}`,
+      expense_category: "Sales Adjustments",
+      sub_category: "Sales Discount",
+      amount,
+      gst_amount: 0,
+      total_amount: amount,
+      payment_method: String(row.payment_method || "SALE").toUpperCase(),
+      expense_date: expenseDate,
+      branch_id: row.branch_id || null,
+      vendor_id: null,
+      purchase_id: null,
+      staff_id: null,
+      added_by: "System",
+      notes: `Discount expense from sale ${row.sale_id}`,
+      invoice_file: "",
+      status: "PAID",
+      created_at: row.created_at || `${expenseDate}T00:00:00.000Z`,
+      updated_at: row.created_at || `${expenseDate}T00:00:00.000Z`,
+      branch_name: row.branch_name || "All Branches",
+      vendor_name: "-",
+      staff_name: "-",
+      purchase_invoice: null,
+      products_bought: null,
+    });
+  });
+
+  const filteredRows = derivedRows
+    .filter((row) => !filters.expenseCategory || filters.expenseCategory === "all" || row.expense_category === filters.expenseCategory)
+    .filter((row) => !filters.subCategory || filters.subCategory === "all" || row.sub_category === filters.subCategory)
+    .filter((row) => !filters.status || filters.status === "all" || row.status === String(filters.status).toUpperCase())
+    .sort((a, b) => {
+      const dateDiff = new Date(b.expense_date).getTime() - new Date(a.expense_date).getTime();
+      if (dateDiff !== 0) return dateDiff;
+      return new Date(String(b.created_at)).getTime() - new Date(String(a.created_at)).getTime();
+    });
+
+  const totalCount = filteredRows.length;
+  const page = Math.max(1, Number(filters.page || 1));
+  const limit = Math.max(1, Math.min(100, Number(filters.limit || 10)));
+  const offset = (page - 1) * limit;
+  const paginatedRows = filteredRows.slice(offset, offset + limit);
+
+  const weeklyStart = new Date(today);
+  weeklyStart.setDate(today.getDate() - 6);
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const vendorSet = new Set<string>();
+  const categoryTotals = new Map<string, number>();
+
+  let totalWeeklyExpense = 0;
+  let totalMonthlyExpense = 0;
+  let salaryExpenseTotal = 0;
+  let purchaseExpenseTotal = 0;
+  let gstPaidTotal = 0;
+
+  filteredRows.forEach((row) => {
+    const amount = Number(row.total_amount || 0);
+    const expenseDate = new Date(row.expense_date);
+    categoryTotals.set(row.expense_category, (categoryTotals.get(row.expense_category) || 0) + amount);
+    if (row.vendor_id) vendorSet.add(row.vendor_id);
+    if (row.expense_category === "Staff Expenses") salaryExpenseTotal += amount;
+    if (row.expense_category === "Purchase Expenses") purchaseExpenseTotal += amount;
+    if (row.expense_category === "Tax Expenses") gstPaidTotal += amount;
+    if (!Number.isNaN(expenseDate.getTime())) {
+      if (expenseDate >= weeklyStart && expenseDate <= today) totalWeeklyExpense += amount;
+      if (expenseDate >= monthStart && expenseDate <= today) totalMonthlyExpense += amount;
+    }
+  });
+
+  const highestExpenseCategory =
+    [...categoryTotals.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] || "No Expenses";
+
+  return {
+    rows: paginatedRows,
+    summary: {
+      total_weekly_expense: totalWeeklyExpense,
+      total_monthly_expense: totalMonthlyExpense,
+      salary_expense_total: salaryExpenseTotal,
+      purchase_expense_total: purchaseExpenseTotal,
+      gst_paid_total: gstPaidTotal,
+      highest_expense_category: highestExpenseCategory,
+      total_vendors_paid: vendorSet.size,
+      total_transactions: totalCount,
+    },
+    filterMeta: {
+      vendors: vendorsResult.rows,
+      branches: branchesResult.rows,
+      categories: buildExpenseCategoryMeta(),
+    },
+    pagination: {
+      page,
+      limit,
+      totalCount,
+      totalPages: Math.max(1, Math.ceil(totalCount / limit)),
     },
   };
 }

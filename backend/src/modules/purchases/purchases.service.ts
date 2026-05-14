@@ -1,6 +1,7 @@
 import { query, withTransaction, type PoolClient } from "../../database/pool";
 import { createError } from "../../middleware/errorHandler";
 import type { AuthUserPayload } from "../../shared/types/auth";
+import { syncPurchaseExpense } from "../expenses/expenses.service";
 
 type PurchaseItemInput = {
   productName: string;
@@ -415,6 +416,22 @@ export async function createPurchase(user: AuthUserPayload, payload: PurchaseInp
       await upsertInventoryFromPurchase(client, user, locationId, purchaseId, data.vendorId, data.purchaseDate, item);
     }
 
+    const totalGstAmount = data.items.reduce((sum, item) => sum + resolveGstAmount(item) * item.initialStock, 0);
+    await syncPurchaseExpense(client, {
+      tenantId: user.tenant_id as string,
+      purchaseId,
+      branchId: locationId,
+      vendorId: data.vendorId,
+      expenseDate: data.purchaseDate,
+      paymentMethod: data.paymentMethod,
+      status: data.paymentStatus,
+      amount: totalAmount - totalGstAmount,
+      gstAmount: totalGstAmount,
+      totalAmount,
+      addedBy: user.full_name || user.email || user.user_id,
+      notes: data.notes,
+    });
+
     const purchase = await client.query<PurchaseRow>(
       `
         SELECT
@@ -560,9 +577,9 @@ export async function updatePurchase(user: AuthUserPayload, purchaseId: string, 
   const totalAmount = data.items.reduce((sum, item) => sum + (item.costPrice + resolveGstAmount(item)) * item.initialStock, 0);
 
   return withTransaction(async (client) => {
-    const existingPurchase = await client.query<{ id: string; location_id: string }>(
+    const existingPurchase = await client.query<{ id: string; location_id: string; expense_id?: string | null }>(
       `
-        SELECT id, location_id
+        SELECT id, location_id, expense_id
         FROM purchases
         WHERE id = $1
           AND tenant_id = $2
@@ -572,6 +589,7 @@ export async function updatePurchase(user: AuthUserPayload, purchaseId: string, 
       [purchaseId, user.tenant_id, user.type === "manager" ? user.branch_id : null],
     );
     if (!existingPurchase.rows[0]) throw createError("Purchase not found.", 404);
+    const existingExpenseId = existingPurchase.rows[0].expense_id || null;
 
     await validateVendor(client, user.tenant_id as string, data.vendorId);
 
@@ -634,6 +652,23 @@ export async function updatePurchase(user: AuthUserPayload, purchaseId: string, 
       );
       await upsertInventoryFromPurchase(client, user, locationId, purchaseId, data.vendorId, data.purchaseDate, item);
     }
+
+    const totalGstAmount = data.items.reduce((sum, item) => sum + resolveGstAmount(item) * item.initialStock, 0);
+    await syncPurchaseExpense(client, {
+      tenantId: user.tenant_id as string,
+      purchaseId,
+      branchId: locationId,
+      vendorId: data.vendorId,
+      expenseDate: data.purchaseDate,
+      paymentMethod: data.paymentMethod,
+      status: data.paymentStatus,
+      amount: totalAmount - totalGstAmount,
+      gstAmount: totalGstAmount,
+      totalAmount,
+      addedBy: user.full_name || user.email || user.user_id,
+      notes: data.notes,
+      existingExpenseId,
+    });
 
     const purchase = await client.query<PurchaseRow>(
       `

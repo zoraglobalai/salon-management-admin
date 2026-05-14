@@ -24,6 +24,7 @@ import attendanceRouter from './modules/attendance/attendance.routes';
 import appointmentsRouter from './modules/appointments/appointments.routes';
 import { vendorsRouter } from './modules/vendors/vendors.routes';
 import { purchasesRouter } from './modules/purchases/purchases.routes';
+import { expensesRouter } from './modules/expenses/expenses.routes';
 
 const app = express();
 
@@ -55,6 +56,7 @@ app.use('/api/owner', ownerRoutes);
 app.use('/api/inventory', authMiddleware, inventoryRouter);
 app.use('/api/vendors', authMiddleware, vendorsRouter);
 app.use('/api/purchases', authMiddleware, purchasesRouter);
+app.use('/api/expenses', authMiddleware, expensesRouter);
 app.use('/api/services', authMiddleware, servicesRouter);
 app.use('/api/staff', authMiddleware, staffRouter);
 app.use('/api/clients', authMiddleware, clientsRouter);
