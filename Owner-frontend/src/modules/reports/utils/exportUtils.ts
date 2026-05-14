@@ -44,7 +44,8 @@ export function exportToPDF(data: any[], columns: string[], fileName: string, ti
     doc.setFontSize(8);
     doc.setTextColor(80);
     meta.forEach((line, index) => {
-      doc.text(line, 30, startY + (index * 12));
+      const sanitizedLine = typeof line === 'string' ? line.replace(/\u20B9/g, 'Rs.') : line;
+      doc.text(sanitizedLine, 30, startY + (index * 12));
     });
     startY += (meta.length * 12) + 10;
   }
@@ -52,7 +53,6 @@ export function exportToPDF(data: any[], columns: string[], fileName: string, ti
   // Prepare data for autotable
   const body = data.map(item => columns.map(col => {
     const val = item?.[col] ?? '';
-    // Replace Rupee symbol with Rs. because standard PDF fonts don't support it
     return typeof val === 'string' ? val.replace(/\u20B9/g, 'Rs.') : val;
   }));
   const columnCount = columns.length;

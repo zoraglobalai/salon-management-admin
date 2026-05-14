@@ -225,36 +225,67 @@ export function ProfitReportPage() {
       const allRows = allDataResponse.data.rows;
       const summaryData = allDataResponse.data.summary;
       
-      const mappedRows = allRows.map((row, index) => ({
-        Period: row.period,
-        Revenue: formatCurrency(row.revenue),
-        Expenses: formatCurrency(row.expenses),
-        "Net Profit": formatCurrency(row.profit),
-        "Profit Margin %": formatMargin(row.profit_margin),
-        Status: titleCaseStatus(row.status),
-        "Service Sales": formatCurrency(row.breakdown.services),
-        "Product Sales": formatCurrency(row.breakdown.products),
-        "Other Revenue": formatCurrency(row.breakdown.otherRevenue),
-        "Salary Expense": formatCurrency(row.breakdown.salary),
-        "Purchase Expense": formatCurrency(row.breakdown.purchase),
-        "Rent Expense": formatCurrency(row.breakdown.rent),
-        "Electricity Expense": formatCurrency(row.breakdown.electricity),
-        "Maintenance Expense": formatCurrency(row.breakdown.maintenance),
-        "Miscellaneous Expense": formatCurrency(row.breakdown.miscellaneous),
-        "Applied Filters": index === 0
-          ? `${filters.startDate || "-"} to ${filters.endDate || "-"}${filters.locationId && filters.locationId !== "all" ? ` | Branch ${filters.locationId}` : " | All Branches"}`
-          : "",
-        "Summary Revenue": index === 0 ? formatCurrency(summaryData?.totalRevenue || 0) : "",
-        "Summary Expenses": index === 0 ? formatCurrency(summaryData?.totalExpenses || 0) : "",
-        "Summary Net Profit": index === 0 ? formatCurrency(summaryData?.netProfit || 0) : "",
-        "Summary Profit Margin": index === 0 ? formatMargin(summaryData?.profitMargin || 0) : "",
-      }));
-
       if (type === "excel") {
+        const mappedRows = allRows.map((row, index) => ({
+          Period: row.period,
+          Revenue: formatCurrency(row.revenue),
+          Expenses: formatCurrency(row.expenses),
+          "Net Profit": formatCurrency(row.profit),
+          "Profit Margin %": formatMargin(row.profit_margin),
+          Status: titleCaseStatus(row.status),
+          "Service Sales": formatCurrency(row.breakdown.services),
+          "Product Sales": formatCurrency(row.breakdown.products),
+          "Other Revenue": formatCurrency(row.breakdown.otherRevenue),
+          "Salary Expense": formatCurrency(row.breakdown.salary),
+          "Purchase Expense": formatCurrency(row.breakdown.purchase),
+          "Rent Expense": formatCurrency(row.breakdown.rent),
+          "Electricity Expense": formatCurrency(row.breakdown.electricity),
+          "Maintenance Expense": formatCurrency(row.breakdown.maintenance),
+          "Miscellaneous Expense": formatCurrency(row.breakdown.miscellaneous),
+          "Applied Filters": index === 0
+            ? `${filters.startDate || "-"} to ${filters.endDate || "-"}${filters.locationId && filters.locationId !== "all" ? ` | Branch ${filters.locationId}` : " | All Branches"}`
+            : "",
+          "Summary Revenue": index === 0 ? formatCurrency(summaryData?.totalRevenue || 0) : "",
+          "Summary Expenses": index === 0 ? formatCurrency(summaryData?.totalExpenses || 0) : "",
+          "Summary Net Profit": index === 0 ? formatCurrency(summaryData?.netProfit || 0) : "",
+          "Summary Profit Margin": index === 0 ? formatMargin(summaryData?.profitMargin || 0) : "",
+        }));
+
         exportToExcel(mappedRows, `Profit_Report_${new Date().toISOString().split("T")[0]}`, exportColumns);
         toast("Exported as Excel");
       } else {
-        exportToPDF(mappedRows, exportColumns, `Profit_Report_${new Date().toISOString().split("T")[0]}`, "Profit Report");
+        const pdfColumns = [
+          "Period", "Revenue", "Expenses", "Net Profit", "Profit Margin %", "Status",
+          "Service Sales", "Product Sales", "Other Revenue", "Salary Expense", 
+          "Purchase Expense", "Rent Expense", "Electricity Expense", 
+          "Maintenance Expense", "Miscellaneous Expense"
+        ];
+
+        const mappedRows = allRows.map(row => ({
+          Period: row.period,
+          Revenue: formatCurrency(row.revenue),
+          Expenses: formatCurrency(row.expenses),
+          "Net Profit": formatCurrency(row.profit),
+          "Profit Margin %": formatMargin(row.profit_margin),
+          Status: titleCaseStatus(row.status),
+          "Service Sales": formatCurrency(row.breakdown.services),
+          "Product Sales": formatCurrency(row.breakdown.products),
+          "Other Revenue": formatCurrency(row.breakdown.otherRevenue),
+          "Salary Expense": formatCurrency(row.breakdown.salary),
+          "Purchase Expense": formatCurrency(row.breakdown.purchase),
+          "Rent Expense": formatCurrency(row.breakdown.rent),
+          "Electricity Expense": formatCurrency(row.breakdown.electricity),
+          "Maintenance Expense": formatCurrency(row.breakdown.maintenance),
+          "Miscellaneous Expense": formatCurrency(row.breakdown.miscellaneous),
+        }));
+
+        const meta = [
+          `Report Period: ${filters.startDate || "-"} to ${filters.endDate || "-"}`,
+          `Branch: ${filters.locationId && filters.locationId !== "all" ? `Branch ${filters.locationId}` : "All Branches"}`,
+          `Summary: Total Revenue: ${formatCurrency(summaryData?.totalRevenue || 0)} | Total Expenses: ${formatCurrency(summaryData?.totalExpenses || 0)} | Net Profit: ${formatCurrency(summaryData?.netProfit || 0)} (${formatMargin(summaryData?.profitMargin || 0)})`
+        ];
+
+        exportToPDF(mappedRows, pdfColumns, `Profit_Report_${new Date().toISOString().split("T")[0]}`, "Profit Report", meta);
         toast("Exported as PDF");
       }
     } catch (error) {
@@ -271,7 +302,7 @@ export function ProfitReportPage() {
         </Link>
         <div className="min-w-0 flex-1">
           <h1 className={cn("text-2xl font-bold tracking-[-0.03em] md:text-[2rem]", isDark ? "text-[#F0EBE3]" : "text-[#111827]")}>Profit Report</h1>
-          {/* <p className={cn("text-sm md:text-[15px]", isDark ? "text-[#7A7572]" : "text-[#6B7280]")}>Business growth visibility built from real sales and expense activity across the salon.</p> */}
+          <p className={cn("text-sm md:text-[15px]", isDark ? "text-[#7A7572]" : "text-[#6B7280]")}>Business growth visibility built from real sales and expense activity across the salon.</p>
         </div>
       </div>
 
