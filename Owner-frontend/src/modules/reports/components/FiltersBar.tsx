@@ -160,15 +160,15 @@ export function FiltersBar({
         className
       )}
     >
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-stretch gap-2">
         {/* Date Range Selector */}
-        <div className="relative">
+        <div className="relative w-full sm:w-auto">
           <select
             value={globalFilters.dateRangeType}
             onChange={(e) => {
               handleFilterChange({ dateRangeType: e.target.value });
             }}
-            className={`${selectCls} pl-9 pr-8 py-2 text-sm font-medium`}
+            className={`${selectCls} w-full pl-9 pr-8 py-2 text-sm font-medium`}
           >
             <option value="Today">Today</option>
             <option value="Yesterday">Yesterday</option>
@@ -182,39 +182,39 @@ export function FiltersBar({
         </div>
 
         {/* Custom Date Pickers */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5">
-            <span className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? "text-[#4A4744]" : "text-gray-400"}`}>From</span>
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
+          <div className="flex min-w-0 flex-col items-center gap-1.5 sm:min-w-[140px]">
+            <span className={`text-[10px] font-bold uppercase tracking-wider text-center ${isDark ? "text-[#4A4744]" : "text-gray-400"}`}>From</span>
             <input
               type="date"
               value={globalFilters.startDate}
               max={todayStr}
               onChange={(e) => handleFilterChange({ startDate: e.target.value })}
-              className={inputCls}
+              className={`${inputCls} w-full min-w-0`}
             />
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? "text-[#4A4744]" : "text-gray-400"}`}>To</span>
+          <div className="flex min-w-0 flex-col items-center gap-1.5 sm:min-w-[140px]">
+            <span className={`text-[10px] font-bold uppercase tracking-wider text-center ${isDark ? "text-[#4A4744]" : "text-gray-400"}`}>To</span>
             <input
               type="date"
               value={globalFilters.endDate}
               max={todayStr}
               min={globalFilters.startDate}
               onChange={(e) => handleFilterChange({ endDate: e.target.value })}
-              className={inputCls}
+              className={`${inputCls} w-full min-w-0`}
             />
           </div>
         </div>
 
         {/* Branch selector */}
         {canChooseBranch && (
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <select
               value={globalFilters.locationId}
               onChange={(e) => {
                 handleFilterChange({ locationId: e.target.value });
               }}
-              className={`${selectCls} px-3.5 pr-8 py-2 text-sm font-medium`}
+              className={`${selectCls} w-full px-3.5 pr-8 py-2 text-sm font-medium`}
             >
               <option value="all">All Branches</option>
               {locations.map((loc) => (
@@ -229,20 +229,20 @@ export function FiltersBar({
 
         {/* Static branch for manager */}
         {showBranchSelector && isManager && (
-          <div className={staticBranchCls}>
+          <div className={`${staticBranchCls} w-full sm:w-auto`}>
             {storedUser?.location ? `Branch: ${storedUser.location}` : "Assigned Branch"}
           </div>
         )}
 
         {/* Payment method */}
         {showPaymentSelector && (
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <select
               value={globalFilters.paymentMethod}
               onChange={(e) => {
                 handleFilterChange({ paymentMethod: e.target.value });
               }}
-              className={`${selectCls} px-3.5 pr-8 py-2 text-sm font-medium`}
+              className={`${selectCls} w-full px-3.5 pr-8 py-2 text-sm font-medium`}
             >
               <option value="all">All Payment Methods</option>
               <option value="CASH">Cash</option>
@@ -256,7 +256,7 @@ export function FiltersBar({
         {/* Reset button */}
         <button
           onClick={() => resetFilters()}
-          className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all ${
+          className={`flex w-full items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all sm:w-auto ${
             isDark ? "text-[#C9A96E] hover:bg-white/5" : "text-[#8B5E3C] hover:bg-gray-100"
           }`}
           title="Reset Filters"
@@ -270,7 +270,7 @@ export function FiltersBar({
       {onExport && (
         <button
           onClick={onExport}
-          className={`flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${exportBtnCls}`}
+          className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all sm:w-auto ${exportBtnCls}`}
         >
           <Download className="h-4 w-4" />
           Export

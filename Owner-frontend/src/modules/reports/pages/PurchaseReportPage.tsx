@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, CalendarDays, Download, RotateCcw } from "lucide-react";
+import { ArrowLeft, Building2, CalendarDays, Download, Package, RotateCcw, ShoppingBag, Wallet } from "lucide-react";
 import { Link } from "react-router-dom";
 import { fetchPurchaseReport } from "../../../core/api";
 import { useReport } from "../hooks/useReport";
@@ -10,6 +10,7 @@ import { useNotifications } from "../../../shared/components/NotificationProvide
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
 import { cn } from "../../../shared/utils/cn";
 import { useOutletContext } from "react-router-dom";
+import { SummaryCard } from "../components/SummaryCard";
 
 type PurchaseReportRow = {
   purchase_id: string;
@@ -51,6 +52,10 @@ function formatDateForInput(date: Date) {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function formatCurrency(value: number) {
+  return `\u20B9${Math.round(value || 0).toLocaleString("en-IN")}`;
 }
 
 export function PurchaseReportPage() {
@@ -105,6 +110,33 @@ export function PurchaseReportPage() {
   );
 
   const rows = data?.rows || [];
+  const purchaseSummary = useMemo(() => {
+    const uniquePurchases = new Set<string>();
+    const uniqueVendors = new Set<string>();
+    const uniqueProducts = new Set<string>();
+
+    let totalPurchaseSpend = 0;
+    let totalEstimatedGst = 0;
+
+    rows.forEach((row) => {
+      if (row.purchase_id) uniquePurchases.add(row.purchase_id);
+      if (row.vendor_name) uniqueVendors.add(row.vendor_name.trim().toLowerCase());
+      if (row.product_name) uniqueProducts.add(row.product_name.trim().toLowerCase());
+
+      const totalAmount = Number(row.total_purchase_amount || 0);
+      const totalProductCost = Number(row.total_product_cost || 0);
+      totalPurchaseSpend += totalAmount;
+      totalEstimatedGst += Math.max(0, totalAmount - totalProductCost);
+    });
+
+    return {
+      totalPurchaseSpend,
+      totalEstimatedGst,
+      uniquePurchaseCount: uniquePurchases.size,
+      uniqueVendorCount: uniqueVendors.size,
+      uniqueProductCount: uniqueProducts.size,
+    };
+  }, [rows]);
 
   const columns: Column<PurchaseReportRow>[] = useMemo(() => [
     { header: "Purchase ID", accessorKey: "purchase_id", cell: (item) => <span className={cn("font-mono text-xs", isDark ? "text-[#C8BFB4]" : "text-gray-600")}>{item.purchase_id.slice(0, 8)}</span> },
@@ -172,7 +204,7 @@ export function PurchaseReportPage() {
               <option value="custom">Custom</option>
             </select>
           </div>
-          <label className="flex flex-col gap-1 lg:col-span-2">
+          <label className="flex min-w-0 flex-col items-center gap-1 lg:col-span-2">
             <span className={cn("text-xs font-semibold uppercase text-center", isDark ? "text-[#7A7572]" : "text-gray-500")}>From</span>
             <input
               type="date"
@@ -181,10 +213,10 @@ export function PurchaseReportPage() {
                 setRangePreset("custom");
                 setFilters({ ...filters, startDate: e.target.value });
               }}
-              className={cn("w-full rounded-xl border px-3 py-2.5 text-sm outline-none", isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)]" : "bg-gray-50 border-[#E8E1D8]")}
+              className={cn("w-full min-w-0 rounded-xl border px-3 py-2.5 text-sm outline-none", isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)]" : "bg-gray-50 border-[#E8E1D8]")}
             />
           </label>
-          <label className="flex flex-col gap-1 lg:col-span-2">
+          <label className="flex min-w-0 flex-col items-center gap-1 lg:col-span-2">
             <span className={cn("text-xs font-semibold uppercase text-center", isDark ? "text-[#7A7572]" : "text-gray-500")}>To</span>
             <input
               type="date"
@@ -193,13 +225,13 @@ export function PurchaseReportPage() {
                 setRangePreset("custom");
                 setFilters({ ...filters, endDate: e.target.value });
               }}
-              className={cn("w-full rounded-xl border px-3 py-2.5 text-sm outline-none", isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)]" : "bg-gray-50 border-[#E8E1D8]")}
+              className={cn("w-full min-w-0 rounded-xl border px-3 py-2.5 text-sm outline-none", isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)]" : "bg-gray-50 border-[#E8E1D8]")}
             />
           </label>
           <select
             value={filters.locationId || "all"}
             onChange={(e) => setFilters({ ...filters, locationId: e.target.value })}
-            className={cn("rounded-xl border px-3 py-2.5 text-sm font-semibold outline-none lg:col-span-2", isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#C8BFB4]" : "bg-gray-50 border-[#E8E1D8] text-gray-700")}
+            className={cn("w-full rounded-xl border px-3 py-2.5 text-sm font-semibold outline-none lg:col-span-2", isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#C8BFB4]" : "bg-gray-50 border-[#E8E1D8] text-gray-700")}
           >
             <option value="all">All Branches</option>
             {(ownerLocations || []).map((location) => (
@@ -211,7 +243,7 @@ export function PurchaseReportPage() {
               setRangePreset("today");
               setFilters({ ...filters, ...getTodayRange(), locationId: "all" });
             }}
-            className={cn("inline-flex items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-semibold lg:col-span-1", isDark ? "text-[#C8BFB4]" : "text-[#8B5E3C]")}
+            className={cn("inline-flex w-full items-center justify-center gap-1 rounded-xl px-1.5 py-2 text-xs font-semibold sm:w-auto lg:col-span-1", isDark ? "text-[#C8BFB4]" : "text-[#8B5E3C]")}
           >
             <RotateCcw size={13} />
             Reset
@@ -224,6 +256,41 @@ export function PurchaseReportPage() {
             Export
           </button>
         </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <SummaryCard
+          title="Total Purchase Spend"
+          value={loading ? "..." : formatCurrency(purchaseSummary.totalPurchaseSpend)}
+          comparisonValue={loading ? "--" : `${purchaseSummary.uniquePurchaseCount}`}
+          comparisonLabel="purchase records"
+          trend="neutral"
+          icon={<ShoppingBag size={20} />}
+        />
+        <SummaryCard
+          title="Vendor Partners"
+          value={loading ? "..." : purchaseSummary.uniqueVendorCount.toString()}
+          comparisonValue={loading ? "--" : `${purchaseSummary.uniqueProductCount}`}
+          comparisonLabel="products covered"
+          trend="neutral"
+          icon={<Building2 size={20} />}
+        />
+        <SummaryCard
+          title="Products Purchased"
+          value={loading ? "..." : purchaseSummary.uniqueProductCount.toString()}
+          comparisonValue={loading ? "--" : `${rows.length}`}
+          comparisonLabel="ledger rows"
+          trend="neutral"
+          icon={<Package size={20} />}
+        />
+        <SummaryCard
+          title="Estimated GST"
+          value={loading ? "..." : formatCurrency(purchaseSummary.totalEstimatedGst)}
+          comparisonValue={loading ? "--" : formatCurrency(purchaseSummary.uniquePurchaseCount ? purchaseSummary.totalEstimatedGst / purchaseSummary.uniquePurchaseCount : 0)}
+          comparisonLabel="avg GST per purchase"
+          trend="neutral"
+          icon={<Wallet size={20} />}
+        />
       </div>
 
       <ExportModal

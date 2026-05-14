@@ -354,11 +354,17 @@ export async function getStaffReport(user: AuthUserPayload, filters: ReportFilte
   }
 
   const staffPerformance = await query<any>(
-    `SELECT 
+    `SELECT
         sm.id as staff_id,
         sm.name as staff_name,
         COUNT(sales_filter.id)::int as services_count,
-        COALESCE(SUM(CASE WHEN sales_filter.id IS NOT NULL THEN ss.price ELSE 0 END), 0) as revenue
+        COALESCE(SUM(CASE WHEN sales_filter.id IS NOT NULL THEN ss.price ELSE 0 END), 0) as revenue,
+        COUNT(DISTINCT sales_filter.client_id)::int as total_clients_served,
+        CASE
+          WHEN COUNT(DISTINCT sales_filter.client_id) = 0 THEN 0
+          ELSE COALESCE(SUM(CASE WHEN sales_filter.id IS NOT NULL THEN ss.price ELSE 0 END), 0)
+               / COUNT(DISTINCT sales_filter.client_id)
+        END as avg_bill_value
      FROM staff_members sm
      LEFT JOIN sale_services ss ON ss.staff_id = sm.id
      LEFT JOIN sales sales_filter
@@ -366,7 +372,7 @@ export async function getStaffReport(user: AuthUserPayload, filters: ReportFilte
       AND sales_filter.tenant_id = $1 ${selectedLocationId ? `AND ${salesLocationExpr.replace(/s\./g, 'sales_filter.')} = $2` : ""} ${salesDateWhere} ${salesStatusCondition}
      WHERE ${staffWhere}
      GROUP BY sm.id, sm.name
-     ORDER BY revenue DESC, services_count DESC`,
+     ORDER BY revenue DESC, services_count DESC, sm.name ASC`,
     values,
   );
 
