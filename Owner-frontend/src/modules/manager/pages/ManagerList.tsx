@@ -6,7 +6,7 @@ import { useAuth } from "../../auth/hooks/useAuth";
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
 import { useNotifications } from "../../../shared/components/NotificationProvider";
 import { createOwnerManager, deleteOwnerManager, fetchOwnerManagers, resetOwnerManagerPassword, type OwnerManager } from "../../../core/api";
-import { UserPlus, Shield, Mail, Phone, MapPin, Trash2, Key, Users } from "lucide-react";
+import { UserPlus, Mail, Phone, MapPin, Trash2, Key, Users } from "lucide-react";
 
 export function ManagerList() {
   const { theme } = useDashboardTheme();

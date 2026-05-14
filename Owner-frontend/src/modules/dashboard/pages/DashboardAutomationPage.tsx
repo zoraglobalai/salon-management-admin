@@ -1,5 +1,5 @@
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
-import { MessageSquare, Bell, Zap, ShieldCheck } from "lucide-react";
+import { Bell, Zap, ShieldCheck } from "lucide-react";
 
 export function DashboardAutomationPage() {
   const { theme } = useDashboardTheme();
