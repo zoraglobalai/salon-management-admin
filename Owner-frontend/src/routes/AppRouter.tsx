@@ -18,6 +18,7 @@ import { ServiceReportPage } from "../modules/reports/pages/ServiceReportPage";
 import { StaffReportPage } from "../modules/reports/pages/StaffReportPage";
 import { InventoryReportPage } from "../modules/reports/pages/InventoryReportPage";
 import { PurchaseReportPage } from "../modules/reports/pages/PurchaseReportPage";
+import { AttendanceReportPage } from "../modules/reports/pages/AttendanceReportPage";
 import { DashboardSalesPOSPage } from "../modules/dashboard/pages/DashboardSalesPOSPage";
 import { DashboardSalesPOSEditPage } from "../modules/dashboard/pages/DashboardSalesPOSEditPage";
 import { DashboardSalesPOSCheckoutPage } from "../modules/dashboard/pages/DashboardSalesPOSCheckoutPage";
@@ -69,6 +70,7 @@ export function AppRouter() {
             <Route path="staff" element={<StaffReportPage />} />
             <Route path="inventory" element={<InventoryReportPage />} />
             <Route path="purchases" element={<PurchaseReportPage />} />
+            <Route path="attendance" element={<AttendanceReportPage />} />
           </Route>
           <Route path="managers" element={<ManagerList />} />
         </Route>

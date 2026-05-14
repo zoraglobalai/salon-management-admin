@@ -42,7 +42,7 @@ const getBaseNavigation = (): DashboardNavigationItem[] => [
   { label: "Inventory", to: "/dashboard/inventory", icon: Package },
   { label: "Purchase", to: "/dashboard/purchase", icon: ShoppingBag },
   { label: "Vendors", to: "/dashboard/vendors", icon: Truck },
-  { label: "WhatsApp", to: "/dashboard/automation", icon: MessageCircleMore },
+  { label: "WhatsApp(beta)", to: "/dashboard/automation", icon: MessageCircleMore },
   { label: "Reports", to: "/dashboard/reports", icon: BarChart3 },
 ];
 

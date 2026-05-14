@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   BarChart3,
   CalendarDays,
+  CalendarCheck,
   ChevronRight,
   MapPin,
   Package,
@@ -339,6 +340,12 @@ export function ReportsLandingPage() {
           description="Track vendor purchases, product-level costs, stock additions, and payment status."
           icon={<ShoppingBag />}
           to="/dashboard/reports/purchases"
+        />
+        <ReportCard
+          title="Attendance Report"
+          description="Staff attendance insights, salary deductions, leave visibility, and payroll calculations."
+          icon={<CalendarCheck />}
+          to="/dashboard/reports/attendance"
         />
       </div>
     </div>

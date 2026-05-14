@@ -936,3 +936,258 @@ export async function getPurchaseReport(user: AuthUserPayload, filters: ReportFi
     },
   };
 }
+
+// ─── Attendance Report ─────────────────────────────────────────────────────────
+
+export type AttendanceReportFilters = {
+  startDate?: string;
+  endDate?: string;
+  locationId?: string;
+  staffId?: string;
+  salaryType?: string;
+  page?: number;
+  limit?: number;
+};
+
+export async function getAttendanceReport(user: AuthUserPayload, filters: AttendanceReportFilters) {
+  if (!user.tenant_id) throw createError("Tenant not found.", 400);
+
+  const selectedLocationId = user.type === "manager" ? user.branch_id : normalizeLocationId(filters.locationId);
+
+  // Resolve date range — default to current month if not supplied
+  const today = new Date().toISOString().split("T")[0];
+  const startDate = filters.startDate || today;
+  const endDate   = filters.endDate   || today;
+
+  // Calculate total calendar days in the period (used for monthly salary proration)
+  const start = new Date(startDate);
+  const end   = new Date(endDate);
+  const workingDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
+
+  // ── Build Staff WHERE clause ───────────────────────────────────────────────
+  const staffValues: any[] = [user.tenant_id];
+  let staffWhere = "sm.tenant_id = $1";
+
+  if (selectedLocationId) {
+    staffValues.push(selectedLocationId);
+    staffWhere += ` AND sm.location_id = $${staffValues.length}`;
+  }
+  if (filters.salaryType && filters.salaryType !== "all") {
+    staffValues.push(filters.salaryType.toLowerCase());
+    staffWhere += ` AND LOWER(sp.salary_type) = $${staffValues.length}`;
+  }
+  if (filters.staffId && filters.staffId !== "all") {
+    staffValues.push(filters.staffId);
+    staffWhere += ` AND sm.id = $${staffValues.length}`;
+  }
+
+  // Append date range params
+  staffValues.push(startDate);
+  const startDateParam = `$${staffValues.length}`;
+  staffValues.push(endDate);
+  const endDateParam = `$${staffValues.length}`;
+  staffValues.push(workingDays);
+  const workingDaysParam = `$${staffValues.length}`;
+
+  // ── Main aggregation query (single pass, no N+1) ───────────────────────────
+  const listValues = [...staffValues];
+  const page  = filters.page  || 1;
+  const limit = filters.limit || 10;
+  const offset = (page - 1) * limit;
+  listValues.push(limit);
+  const limitParam = `$${listValues.length}`;
+  listValues.push(offset);
+  const offsetParam = `$${listValues.length}`;
+
+  const listResult = await query<any>(
+    `WITH attendance_agg AS (
+       SELECT
+         a.employee_id,
+         COUNT(CASE WHEN a.status = 'present'    THEN 1 END)::int    AS present_days,
+         COUNT(CASE WHEN a.status = 'half_day'   THEN 1 END)::int    AS half_days,
+         COUNT(CASE WHEN a.status = 'paid_leave' THEN 1 END)::int    AS leave_days,
+         COUNT(CASE WHEN a.status = 'lop'        THEN 1 END)::int    AS lop_days,
+         COUNT(CASE WHEN a.status = 'week_off'   THEN 1 END)::int    AS week_off_days,
+         COUNT(CASE WHEN a.status = 'holiday'    THEN 1 END)::int    AS holiday_days
+       FROM attendance a
+       WHERE a.attendance_date BETWEEN ${startDateParam}::date AND ${endDateParam}::date
+         AND a.branch_id IN (
+           SELECT id FROM branches WHERE tenant_id = $1
+           ${selectedLocationId ? `AND id = $2` : ""}
+         )
+       GROUP BY a.employee_id
+     )
+     SELECT
+       sm.id                                                       AS staff_id,
+       sm.name                                                     AS staff_name,
+       COALESCE(b.name, 'Unknown Branch')                          AS branch_name,
+       COALESCE(sp.salary_type, 'monthly')                        AS salary_type,
+       COALESCE(sp.salary_amount, 0)                              AS salary_amount,
+       COALESCE(agg.present_days, 0)                              AS present_days,
+       COALESCE(agg.half_days,   0)                               AS half_days,
+       COALESCE(agg.leave_days,  0)                               AS leave_days,
+       COALESCE(agg.lop_days,    0)                               AS lop_days,
+       COALESCE(agg.week_off_days, 0)                             AS week_off_days,
+       COALESCE(agg.holiday_days,  0)                             AS holiday_days,
+       -- Per-day salary calculation
+       ROUND(
+         CASE
+           WHEN LOWER(COALESCE(sp.salary_type, 'monthly')) = 'weekly'
+           THEN COALESCE(sp.salary_amount, 0) / 7.0
+           ELSE COALESCE(sp.salary_amount, 0) / ${workingDaysParam}::numeric
+         END, 2
+       )                                                           AS per_day_salary,
+       -- Deduction: LOP = full day, HD = half day
+       ROUND(
+         (COALESCE(agg.lop_days, 0)  * (
+           CASE
+             WHEN LOWER(COALESCE(sp.salary_type, 'monthly')) = 'weekly'
+             THEN COALESCE(sp.salary_amount, 0) / 7.0
+             ELSE COALESCE(sp.salary_amount, 0) / ${workingDaysParam}::numeric
+           END
+         )) +
+         (COALESCE(agg.half_days, 0) * (
+           CASE
+             WHEN LOWER(COALESCE(sp.salary_type, 'monthly')) = 'weekly'
+             THEN COALESCE(sp.salary_amount, 0) / 7.0
+             ELSE COALESCE(sp.salary_amount, 0) / ${workingDaysParam}::numeric
+           END
+         ) / 2.0)
+       , 2)                                                        AS salary_deduction,
+       -- Final salary
+       ROUND(
+         COALESCE(sp.salary_amount, 0) - (
+           (COALESCE(agg.lop_days, 0)  * (
+             CASE
+               WHEN LOWER(COALESCE(sp.salary_type, 'monthly')) = 'weekly'
+               THEN COALESCE(sp.salary_amount, 0) / 7.0
+               ELSE COALESCE(sp.salary_amount, 0) / ${workingDaysParam}::numeric
+             END
+           )) +
+           (COALESCE(agg.half_days, 0) * (
+             CASE
+               WHEN LOWER(COALESCE(sp.salary_type, 'monthly')) = 'weekly'
+               THEN COALESCE(sp.salary_amount, 0) / 7.0
+               ELSE COALESCE(sp.salary_amount, 0) / ${workingDaysParam}::numeric
+             END
+           ) / 2.0)
+         )
+       , 2)                                                        AS final_salary
+     FROM staff_members sm
+     LEFT JOIN staff_payroll sp ON sp.staff_id = sm.id
+     LEFT JOIN branches b ON b.id = sm.location_id
+     LEFT JOIN attendance_agg agg ON agg.employee_id = sm.id
+     WHERE ${staffWhere}
+     ORDER BY sm.name ASC
+     LIMIT ${limitParam} OFFSET ${offsetParam}`,
+    listValues,
+  );
+
+  // ── Count query for pagination ─────────────────────────────────────────────
+  const countResult = await query<{ count: string }>(
+    `SELECT COUNT(*)::int AS count
+     FROM staff_members sm
+     LEFT JOIN staff_payroll sp ON sp.staff_id = sm.id
+     WHERE ${staffWhere}`,
+    staffValues.slice(0, staffValues.length - 3), // strip date/workingDays params not needed for count
+  );
+
+  const totalCount = parseInt(countResult.rows[0]?.count || "0", 10);
+
+  // ── KPI — Present Today ────────────────────────────────────────────────────
+  const kpiValues: any[] = [user.tenant_id];
+  let kpiBranchSub = `SELECT id FROM branches WHERE tenant_id = $1`;
+  if (selectedLocationId) {
+    kpiValues.push(selectedLocationId);
+    kpiBranchSub += ` AND id = $${kpiValues.length}`;
+  }
+
+  const [presentTodayResult, totalStaffResult, salaryPayoutResult, leaveStaffResult] = await Promise.all([
+    // Present today
+    query<{ count: string }>(
+      `SELECT COUNT(*)::int AS count
+       FROM attendance a
+       WHERE a.attendance_date = $${kpiValues.length + 1}::date
+         AND a.status = 'present'
+         AND a.branch_id IN (${kpiBranchSub})`,
+      [...kpiValues, today],
+    ),
+    // Total staff in scope
+    query<{ count: string }>(
+      `SELECT COUNT(*)::int AS count
+       FROM staff_members sm
+       WHERE sm.tenant_id = $1
+       ${selectedLocationId ? `AND sm.location_id = $2` : ""}`,
+      kpiValues,
+    ),
+    // Total salary payout for the period
+    query<{ total: string }>(
+      `WITH attendance_agg AS (
+         SELECT
+           a.employee_id,
+           COUNT(CASE WHEN a.status = 'lop'      THEN 1 END)::int AS lop_days,
+           COUNT(CASE WHEN a.status = 'half_day' THEN 1 END)::int AS half_days
+         FROM attendance a
+         WHERE a.attendance_date BETWEEN $${kpiValues.length + 1}::date AND $${kpiValues.length + 2}::date
+           AND a.branch_id IN (${kpiBranchSub})
+         GROUP BY a.employee_id
+       )
+       SELECT COALESCE(SUM(
+         COALESCE(sp.salary_amount, 0) - (
+           (COALESCE(agg.lop_days, 0) *
+             CASE WHEN LOWER(COALESCE(sp.salary_type,'monthly'))='weekly'
+                  THEN COALESCE(sp.salary_amount,0)/7.0
+                  ELSE COALESCE(sp.salary_amount,0)/$${kpiValues.length + 3}::numeric
+             END
+           ) +
+           (COALESCE(agg.half_days, 0) *
+             CASE WHEN LOWER(COALESCE(sp.salary_type,'monthly'))='weekly'
+                  THEN COALESCE(sp.salary_amount,0)/7.0
+                  ELSE COALESCE(sp.salary_amount,0)/$${kpiValues.length + 3}::numeric
+             END / 2.0
+           )
+         )
+       ), 0) AS total
+       FROM staff_members sm
+       LEFT JOIN staff_payroll sp ON sp.staff_id = sm.id
+       LEFT JOIN attendance_agg agg ON agg.employee_id = sm.id
+       WHERE sm.tenant_id = $1
+       ${selectedLocationId ? `AND sm.location_id = $2` : ""}`,
+      [...kpiValues, startDate, endDate, workingDays],
+    ),
+    // Leave staff count
+    query<{ count: string }>(
+      `SELECT COUNT(DISTINCT a.employee_id)::int AS count
+       FROM attendance a
+       WHERE a.attendance_date BETWEEN $${kpiValues.length + 1}::date AND $${kpiValues.length + 2}::date
+         AND a.status IN ('paid_leave', 'lop')
+         AND a.branch_id IN (${kpiBranchSub})`,
+      [...kpiValues, startDate, endDate],
+    ),
+  ]);
+
+  const presentToday = parseInt(presentTodayResult.rows[0]?.count || "0", 10);
+  const totalStaff   = parseInt(totalStaffResult.rows[0]?.count || "0", 10);
+  const salaryPayout = parseFloat(salaryPayoutResult.rows[0]?.total || "0");
+  const leaveStaff   = parseInt(leaveStaffResult.rows[0]?.count || "0", 10);
+  const attendancePct = totalStaff > 0 ? Math.round((presentToday / totalStaff) * 100) : 0;
+
+  return {
+    kpi: {
+      presentToday,
+      totalStaff,
+      attendancePct,
+      totalSalaryPayout: Math.round(salaryPayout),
+      leaveStaffCount: leaveStaff,
+      pendingLeaveCount: 0, // No leave approval workflow
+    },
+    list: listResult.rows,
+    pagination: {
+      page,
+      limit,
+      totalCount,
+      totalPages: Math.ceil(totalCount / limit),
+    },
+  };
+}
+

@@ -1281,7 +1281,33 @@ export async function fetchPurchaseReport(filters: {
     headers: getOwnerAuthHeaders(),
   });
 }
+
+export async function fetchAttendanceReport(filters: {
+  startDate?: string;
+  endDate?: string;
+  locationId?: string;
+  staffId?: string;
+  salaryType?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const params = new URLSearchParams();
+  if (filters.startDate) params.set("startDate", filters.startDate);
+  if (filters.endDate) params.set("endDate", filters.endDate);
+  if (filters.locationId && filters.locationId !== "all") params.set("locationId", filters.locationId);
+  if (filters.staffId && filters.staffId !== "all") params.set("staffId", filters.staffId);
+  if (filters.salaryType && filters.salaryType !== "all") params.set("salaryType", filters.salaryType);
+  if (filters.page) params.set("page", filters.page.toString());
+  if (filters.limit) params.set("limit", filters.limit.toString());
+
+  const qs = params.toString();
+  return request<{ success: boolean; data: any }>(`/reports/attendance${qs ? `?${qs}` : ""}`, {
+    headers: getOwnerAuthHeaders(),
+  });
+}
+
 // ─── Notifications API ──────────────────────────────────────────────────────────
+
 
 export type NotificationCategory = "REVENUE" | "STAFF" | "SERVICE" | "CUSTOMER" | "BRANCH" | "INVENTORY";
 

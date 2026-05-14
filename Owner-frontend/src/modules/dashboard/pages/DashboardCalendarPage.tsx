@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { 
   format, 
@@ -70,6 +70,14 @@ const STATUS_CONFIG: Record<AppointmentStatus, { label: string; color: string; b
   completed: { label: "Completed", color: "text-green-600", bg: "bg-green-50", border: "border-green-100" },
   cancelled: { label: "Cancelled", color: "text-red-600", bg: "bg-red-50", border: "border-red-100" },
   no_show: { label: "No Show", color: "text-gray-600", bg: "bg-gray-50", border: "border-gray-100" },
+};
+
+const CALENDAR_STATUS_STYLES: Record<AppointmentStatus, { dot: string; badge: string }> = {
+  booked: { dot: "bg-[#F59E0B]", badge: "bg-[#FFF1D6] text-[#B76A00]" },
+  confirmed: { dot: "bg-[#7CC84A]", badge: "bg-[#EEF9E5] text-[#4D8E22]" },
+  completed: { dot: "bg-[#4C9CFF]", badge: "bg-[#EAF4FF] text-[#1F70C9]" },
+  cancelled: { dot: "bg-[#EF4444]", badge: "bg-[#FFE7E7] text-[#C53030]" },
+  no_show: { dot: "bg-[#B05BCE]", badge: "bg-[#F6EAFE] text-[#8A2BB6]" },
 };
 
 const normalizeDateOnly = (value: unknown) => {
@@ -281,6 +289,11 @@ export function DashboardCalendarPage() {
             : event
         )
       );
+      setSelectedAppointment(prev => (
+        prev && prev.id === id
+          ? { ...prev, status }
+          : prev
+      ));
       toast(`Status updated to ${status}`);
     } catch (err) {
       toast("Failed to update status", "error");
@@ -355,7 +368,13 @@ export function DashboardCalendarPage() {
   }, [filteredCalendarEvents]);
 
   const selectedDateKey = format(currentDate, "yyyy-MM-dd");
-  const selectedDateAppointments = calendarAppointmentsByDate[selectedDateKey] || [];
+  const selectedDateAppointments = useMemo(() => {
+    return [...(calendarAppointmentsByDate[selectedDateKey] || [])].sort((a, b) =>
+      `${normalizeDateOnly(a.appointment_date)}T${normalizeTimeOnly(a.start_time)}`.localeCompare(
+        `${normalizeDateOnly(b.appointment_date)}T${normalizeTimeOnly(b.start_time)}`
+      )
+    );
+  }, [calendarAppointmentsByDate, selectedDateKey]);
   const yearOptions = useMemo(() => {
     const currentYear = new Date().getFullYear();
     return Array.from({ length: 21 }, (_, index) => currentYear - 10 + index);
@@ -384,26 +403,61 @@ export function DashboardCalendarPage() {
   return (
     <div className="flex h-full min-h-0 flex-col gap-6">
       {/* Header Bar */}
-      <div className={`flex flex-col gap-4 rounded-[24px] border p-5 shadow-sm md:flex-row md:items-center md:justify-between transition-all ${
+      <div className={`flex flex-col gap-4 rounded-[24px] border p-5 shadow-sm xl:flex-row xl:items-center xl:justify-between transition-all ${
         isDark ? "bg-[#151821] border-[rgba(255,255,255,0.07)]" : "bg-white border-[#E8E1D8]"
       }`}>
-        <div className="flex items-center gap-4">
-          <div className={`flex items-center justify-center h-12 w-12 rounded-2xl shadow-sm ${isDark ? "bg-[#C9A96E]/10" : "bg-[#8B5E3C]/10"}`}>
-            <CalendarIcon size={24} className={isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"} />
-          </div>
-          <div>
-            <h1 className={`text-xl font-black font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>
+        <div className="min-w-0 xl:flex-1">
+          <h2 className={`truncate text-2xl font-bold font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>
               {format(currentDate, "MMMM d, yyyy")}
-            </h1>
-            <p className={`text-xs font-bold uppercase tracking-widest ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>
+          </h2>
+          <p className={`mt-1 truncate text-sm ${isDark ? "text-[#7A7572]" : "text-[#6B7280]"}`}>
               Appointment Schedule
-            </p>
-          </div>
+          </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 xl:max-w-[68%] xl:flex-nowrap xl:justify-end">
+          {!isManager && (
+            <div className="relative shrink-0">
+              <select 
+                value={globalFilters.locationId} 
+                onChange={(e) => setFilters({ locationId: e.target.value })}
+                className={`appearance-none rounded-xl border pl-10 pr-10 py-2.5 text-sm font-semibold outline-none transition-all w-36 ${
+                  isDark 
+                    ? "bg-[#0F1115] border-[rgba(255,255,255,0.05)] text-[#C8BFB4] focus:border-[#C9A96E] [color-scheme:dark]" 
+                    : "bg-gray-50/50 border-[#F2EDE7] text-gray-700 focus:border-[#8B5E3C] [color-scheme:light]"
+                }`}
+              >
+                <option value="all">Location</option>
+                {locationOptions.map((l) => (
+                  <option key={l.id} value={l.id}>{l.city || l.name}</option>
+                ))}
+              </select>
+              <MapPin size={15} className={`absolute left-3.5 top-3 ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`} />
+              <ChevronDown size={15} className={`absolute right-3.5 top-3 pointer-events-none ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`} />
+            </div>
+          )}
+
+          <div className="relative shrink-0">
+            <select 
+              value={staffFilter} 
+              onChange={(e) => setStaffFilter(e.target.value)}
+              className={`appearance-none rounded-xl border pl-10 pr-10 py-2.5 text-sm font-semibold outline-none transition-all w-40 ${
+                isDark 
+                  ? "bg-[#0F1115] border-[rgba(255,255,255,0.05)] text-[#C8BFB4] focus:border-[#C9A96E] [color-scheme:dark]" 
+                  : "bg-gray-50/50 border-[#F2EDE7] text-gray-700 focus:border-[#8B5E3C] [color-scheme:light]"
+              }`}
+            >
+              <option value="all">All Staff</option>
+              {staffMembers.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+            <User size={15} className={`absolute left-3.5 top-3 ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`} />
+            <ChevronDown size={15} className={`absolute right-3.5 top-3 pointer-events-none ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`} />
+          </div>
+
           {/* Date Picker */}
-          <div className="relative flex items-center">
+          <div className="relative flex shrink-0 items-center">
             <input 
               type="date"
               value={format(currentDate, "yyyy-MM-dd")}
@@ -427,7 +481,7 @@ export function DashboardCalendarPage() {
           </div>
 
           {/* View Toggles */}
-          <div className={`flex items-center rounded-xl border p-1 ${isDark ? "bg-[#0F1115] border-[rgba(255,255,255,0.05)]" : "bg-gray-50 border-[#F2EDE7]"}`}>
+          <div className={`flex shrink-0 items-center rounded-xl border p-1 ${isDark ? "bg-[#0F1115] border-[rgba(255,255,255,0.05)]" : "bg-gray-50 border-[#F2EDE7]"}`}>
             {[
               { id: "timeline", icon: Clock },
               { id: "calendar", icon: CalendarDays }
@@ -457,7 +511,7 @@ export function DashboardCalendarPage() {
 
           <button 
             onClick={() => handleAddAppointment()}
-            className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-black uppercase tracking-widest text-white shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] ${
+            className={`flex shrink-0 items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-black uppercase tracking-widest text-white shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] ${
               isDark 
                 ? "bg-[linear-gradient(135deg,#C9A96E_0%,#A67C3D_100%)] shadow-[0_8px_20px_rgba(201,169,110,0.15)]" 
                 : "bg-[#8B5E3C] shadow-[0_8px_20px_rgba(139,94,60,0.15)]"
@@ -466,66 +520,6 @@ export function DashboardCalendarPage() {
             <Plus size={18} />
             Add New
           </button>
-        </div>
-      </div>
-
-      {/* Filters Bar */}
-      <div className={`flex flex-col gap-4 rounded-[24px] border p-5 shadow-sm md:flex-row md:items-center md:justify-between transition-all ${
-        isDark ? "bg-[#151821] border-[rgba(255,255,255,0.07)]" : "bg-white border-[#E8E1D8]"
-      }`}>
-        <div className="flex flex-wrap items-center gap-4">
-          {!isManager && (
-            <div className="relative">
-              <select 
-                value={globalFilters.locationId} 
-                onChange={(e) => setFilters({ locationId: e.target.value })}
-                className={`appearance-none rounded-xl border pl-10 pr-10 py-3 text-sm font-semibold outline-none transition-all w-48 ${
-                  isDark 
-                    ? "bg-[#0F1115] border-[rgba(255,255,255,0.05)] text-[#C8BFB4] focus:border-[#C9A96E] [color-scheme:dark]" 
-                    : "bg-gray-50/50 border-[#F2EDE7] text-gray-700 focus:border-[#8B5E3C] [color-scheme:light]"
-                }`}
-              >
-                <option value="all">All Locations</option>
-                {locationOptions.map((l) => (
-                  <option key={l.id} value={l.id}>{l.city || l.name}</option>
-                ))}
-              </select>
-              <MapPin size={16} className={`absolute left-3.5 top-3.5 ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`} />
-              <ChevronDown size={16} className={`absolute right-3.5 top-3.5 pointer-events-none ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`} />
-            </div>
-          )}
-
-          <div className="relative">
-            <select 
-              value={staffFilter} 
-              onChange={(e) => setStaffFilter(e.target.value)}
-              className={`appearance-none rounded-xl border pl-10 pr-10 py-3 text-sm font-semibold outline-none transition-all w-48 ${
-                isDark 
-                  ? "bg-[#0F1115] border-[rgba(255,255,255,0.05)] text-[#C8BFB4] focus:border-[#C9A96E] [color-scheme:dark]" 
-                  : "bg-gray-50/50 border-[#F2EDE7] text-gray-700 focus:border-[#8B5E3C] [color-scheme:light]"
-              }`}
-            >
-              <option value="all">All Staff</option>
-              {staffMembers.map(s => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-            <User size={16} className={`absolute left-3.5 top-3.5 ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`} />
-            <ChevronDown size={16} className={`absolute right-3.5 top-3.5 pointer-events-none ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`} />
-          </div>
-
-          <div className={`flex items-center rounded-xl border px-4 py-3 w-64 ${
-            isDark ? "bg-[#0F1115] border-[rgba(255,255,255,0.05)]" : "bg-gray-50 border-[#F2EDE7]"
-          }`}>
-            <Search size={16} className={isDark ? "text-[#7A7572]" : "text-gray-400"} />
-            <input 
-              type="text" 
-              placeholder="Search appointments..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="bg-transparent border-none outline-none text-sm ml-2 w-full"
-            />
-          </div>
         </div>
       </div>
 
@@ -664,69 +658,88 @@ export function DashboardCalendarPage() {
                     {loadError}
                   </div>
                 )}
-                <div className={`grid gap-5 ${isDayPanelOpen ? "xl:grid-cols-[minmax(0,1fr)_320px]" : "grid-cols-1"}`}>
-                  <div className={`overflow-hidden rounded-[30px] border ${
+                <div className={`grid gap-4 ${isDayPanelOpen ? "xl:grid-cols-[minmax(0,1fr)_270px]" : "grid-cols-1"}`}>
+                  <div className={`overflow-hidden rounded-[28px] border ${
                     isDark
                       ? "border-[rgba(255,255,255,0.08)] bg-[#12161F]"
-                      : "border-[#EEE5DA] bg-[#FFFEFC]"
+                      : "border-[#EDE3D7] bg-[#FFFEFC]"
                   }`}>
-                    <div className={`flex flex-col gap-4 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between ${
+                    <div className={`flex flex-col gap-2.5 border-b px-4 py-3 ${
                       isDark ? "border-[rgba(255,255,255,0.08)]" : "border-[#F1E7DB]"
                     }`}>
-                      <div>
-                        <p className={`text-[11px] font-black uppercase tracking-[0.22em] ${
-                          isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"
-                        }`}>
-                          Calendar
-                        </p>
-                        <h3 className={`mt-1 font-['Outfit'] text-[1.6rem] font-black ${
-                          isDark ? "text-[#F0EBE3]" : "text-[#1F2937]"
-                        }`}>
-                          {format(currentDate, "MMMM yyyy")}
-                        </h3>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-3">
-                        <div className={`flex items-center rounded-2xl border p-1 ${
-                          isDark ? "border-[rgba(255,255,255,0.08)] bg-[#171C26]" : "border-[#EADFD3] bg-[#FFFCF8]"
-                        }`}>
-                          <button
-                            type="button"
-                            onClick={() => shiftCalendarMonth(-1)}
-                            className={`rounded-xl p-2 transition-all ${
-                              isDark ? "text-[#C8BFB4] hover:bg-white/5" : "text-[#7C5D4A] hover:bg-[#F6EFE6]"
-                            }`}
-                          >
-                            <ChevronLeft size={18} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => shiftCalendarMonth(1)}
-                            className={`rounded-xl p-2 transition-all ${
-                              isDark ? "text-[#C8BFB4] hover:bg-white/5" : "text-[#7C5D4A] hover:bg-[#F6EFE6]"
-                            }`}
-                          >
-                            <ChevronRight size={18} />
-                          </button>
+                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                        <div>
+                          <p className={`text-[11px] font-black uppercase tracking-[0.22em] ${
+                            isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"
+                          }`}>
+                            Calendar
+                          </p>
+                          <h3 className={`mt-1 font-['Outfit'] text-[1.45rem] font-black ${
+                            isDark ? "text-[#F0EBE3]" : "text-[#1F2937]"
+                          }`}>
+                            {format(currentDate, "MMMM yyyy")}
+                          </h3>
                         </div>
 
-                        <div className="relative">
-                          <select
-                            value={currentDate.getFullYear()}
-                            onChange={(e) => handleCalendarYearChange(Number(e.target.value))}
-                            className={`appearance-none rounded-2xl border px-4 py-2.5 pr-10 text-sm font-bold outline-none transition-all ${
-                              isDark
-                                ? "border-[rgba(255,255,255,0.08)] bg-[#171C26] text-[#F0EBE3] [color-scheme:dark]"
-                                : "border-[#EADFD3] bg-[#FFFCF8] text-[#5B6472] [color-scheme:light]"
-                            }`}
-                          >
-                            {yearOptions.map((year) => (
-                              <option key={year} value={year}>{year}</option>
-                            ))}
-                          </select>
-                          <ChevronDown size={16} className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 ${
-                            isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"
-                          }`} />
+                        <div className="flex flex-col gap-2 lg:items-end">
+                          <div className={`flex h-[38px] w-full items-center rounded-xl border px-3 lg:w-[220px] ${
+                            isDark ? "border-[rgba(255,255,255,0.08)] bg-[#171C26]" : "border-[#EADFD3] bg-[#FFFCF8]"
+                          }`}>
+                            <Search size={14} className={isDark ? "text-[#7A7572]" : "text-gray-400"} />
+                            <input
+                              type="text"
+                              placeholder="Search appointments..."
+                              value={search}
+                              onChange={(e) => setSearch(e.target.value)}
+                              className={`ml-2 w-full bg-transparent text-sm outline-none ${
+                                isDark ? "text-[#F0EBE3] placeholder:text-[#7A7572]" : "text-[#2F3A4B] placeholder:text-gray-400"
+                              }`}
+                            />
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className={`flex items-center rounded-2xl border p-1 ${
+                              isDark ? "border-[rgba(255,255,255,0.08)] bg-[#171C26]" : "border-[#EADFD3] bg-[#FFFCF8]"
+                            }`}>
+                              <button
+                                type="button"
+                                onClick={() => shiftCalendarMonth(-1)}
+                                className={`rounded-xl p-1.5 transition-all ${
+                                  isDark ? "text-[#C8BFB4] hover:bg-white/5" : "text-[#7C5D4A] hover:bg-[#F6EFE6]"
+                                }`}
+                              >
+                                <ChevronLeft size={16} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => shiftCalendarMonth(1)}
+                                className={`rounded-xl p-1.5 transition-all ${
+                                  isDark ? "text-[#C8BFB4] hover:bg-white/5" : "text-[#7C5D4A] hover:bg-[#F6EFE6]"
+                                }`}
+                              >
+                                <ChevronRight size={16} />
+                              </button>
+                            </div>
+
+                            <div className="relative">
+                              <select
+                                value={currentDate.getFullYear()}
+                                onChange={(e) => handleCalendarYearChange(Number(e.target.value))}
+                                className={`appearance-none rounded-2xl border px-3.5 py-1.5 pr-9 text-sm font-bold outline-none transition-all ${
+                                  isDark
+                                    ? "border-[rgba(255,255,255,0.08)] bg-[#171C26] text-[#F0EBE3] [color-scheme:dark]"
+                                    : "border-[#EADFD3] bg-[#FFFCF8] text-[#5B6472] [color-scheme:light]"
+                                }`}
+                              >
+                                {yearOptions.map((year) => (
+                                  <option key={year} value={year}>{year}</option>
+                                ))}
+                              </select>
+                              <ChevronDown size={16} className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 ${
+                                isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"
+                              }`} />
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -759,8 +772,8 @@ export function DashboardCalendarPage() {
                         return "none";
                       }}
                       moreLinkContent={(info) => (
-                        <span className={`inline-flex items-center px-1 text-[11px] font-bold ${
-                          isDark ? "text-[#E8CC9B]" : "text-[#8B5E3C]"
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                          isDark ? "bg-[#1A1F2A] text-[#E8CC9B]" : "bg-[#F8EFE3] text-[#8B5E3C]"
                         }`}>
                           +{info.num} more
                         </span>
@@ -792,22 +805,12 @@ export function DashboardCalendarPage() {
                               setCurrentDate(parse(normalizeDateOnly(appt.appointment_date), "yyyy-MM-dd", new Date()));
                               setIsDayPanelOpen(true);
                             }}
-                            className={`flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left transition-all ${
-                              isDark ? "bg-[#1A1F2A] hover:bg-[#202634]" : "bg-[#FFF8ED] hover:bg-[#FFF3DF]"
+                            className={`flex w-full items-center gap-1.5 rounded-full px-2.5 py-1.5 text-left transition-all ${
+                              isDark ? "bg-[#1A1F2A] hover:bg-[#202634]" : "bg-[#FBF2E6] hover:bg-[#F6E7D4]"
                             }`}
                           >
-                            <span className={`h-2 w-2 shrink-0 rounded-full ${
-                              appt.status === "completed"
-                                ? "bg-green-500"
-                                : appt.status === "cancelled"
-                                  ? "bg-red-400"
-                                  : appt.status === "confirmed"
-                                    ? "bg-lime-500"
-                                    : appt.status === "no_show"
-                                      ? "bg-gray-400"
-                                      : "bg-orange-400"
-                            }`} />
-                            <span className={`truncate text-[11px] font-semibold ${
+                            <span className={`h-2 w-2 shrink-0 rounded-full ${CALENDAR_STATUS_STYLES[appt.status]?.dot || CALENDAR_STATUS_STYLES.booked.dot}`} />
+                            <span className={`truncate text-[10px] font-semibold ${
                               isDark ? "text-[#F0EBE3]" : "text-[#55433A]"
                             }`}>
                               {formatTime(appt.start_time)}
@@ -820,19 +823,19 @@ export function DashboardCalendarPage() {
                   </div>
 
                   {isDayPanelOpen && (
-                    <div className={`flex min-h-[620px] flex-col rounded-[30px] border p-5 ${
+                    <div className={`flex min-h-[430px] max-h-[580px] flex-col rounded-[28px] border p-4 ${
                       isDark
                         ? "border-[rgba(255,255,255,0.08)] bg-[#12161F]"
-                        : "border-[#EEE5DA] bg-[#FFFEFC]"
+                        : "border-[#EDE3D7] bg-[#FFFEFC]"
                     }`}>
-                      <div className="mb-5 flex items-start justify-between gap-4">
+                      <div className="mb-4 flex items-start justify-between gap-3">
                         <div>
-                          <h3 className={`font-['Outfit'] text-[1.75rem] font-black leading-tight ${
+                          <h3 className={`font-['Outfit'] text-[1.45rem] font-black leading-tight ${
                             isDark ? "text-[#F0EBE3]" : "text-[#1F2937]"
                           }`}>
                             {format(currentDate, "EEE, MMM d, yyyy")}
                           </h3>
-                          <p className={`mt-4 text-base ${
+                          <p className={`mt-2 text-sm ${
                             isDark ? "text-[#C8BFB4]" : "text-[#5B6472]"
                           }`}>
                             {selectedDateAppointments.length} Appointment{selectedDateAppointments.length === 1 ? "" : "s"}
@@ -849,7 +852,7 @@ export function DashboardCalendarPage() {
                         </button>
                       </div>
 
-                      <div className="flex-1 space-y-4 overflow-y-auto">
+                      <div className="flex-1 space-y-3 overflow-y-auto pr-1">
                         {selectedDateAppointments.length === 0 ? (
                           <div className={`flex h-full min-h-[240px] items-center justify-center rounded-[24px] border border-dashed text-center ${
                             isDark
@@ -869,44 +872,41 @@ export function DashboardCalendarPage() {
                                 key={appointment.id}
                                 type="button"
                                 onClick={() => handleViewDetail(appointment)}
-                                className={`w-full rounded-[24px] border p-4 text-left transition-all ${
+                                className={`w-full rounded-[20px] border p-3.5 text-left transition-all ${
                                   isDark
                                     ? "border-[rgba(255,255,255,0.08)] bg-[#171C26] hover:border-[rgba(201,169,110,0.4)]"
                                     : "border-[#EEE5DA] bg-white hover:border-[#DAB89A]"
                                 }`}
                               >
                                 <div className="flex items-center justify-between gap-3">
-                                  <div className={`flex items-center gap-2 text-sm font-medium ${
+                                  <div className={`flex items-center gap-2 text-[13px] font-medium ${
                                     isDark ? "text-[#D6CEC5]" : "text-[#5B6472]"
                                   }`}>
-                                    <span className={`h-2.5 w-2.5 rounded-full ${
-                                      appointment.status === "completed"
-                                        ? "bg-green-500"
-                                        : appointment.status === "cancelled"
-                                          ? "bg-red-400"
-                                          : appointment.status === "confirmed"
-                                            ? "bg-lime-500"
-                                            : appointment.status === "no_show"
-                                              ? "bg-gray-400"
-                                              : "bg-orange-400"
-                                    }`} />
+                                    <span className={`h-2.5 w-2.5 rounded-full ${CALENDAR_STATUS_STYLES[appointment.status]?.dot || CALENDAR_STATUS_STYLES.booked.dot}`} />
                                     <span>{formatTime(appointment.start_time)} - {formatTime(appointment.end_time)}</span>
                                   </div>
-                                  <span className={`text-xs font-black uppercase tracking-[0.18em] ${
-                                    isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"
+                                  <span className={`rounded-full px-2 py-1 text-[9px] font-black uppercase tracking-[0.14em] ${
+                                    isLive
+                                      ? "bg-[#FFF1D6] text-[#B76A00]"
+                                      : CALENDAR_STATUS_STYLES[appointment.status]?.badge || CALENDAR_STATUS_STYLES.booked.badge
                                   }`}>
                                     {isLive ? "Live" : appointment.status.replace("_", " ")}
                                   </span>
                                 </div>
-                                <p className={`mt-4 text-[1.65rem] font-black leading-tight ${
+                                <p className={`mt-3 text-[1.15rem] font-black leading-tight ${
                                   isDark ? "text-[#F0EBE3]" : "text-[#1F2937]"
                                 }`}>
                                   {appointment.service_name || "Service"}
                                 </p>
-                                <p className={`mt-3 text-lg ${
+                                <p className={`mt-2 text-sm ${
                                   isDark ? "text-[#C8BFB4]" : "text-[#5B6472]"
                                 }`}>
                                   {appointment.customer_name || "Walk-in Customer"}
+                                </p>
+                                <p className={`mt-1 text-xs ${
+                                  isDark ? "text-[#938C86]" : "text-[#8A7A6D]"
+                                }`}>
+                                  {appointment.staff_name || "Unassigned staff"}
                                 </p>
                               </button>
                             );
@@ -917,7 +917,7 @@ export function DashboardCalendarPage() {
                       <button
                         type="button"
                         onClick={() => setView("timeline")}
-                        className={`mt-5 flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-black uppercase tracking-[0.18em] transition-all ${
+                        className={`mt-4 flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-black uppercase tracking-[0.18em] transition-all ${
                           isDark
                             ? "border-[rgba(201,169,110,0.35)] text-[#E8CC9B] hover:bg-[rgba(201,169,110,0.08)]"
                             : "border-[#D9C2A9] text-[#8B5E3C] hover:bg-[#FBF4EC]"
@@ -975,6 +975,7 @@ export function DashboardCalendarPage() {
         .calendar-view .fc {
           --fc-border-color: ${isDark ? "rgba(255,255,255,0.06)" : "#F1E7DB"};
           --fc-page-bg-color: transparent;
+          padding: 0.45rem 0.55rem 0.65rem;
         }
         .calendar-view .fc-scrollgrid,
         .calendar-view .fc-theme-standard td,
@@ -985,8 +986,8 @@ export function DashboardCalendarPage() {
           background: transparent;
         }
         .calendar-view .fc-col-header-cell-cushion {
-          padding: 1.15rem 0 !important;
-          font-size: 1.05rem;
+          padding: 0.45rem 0 !important;
+          font-size: 0.76rem;
           font-weight: 700;
           color: ${isDark ? "#DDD3C8" : "#5B6472"};
           text-decoration: none !important;
@@ -995,15 +996,15 @@ export function DashboardCalendarPage() {
           display: none !important;
         }
         .calendar-view .fc-daygrid-day-frame {
-          min-height: 190px;
-          padding: 0.45rem;
+          min-height: 74px;
+          padding: 0.18rem;
         }
         .calendar-view .fc-daygrid-day-number {
-          font-size: 1.05rem;
+          font-size: 0.78rem;
           font-weight: 700;
           color: ${isDark ? "#F0EBE3" : "#2F3A4B"};
           text-decoration: none !important;
-          padding: 0.35rem 0.45rem 0 0 !important;
+          padding: 0.14rem 0.24rem 0 0 !important;
         }
         .calendar-view .fc-day-today {
           background: ${isDark ? "rgba(201,169,110,0.08)" : "#FFF8ED"} !important;
@@ -1016,12 +1017,12 @@ export function DashboardCalendarPage() {
           border: none !important;
         }
         .calendar-view .fc-daygrid-event {
-          margin: 0.3rem 0 0 !important;
+          margin: 0.12rem 0 0 !important;
         }
         .calendar-view .fc-daygrid-more-link {
-          margin: 0.5rem 0 0 !important;
+          margin: 0.16rem 0 0 !important;
           color: ${isDark ? "#C9A96E" : "#8B5E3C"} !important;
-          font-size: 0.75rem;
+          font-size: 0.58rem;
           font-weight: 700;
           text-decoration: none !important;
         }
@@ -1029,10 +1030,17 @@ export function DashboardCalendarPage() {
           text-decoration: none !important;
         }
         .calendar-view .fc-daygrid-day-events {
-          margin-top: 1.9rem !important;
+          margin-top: 0.58rem !important;
         }
         .calendar-view .fc-day-other .fc-daygrid-day-number {
           opacity: 0.45;
+        }
+        .calendar-view .fc-scrollgrid {
+          border-radius: 1.35rem;
+          overflow: hidden;
+        }
+        .calendar-view .fc-daygrid-day-top {
+          justify-content: flex-end;
         }
       `}</style>
     </div>
@@ -1317,6 +1325,8 @@ function AppointmentDetailModal({ appointment, onClose, onStatusUpdate, isDark }
   if (!appointment) return null;
   
   const [isUpdating, setIsUpdating] = useState(false);
+  const normalizedAppointmentDate = normalizeDateOnly(appointment.appointment_date);
+  const statusConfig = STATUS_CONFIG[appointment.status as AppointmentStatus] || STATUS_CONFIG.booked;
 
   const handleStatusChange = async (newStatus: AppointmentStatus) => {
     setIsUpdating(true);
@@ -1336,6 +1346,15 @@ function AppointmentDetailModal({ appointment, onClose, onStatusUpdate, isDark }
       return time;
     }
   };
+
+  const formattedAppointmentDate = (() => {
+    if (!normalizedAppointmentDate) return "Unknown date";
+    try {
+      return format(parse(normalizedAppointmentDate, "yyyy-MM-dd", new Date()), "MMMM d, yyyy");
+    } catch {
+      return normalizedAppointmentDate;
+    }
+  })();
   
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md">
@@ -1348,7 +1367,7 @@ function AppointmentDetailModal({ appointment, onClose, onStatusUpdate, isDark }
           <div>
             <h2 className="text-xl font-black font-['Outfit']">Booking Info</h2>
             <p className={`text-[10px] font-black uppercase tracking-widest mt-1 ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`}>
-              Scheduled for {format(parse(appointment.appointment_date, "yyyy-MM-dd", new Date()), "MMMM d, yyyy")}
+              Scheduled for {formattedAppointmentDate}
             </p>
           </div>
           <button onClick={onClose} className={`p-2 rounded-xl transition-all hover:bg-white/5 ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>
@@ -1401,12 +1420,12 @@ function AppointmentDetailModal({ appointment, onClose, onStatusUpdate, isDark }
 
             <div className="flex items-start gap-3">
               <div className={`p-2 rounded-xl ${isDark ? "bg-white/5 text-[#C9A96E]" : "bg-gray-50 text-[#8B5E3C]"}`}>
-                <div className={`w-3 h-3 rounded-full ${STATUS_CONFIG[appointment.status as AppointmentStatus]?.bg.replace('bg-', 'bg-')}`} />
+                <div className={`h-3 w-3 rounded-full ${statusConfig.bg}`} />
               </div>
               <div>
                 <label className={`text-[9px] font-black uppercase tracking-[0.2em] mb-1 block ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>Current Status</label>
-                <p className={`text-sm font-bold capitalize ${STATUS_CONFIG[appointment.status as AppointmentStatus]?.color}`}>
-                  {appointment.status}
+                <p className={`text-sm font-bold capitalize ${statusConfig.color}`}>
+                  {statusConfig.label}
                 </p>
               </div>
             </div>
