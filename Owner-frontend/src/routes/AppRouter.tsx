@@ -32,6 +32,7 @@ import { ManagerList } from "../modules/manager/pages/ManagerList";
 import { DashboardPurchasePage } from "../modules/dashboard/pages/DashboardPurchasePage";
 import { DashboardVendorsPage } from "../modules/dashboard/pages/DashboardVendorsPage";
 import { ExpenseReportPage } from "../modules/reports/pages/ExpenseReportPage";
+import { ProfitReportPage } from "../modules/reports/pages/ProfitReportPage";
 
 export function AppRouter() {
   return (
@@ -73,6 +74,7 @@ export function AppRouter() {
             <Route path="purchases" element={<PurchaseReportPage />} />
             <Route path="expenses" element={<ExpenseReportPage />} />
             <Route path="attendance" element={<AttendanceReportPage />} />
+            <Route path="profit" element={<ProfitReportPage />} />
           </Route>
           <Route path="managers" element={<ManagerList />} />
         </Route>

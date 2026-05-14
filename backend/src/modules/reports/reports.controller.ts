@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { isAuthUserPayload } from "../../middleware/authMiddleware";
 import * as reportsService from "./reports.service";
-import type { AttendanceReportFilters, ExpenseReportFilters } from "./reports.service";
+import type { AttendanceReportFilters, ExpenseReportFilters, ProfitReportFilters } from "./reports.service";
 
 export async function handleGetSalesReport(req: Request, res: Response, next: NextFunction) {
   try {
@@ -139,3 +139,24 @@ export async function handleGetExpenseReport(req: Request, res: Response, next: 
   } catch (err) { next(err); }
 }
 
+export async function handleGetProfitReport(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!isAuthUserPayload(req.user)) return res.status(401).json({ message: "Unauthorized" });
+    const month = req.query.month ? parseInt(req.query.month as string, 10) : undefined;
+    const year = req.query.year ? parseInt(req.query.year as string, 10) : undefined;
+    const filters: ProfitReportFilters = {
+      startDate: req.query.startDate as string | undefined,
+      endDate: req.query.endDate as string | undefined,
+      month: Number.isFinite(month) ? month : undefined,
+      year: Number.isFinite(year) ? year : undefined,
+      locationId: req.query.locationId as string | undefined,
+      search: req.query.search as string | undefined,
+      page: req.query.page ? parseInt(req.query.page as string, 10) : 1,
+      limit: req.query.limit ? parseInt(req.query.limit as string, 10) : 10,
+      sortKey: req.query.sortKey as string | undefined,
+      sortDirection: req.query.sortDirection === "asc" ? "asc" : "desc",
+    };
+    const data = await reportsService.getProfitReport(req.user, filters);
+    return res.status(200).json({ success: true, data });
+  } catch (err) { next(err); }
+}

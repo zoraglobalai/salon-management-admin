@@ -1359,6 +1359,60 @@ export type ExpenseReportData = {
   };
 };
 
+export type ProfitReportStatus = "profit" | "loss" | "break_even";
+
+export type ProfitBreakdown = {
+  services: number;
+  products: number;
+  otherRevenue: number;
+  salary: number;
+  purchase: number;
+  rent: number;
+  electricity: number;
+  maintenance: number;
+  miscellaneous: number;
+};
+
+export type ProfitReportRow = {
+  period: string;
+  period_date: string;
+  revenue: number;
+  expenses: number;
+  profit: number;
+  profit_margin: number;
+  status: ProfitReportStatus;
+  breakdown: ProfitBreakdown;
+};
+
+export type ProfitReportData = {
+  summary: {
+    totalRevenue: number;
+    totalExpenses: number;
+    netProfit: number;
+    profitMargin: number;
+    status: ProfitReportStatus;
+    breakdownTotals: ProfitBreakdown;
+  };
+  rows: ProfitReportRow[];
+  pagination: {
+    page: number;
+    limit: number;
+    totalCount: number;
+    totalPages: number;
+  };
+  filterMeta: {
+    branches: Array<{ id: string; name: string }>;
+  };
+  insights: string[];
+  appliedFilters: {
+    startDate: string;
+    endDate: string;
+    month: number;
+    year: number;
+    locationId: string | null;
+  };
+};
+
 export type ExpenseInput = {
   expenseCategory: string;
   subCategory: string;
@@ -1439,6 +1493,36 @@ export async function fetchExpenseReport(filters: {
 
   const qs = params.toString();
   return request<{ success: boolean; data: ExpenseReportData }>(`/reports/expenses${qs ? `?${qs}` : ""}`, {
+    headers: getOwnerAuthHeaders(),
+  });
+}
+
+export async function fetchProfitReport(filters: {
+  startDate?: string;
+  endDate?: string;
+  month?: number;
+  year?: number;
+  locationId?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+  sortKey?: string;
+  sortDirection?: "asc" | "desc";
+}) {
+  const params = new URLSearchParams();
+  if (filters.startDate) params.set("startDate", filters.startDate);
+  if (filters.endDate) params.set("endDate", filters.endDate);
+  if (filters.month) params.set("month", String(filters.month));
+  if (filters.year) params.set("year", String(filters.year));
+  if (filters.locationId && filters.locationId !== "all") params.set("locationId", filters.locationId);
+  if (filters.search) params.set("search", filters.search);
+  if (filters.page) params.set("page", String(filters.page));
+  if (filters.limit) params.set("limit", String(filters.limit));
+  if (filters.sortKey) params.set("sortKey", filters.sortKey);
+  if (filters.sortDirection) params.set("sortDirection", filters.sortDirection);
+
+  const qs = params.toString();
+  return request<{ success: boolean; data: ProfitReportData }>(`/reports/profit${qs ? `?${qs}` : ""}`, {
     headers: getOwnerAuthHeaders(),
   });
 }

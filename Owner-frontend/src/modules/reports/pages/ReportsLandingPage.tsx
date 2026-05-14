@@ -14,6 +14,7 @@ import {
   Users,
   ShoppingBag,
   Wallet,
+  PiggyBank,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../auth/hooks/useAuth";
@@ -347,6 +348,12 @@ export function ReportsLandingPage() {
           description="Track attendance-based salary, purchase cost, GST paid, and sales-side discount expenses with exports and filters."
           icon={<Wallet />}
           to="/dashboard/reports/expenses"
+        />
+        <ReportCard
+          title="Profit Report"
+          description="Measure revenue, expense impact, margin health, and business growth trends from live sales and expense data."
+          icon={<PiggyBank />}
+          to="/dashboard/reports/profit"
         />
         <ReportCard
           title="Attendance Report"
