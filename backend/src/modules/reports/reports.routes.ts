@@ -9,6 +9,7 @@ router.get("/customers", authMiddleware, reportsController.handleGetCustomerRepo
 router.get("/staff", authMiddleware, reportsController.handleGetStaffReport);
 router.get("/services", authMiddleware, reportsController.handleGetServiceReport);
 router.get("/inventory", authMiddleware, reportsController.handleGetInventoryReport);
+router.get("/purchases", authMiddleware, reportsController.handleGetPurchaseReport);
 router.get("/summary", authMiddleware, reportsController.handleGetReportsSummary);
 
 export default router;

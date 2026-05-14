@@ -17,6 +17,7 @@ import { CustomerReportPage } from "../modules/reports/pages/CustomerReportPage"
 import { ServiceReportPage } from "../modules/reports/pages/ServiceReportPage";
 import { StaffReportPage } from "../modules/reports/pages/StaffReportPage";
 import { InventoryReportPage } from "../modules/reports/pages/InventoryReportPage";
+import { PurchaseReportPage } from "../modules/reports/pages/PurchaseReportPage";
 import { DashboardSalesPOSPage } from "../modules/dashboard/pages/DashboardSalesPOSPage";
 import { DashboardSalesPOSEditPage } from "../modules/dashboard/pages/DashboardSalesPOSEditPage";
 import { DashboardSalesPOSCheckoutPage } from "../modules/dashboard/pages/DashboardSalesPOSCheckoutPage";
@@ -27,7 +28,8 @@ import { DashboardAttendancePage } from "../modules/dashboard/pages/DashboardAtt
 import { DashboardCalendarPage } from "../modules/dashboard/pages/DashboardCalendarPage";
 import { StaffDetailPage } from "../modules/dashboard/pages/StaffDetailPage";
 import { ManagerList } from "../modules/manager/pages/ManagerList";
-import { ComingSoonPage } from "../shared/components/ComingSoonPage";
+import { DashboardPurchasePage } from "../modules/dashboard/pages/DashboardPurchasePage";
+import { DashboardVendorsPage } from "../modules/dashboard/pages/DashboardVendorsPage";
 
 export function AppRouter() {
   return (
@@ -56,8 +58,8 @@ export function AppRouter() {
           <Route path="attendance" element={<DashboardAttendancePage />} />
           <Route path="services" element={<DashboardServicesPage />} />
           <Route path="inventory" element={<DashboardInventoryPage />} />
-          <Route path="purchase" element={<ComingSoonPage />} />
-          <Route path="vendors" element={<ComingSoonPage />} />
+          <Route path="purchase" element={<DashboardPurchasePage />} />
+          <Route path="vendors" element={<DashboardVendorsPage />} />
           <Route path="automation" element={<DashboardAutomationPage />} />
           <Route path="reports">
             <Route index element={<ReportsLandingPage />} />
@@ -66,6 +68,7 @@ export function AppRouter() {
             <Route path="services" element={<ServiceReportPage />} />
             <Route path="staff" element={<StaffReportPage />} />
             <Route path="inventory" element={<InventoryReportPage />} />
+            <Route path="purchases" element={<PurchaseReportPage />} />
           </Route>
           <Route path="managers" element={<ManagerList />} />
         </Route>

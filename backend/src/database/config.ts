@@ -10,6 +10,9 @@ import { RevenueTransaction } from '../entities/platform/RevenueTransaction';
 import { SupportTicket } from '../entities/platform/SupportTicket';
 import { Log } from '../entities/platform/Log';
 import { Notification } from '../entities/platform/Notification';
+import { Vendor } from '../entities/platform/Vendor';
+import { Purchase } from '../entities/platform/Purchase';
+import { PurchaseItem } from '../entities/platform/PurchaseItem';
 import { CreatePlatformCoreTables1714300000000 } from './migrations/1714300000000-CreatePlatformCoreTables';
 import { SyncSubscriptionPlanEnum1714400000000 } from './migrations/1714400000000-SyncSubscriptionPlanEnum';
 import { CreateOperationalSchema1714500000000 } from './migrations/1714500000000-CreateOperationalSchema';
@@ -30,6 +33,13 @@ import { AddUserSessionVersion1715800000000 } from './migrations/1715800000000-A
 import { CreateStaffPayrollTable1715900000000 } from './migrations/1715900000000-CreateStaffPayrollTable';
 import { CreateAttendanceTable1716000000000 } from './migrations/1716000000000-CreateAttendanceTable';
 import { CreateAppointmentsSchema1716100000000 } from './migrations/1716100000000-CreateAppointmentsSchema';
+import { CreateVendors1715900000000 } from './migrations/1715900000000-CreateVendors';
+import { CreatePurchases1716000000000 } from './migrations/1716000000000-CreatePurchases';
+import { CreatePurchaseItems1716100000000 } from './migrations/1716100000000-CreatePurchaseItems';
+import { UpdateInventoryForPurchase1716200000000 } from './migrations/1716200000000-UpdateInventoryForPurchase';
+import { AddPurchaseItemGst1716300000000 } from './migrations/1716300000000-AddPurchaseItemGst';
+import { AddPurchaseItemGstType1716400000000 } from './migrations/1716400000000-AddPurchaseItemGstType';
+import { AddPurchasesCreatedBy1716500000000 } from './migrations/1716500000000-AddPurchasesCreatedBy';
 
 export const databaseConfig = {
   host: ENV.DB_HOST,
@@ -45,7 +55,7 @@ export const databaseConfig = {
 export const AppDataSource = new DataSource({
   type: 'postgres',
   ...databaseConfig,
-  entities: [User, Tenant, Branch, Subscription, Trial, RevenueTransaction, SupportTicket, Log, Notification],
+  entities: [User, Tenant, Branch, Subscription, Trial, RevenueTransaction, SupportTicket, Log, Notification, Vendor, Purchase, PurchaseItem],
   migrations: [
     CreatePlatformCoreTables1714300000000,
     SyncSubscriptionPlanEnum1714400000000,
@@ -67,5 +77,12 @@ export const AppDataSource = new DataSource({
     CreateStaffPayrollTable1715900000000,
     CreateAttendanceTable1716000000000,
     CreateAppointmentsSchema1716100000000,
+    CreateVendors1715900000000,
+    CreatePurchases1716000000000,
+    CreatePurchaseItems1716100000000,
+    UpdateInventoryForPurchase1716200000000,
+    AddPurchaseItemGst1716300000000,
+    AddPurchaseItemGstType1716400000000,
+    AddPurchasesCreatedBy1716500000000,
   ],
 });

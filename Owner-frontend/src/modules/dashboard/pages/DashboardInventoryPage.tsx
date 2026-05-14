@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { useAuth } from "../../auth/hooks/useAuth";
 import {
-  createInventoryItem,
   deleteInventoryItem,
   fetchInventory,
   type InventoryItem,
@@ -12,7 +11,8 @@ import {
 import { useNotifications } from "../../../shared/components/NotificationProvider";
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
 import { useGlobalFilters } from "../../../shared/context/FilterContext";
-import { Plus, Package, MapPin, ChevronDown, MoveHorizontal, Edit3, Trash2, AlertTriangle, X } from "lucide-react";
+import { Package, MapPin, ChevronDown, MoveHorizontal, Edit3, Trash2, AlertTriangle, X, ShoppingBag } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 type LocationOption = { id: string; name: string; city?: string };
 type InventoryOutletContext = {
@@ -43,6 +43,7 @@ const EMPTY_FORM: InventoryFormState = {
 };
 
 export function DashboardInventoryPage() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { theme } = useDashboardTheme();
   const { toast, confirm } = useNotifications();
@@ -73,6 +74,7 @@ export function DashboardInventoryPage() {
 
   const getDecimalInputValue = (value: string) =>
     value.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1");
+  const formatWholeNumber = (value: number) => Math.round(Number(value) || 0).toLocaleString();
 
 
   const loadInventory = (locationId = globalFilters.locationId) => {
@@ -99,15 +101,6 @@ export function DashboardInventoryPage() {
     }
     loadInventory();
   }, [globalFilters.locationId, user?.branchId, isManager]);
-
-  const openCreateModal = () => {
-    setEditingItem(null);
-    setForm({
-      ...EMPTY_FORM,
-      locationId: isManager ? user?.branchId || "" : globalFilters.locationId !== "all" ? globalFilters.locationId : (locationOptions[0]?.id || ""),
-    });
-    setIsModalOpen(true);
-  };
 
   const openEditModal = (item: InventoryItem) => {
     setEditingItem(item);
@@ -151,16 +144,7 @@ export function DashboardInventoryPage() {
         const response = await updateInventoryItem(editingItem.id, payload);
         setItems((current) => current.map((item) => item.id === editingItem.id ? response.item : item));
       } else {
-        const response = await createInventoryItem(payload);
-        const createdItem = response.item;
-        const shouldShowItem =
-          isManager ||
-          globalFilters.locationId === "all" ||
-          globalFilters.locationId === createdItem.locationId;
-
-        if (shouldShowItem) {
-          setItems((current) => [createdItem, ...current]);
-        }
+        throw new Error("Manual product creation is disabled. Add products from Purchase.");
       }
 
       setError(null);
@@ -265,13 +249,13 @@ export function DashboardInventoryPage() {
           )}
           <button
             type="button"
-            onClick={openCreateModal}
-            className={`flex items-center justify-center gap-2 rounded-full px-6 py-2.5 font-semibold text-white shadow-md transition-all hover:-translate-y-0.5 ${
+            onClick={() => navigate("/dashboard/purchase")}
+            className={`flex items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-semibold text-white shadow-md transition-all hover:-translate-y-0.5 ${
               isDark ? "bg-[linear-gradient(135deg,#C9A96E_0%,#A67C3D_100%)] shadow-[0_8px_20px_rgba(201,169,110,0.15)]" : "bg-[#8B5E3C] hover:bg-[#744A2E]"
             }`}
           >
-            <Plus size={18} />
-            Add Product
+            <ShoppingBag size={16} />
+            View Purchase History
           </button>
         </div>
       </div>
@@ -332,14 +316,14 @@ export function DashboardInventoryPage() {
               <tr className={`border-b transition-all ${
                 isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.05)]" : "bg-gray-50/50 border-[#E8E1D8]"
               }`}>
-                {["Product", "Location", "Cost Price", "Quantity", "Stock", "Low Stock Alert", "Service Stock", "Actions"].map((h) => (
+                {["Product", "Vendor", "Location", "Cost Price", "Quantity", "Stock", "Low Stock Alert", "Service Stock", "Last Purchase Date", "Actions"].map((h) => (
                   <th key={h} className={`p-4 text-xs font-bold uppercase tracking-wider ${isDark ? "text-[#7A7572]" : "text-gray-500"} ${h === "Actions" ? "text-right" : ""}`}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {isLoading && (
-                <tr><td colSpan={8} className={`p-8 text-center text-sm ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>Loading inventory...</td></tr>
+                <tr><td colSpan={10} className={`p-8 text-center text-sm ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>Loading inventory...</td></tr>
               )}
               {!isLoading && items.map((item) => (
                 <tr key={item.id} className={`border-b transition-all last:border-0 ${
@@ -349,6 +333,7 @@ export function DashboardInventoryPage() {
                     <div className={`font-semibold ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>{item.name}</div>
                     <div className={`text-[10px] font-bold uppercase tracking-wider ${isDark ? "text-[#4A4744]" : "text-gray-400"}`}>{item.unit}</div>
                   </td>
+                  <td className={`p-4 text-sm ${isDark ? "text-[#C8BFB4]" : "text-gray-600"}`}>{item.vendorName || "-"}</td>
                   <td className={`p-4 text-sm ${isDark ? "text-[#C8BFB4]" : "text-gray-600"}`}>{item.locationName.split("-")[0].trim()}</td>
                   <td className={`p-4 font-bold ${isDark ? "text-[#E8C98A]" : "text-[#8B5E3C]"}`}>₹{item.costPrice.toLocaleString()}</td>
                   <td className={`p-4 text-sm ${isDark ? "text-[#C8BFB4]" : "text-gray-600"}`}>{item.quantity} {item.unit}</td>
@@ -363,12 +348,13 @@ export function DashboardInventoryPage() {
                   </td>
                   <td className={`p-4 text-sm font-semibold ${isDark ? "text-[#C8BFB4]" : "text-gray-600"}`}>{item.lowStockThreshold}</td>
                   <td className="p-4">
-                    <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase ${
+                    <span className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase ${
                       isDark ? "bg-[#1C2030] text-[#C9A96E]" : "bg-blue-100 text-blue-700"
                     }`}>
-                      {item.serviceQuantity} {item.unit}
+                      {formatWholeNumber(item.serviceQuantity)} {item.unit}
                     </span>
                   </td>
+                  <td className={`p-4 text-sm ${isDark ? "text-[#C8BFB4]" : "text-gray-600"}`}>{item.lastPurchaseDate ? new Date(item.lastPurchaseDate).toLocaleDateString() : "-"}</td>
                   <td className="p-4">
                     <div className="flex items-center justify-end gap-2">
                       <button onClick={() => openMoveStockModal(item)} type="button"
@@ -394,7 +380,7 @@ export function DashboardInventoryPage() {
                 </tr>
               ))}
               {!isLoading && items.length === 0 && (
-                <tr><td colSpan={8} className={`p-12 text-center text-sm ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>No inventory items found.</td></tr>
+                <tr><td colSpan={10} className={`p-12 text-center text-sm ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>No inventory items found.</td></tr>
               )}
             </tbody>
           </table>
@@ -436,7 +422,7 @@ export function DashboardInventoryPage() {
                 </div>
                 <div className="flex flex-col">
                   <span className={`text-[9px] font-bold uppercase tracking-wider ${isDark ? "text-[#4A4744]" : "text-gray-400"}`}>Service Stock</span>
-                  <span className={`text-sm font-bold ${isDark ? "text-[#C9A96E]" : "text-blue-600"}`}>{item.serviceQuantity} {item.unit}</span>
+                  <span className={`text-sm font-bold ${isDark ? "text-[#C9A96E]" : "text-blue-600"}`}>{formatWholeNumber(item.serviceQuantity)} {item.unit}</span>
                 </div>
               </div>
               <div className="mt-4 flex gap-2">
@@ -683,7 +669,7 @@ export function DashboardInventoryPage() {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className={`text-xs font-bold uppercase tracking-wider ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Service Stock</span>
-                  <span className={`text-sm font-black ${isDark ? "text-[#C9A96E]" : "text-blue-600"}`}>{movingStockItem.serviceQuantity} {movingStockItem.unit} </span>
+                  <span className={`text-sm font-black ${isDark ? "text-[#C9A96E]" : "text-blue-600"}`}>{formatWholeNumber(movingStockItem.serviceQuantity)} {movingStockItem.unit} </span>
                 </div>
               </div>
               <div>

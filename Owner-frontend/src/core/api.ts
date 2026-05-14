@@ -86,6 +86,10 @@ export type InventoryItem = {
   benefits: string;
   locationId: string;
   locationName: string;
+  vendorId: string | null;
+  vendorName: string | null;
+  lastPurchaseId: string | null;
+  lastPurchaseDate: string | null;
   createdAt: string;
 };
 
@@ -305,6 +309,186 @@ export async function moveStockToService(id: string, quantity: number) {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: JSON.stringify({ quantity }),
   });
+}
+
+export type VendorRecord = {
+  id: string;
+  vendorName: string;
+  companyName: string;
+  category: string;
+  phone: string;
+  email: string;
+  address: string;
+  gstNumber: string;
+  status: "ACTIVE" | "INACTIVE";
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type VendorInput = {
+  vendorName: string;
+  companyName?: string;
+  category?: string;
+  phone: string;
+  email?: string;
+  address?: string;
+  gstNumber?: string;
+  status?: "ACTIVE" | "INACTIVE";
+  notes?: string;
+};
+
+export async function fetchVendors(filters: { search?: string; status?: "ACTIVE" | "INACTIVE" | "ALL" } = {}) {
+  const token = sessionStorage.getItem("owner_token");
+  const params = new URLSearchParams();
+  if (filters.search) params.set("search", filters.search);
+  if (filters.status && filters.status !== "ALL") params.set("status", filters.status);
+  const qs = params.toString();
+  return request<{ vendors: VendorRecord[] }>(`/vendors${qs ? `?${qs}` : ""}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+}
+
+export async function createVendor(payload: VendorInput) {
+  const token = sessionStorage.getItem("owner_token");
+  return request<{ vendor: VendorRecord }>("/vendors", {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateVendor(id: string, payload: VendorInput) {
+  const token = sessionStorage.getItem("owner_token");
+  return request<{ vendor: VendorRecord }>(`/vendors/${id}`, {
+    method: "PUT",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteVendor(id: string) {
+  const token = sessionStorage.getItem("owner_token");
+  return request<{ success: boolean; message: string }>(`/vendors/${id}`, {
+    method: "DELETE",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+}
+
+export type PurchaseItemInput = {
+  productName: string;
+  category?: string;
+  unit: "ML" | "PCS" | "KG" | "Litre";
+  costPrice: number;
+  gst: number;
+  gstType?: "AMOUNT" | "PERCENT";
+  initialStock: number;
+  initialQuantity: number;
+  lowStockAlert: number;
+  serviceStock: number;
+  expiryDate?: string;
+  batchNumber?: string;
+};
+
+export type PurchaseRecord = {
+  id: string;
+  vendorId: string;
+  vendorName: string;
+  locationId: string;
+  locationName: string;
+  purchaseDate: string;
+  invoiceNumber: string;
+  paymentStatus: string;
+  paymentMethod: string;
+  totalAmount: number;
+  notes: string;
+  createdAt: string;
+  productsBought?: string;
+  totalStock?: number;
+  perProductCost?: number;
+  perProductGst?: number;
+  items?: Array<{
+    id: string;
+    purchaseId: string;
+    productName: string;
+    category: string;
+    unit: string;
+    costPrice: number;
+    gst: number;
+    gstType?: "AMOUNT" | "PERCENT";
+    initialStock: number;
+    initialQuantity: number;
+    lowStockAlert: number;
+    serviceStock: number;
+    expiryDate: string | null;
+    batchNumber: string;
+    createdAt: string;
+  }>;
+};
+
+export async function fetchPurchases(locationId?: string) {
+  const token = sessionStorage.getItem("owner_token");
+  const params = new URLSearchParams();
+  if (locationId && locationId !== "all") params.set("locationId", locationId);
+  const qs = params.toString();
+  return request<{ purchases: PurchaseRecord[] }>(`/purchases${qs ? `?${qs}` : ""}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+}
+
+export async function fetchPurchaseById(id: string) {
+  const token = sessionStorage.getItem("owner_token");
+  return request<{ purchase: PurchaseRecord }>(`/purchases/${id}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+}
+
+export async function createPurchase(payload: {
+  vendorId: string;
+  locationId?: string;
+  purchaseDate: string;
+  invoiceNumber?: string;
+  paymentStatus: string;
+  paymentMethod: string;
+  notes?: string;
+  items: PurchaseItemInput[];
+}) {
+  const token = sessionStorage.getItem("owner_token");
+  return request<{ purchase: PurchaseRecord; items: PurchaseRecord["items"] }>("/purchases", {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updatePurchase(id: string, payload: {
+  vendorId: string;
+  locationId?: string;
+  purchaseDate: string;
+  invoiceNumber?: string;
+  paymentStatus: string;
+  paymentMethod: string;
+  notes?: string;
+  items: PurchaseItemInput[];
+}) {
+  const token = sessionStorage.getItem("owner_token");
+  try {
+    return await request<{ purchase: PurchaseRecord; items: PurchaseRecord["items"] }>(`/purchases/${id}`, {
+      method: "PUT",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (!message.toLowerCase().includes("route not found")) {
+      throw error;
+    }
+    return request<{ purchase: PurchaseRecord; items: PurchaseRecord["items"] }>(`/purchases/${id}`, {
+      method: "PATCH",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: JSON.stringify(payload),
+    });
+  }
 }
 
 export type ServiceProduct = {
@@ -1062,6 +1246,34 @@ export async function fetchReportsSummary(filters: { startDate?: string; endDate
 
   const qs = params.toString();
   return request<{ success: boolean; data: any }>(`/reports/summary${qs ? `?${qs}` : ""}`, {
+    headers: getOwnerAuthHeaders(),
+  });
+}
+
+export async function fetchPurchaseReport(filters: {
+  startDate?: string;
+  endDate?: string;
+  locationId?: string;
+  vendorId?: string;
+  product?: string;
+  category?: string;
+  paymentStatus?: string;
+  paymentMethod?: string;
+  createdBy?: string;
+}) {
+  const params = new URLSearchParams();
+  if (filters.startDate) params.set("startDate", filters.startDate);
+  if (filters.endDate) params.set("endDate", filters.endDate);
+  if (filters.locationId && filters.locationId !== "all") params.set("locationId", filters.locationId);
+  if (filters.vendorId && filters.vendorId !== "all") params.set("vendorId", filters.vendorId);
+  if (filters.product) params.set("product", filters.product);
+  if (filters.category && filters.category !== "all") params.set("category", filters.category);
+  if (filters.paymentStatus && filters.paymentStatus !== "all") params.set("paymentStatus", filters.paymentStatus);
+  if (filters.paymentMethod && filters.paymentMethod !== "all") params.set("paymentMethod", filters.paymentMethod);
+  if (filters.createdBy) params.set("createdBy", filters.createdBy);
+
+  const qs = params.toString();
+  return request<{ success: boolean; data: any }>(`/reports/purchases${qs ? `?${qs}` : ""}`, {
     headers: getOwnerAuthHeaders(),
   });
 }

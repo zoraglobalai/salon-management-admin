@@ -11,6 +11,7 @@ import {
   Trophy,
   UserSquare2,
   Users,
+  ShoppingBag,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../auth/hooks/useAuth";
@@ -332,6 +333,12 @@ export function ReportsLandingPage() {
           description="Keep track of product sales, usage, and monitor low stock items."
           icon={<Package />}
           to="/dashboard/reports/inventory"
+        />
+        <ReportCard
+          title="Purchase Report"
+          description="Track vendor purchases, product-level costs, stock additions, and payment status."
+          icon={<ShoppingBag />}
+          to="/dashboard/reports/purchases"
         />
       </div>
     </div>

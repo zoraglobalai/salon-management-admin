@@ -10,6 +10,11 @@ export type ReportFilters = {
   page?: number;
   limit?: number;
   interval?: string;
+  vendorId?: string;
+  product?: string;
+  category?: string;
+  paymentStatus?: string;
+  createdBy?: string;
 };
 
 type SchemaColumnRow = {
@@ -808,5 +813,120 @@ export async function getReportsSummary(user: AuthUserPayload, filters: ReportFi
     salesCount: salesSummary.rows[0]?.total_sales || 0,
     customerCount: customerSummary.rows[0]?.total_customers || 0,
     insights
+  };
+}
+
+export async function getPurchaseReport(user: AuthUserPayload, filters: ReportFilters) {
+  if (!user.tenant_id) throw createError("Tenant not found.", 400);
+
+  const values: Array<string | number | null> = [user.tenant_id];
+  const conditions = ["p.tenant_id = $1"];
+
+  const selectedLocationId = user.type === "manager" ? user.branch_id : normalizeLocationId(filters.locationId);
+  if (selectedLocationId) {
+    values.push(selectedLocationId);
+    conditions.push(`p.location_id = $${values.length}`);
+  }
+
+  if (filters.startDate) {
+    values.push(filters.startDate);
+    conditions.push(`p.purchase_date >= $${values.length}::date`);
+  }
+  if (filters.endDate) {
+    values.push(filters.endDate);
+    conditions.push(`p.purchase_date <= $${values.length}::date`);
+  }
+  if (filters.vendorId && filters.vendorId !== "all") {
+    values.push(filters.vendorId);
+    conditions.push(`p.vendor_id = $${values.length}`);
+  }
+  if (filters.paymentStatus && filters.paymentStatus !== "all") {
+    values.push(filters.paymentStatus.toUpperCase());
+    conditions.push(`UPPER(p.payment_status) = $${values.length}`);
+  }
+  if (filters.paymentMethod && filters.paymentMethod !== "all") {
+    values.push(filters.paymentMethod.toUpperCase());
+    conditions.push(`UPPER(p.payment_method) = $${values.length}`);
+  }
+  if (filters.product) {
+    values.push(`%${filters.product.toLowerCase()}%`);
+    conditions.push(`LOWER(pi.product_name) LIKE $${values.length}`);
+  }
+  if (filters.category) {
+    values.push(`%${filters.category.toLowerCase()}%`);
+    conditions.push(`LOWER(pi.category) LIKE $${values.length}`);
+  }
+  if (filters.createdBy) {
+    values.push(`%${filters.createdBy.toLowerCase()}%`);
+    conditions.push(`LOWER(COALESCE(p.created_by, '')) LIKE $${values.length}`);
+  }
+
+  const reportRows = await query<any>(
+    `
+      SELECT
+        p.id AS purchase_id,
+        p.purchase_date,
+        p.invoice_number,
+        v.vendor_name,
+        v.phone AS vendor_phone,
+        pi.product_name,
+        pi.category,
+        pi.unit,
+        pi.initial_stock AS quantity_purchased,
+        pi.cost_price,
+        (pi.cost_price + CASE WHEN pi.gst_type = 'PERCENT' THEN (pi.cost_price * pi.gst / 100) ELSE pi.gst END) * pi.initial_stock AS total_product_cost,
+        p.payment_status,
+        p.payment_method,
+        p.total_amount AS total_purchase_amount,
+        pi.initial_stock AS stock_added_to_inventory,
+        COALESCE(p.created_by, 'Unknown') AS created_by,
+        p.created_at,
+        b.name AS location_name
+      FROM purchases p
+      INNER JOIN vendors v ON v.id = p.vendor_id
+      INNER JOIN purchase_items pi ON pi.purchase_id = p.id
+      LEFT JOIN branches b ON b.id = p.location_id
+      WHERE ${conditions.join(" AND ")}
+      ORDER BY p.purchase_date DESC, p.created_at DESC, pi.created_at ASC
+    `,
+    values,
+  );
+
+  const vendors = await query<{ id: string; vendor_name: string }>(
+    `SELECT id, vendor_name FROM vendors WHERE tenant_id = $1 ORDER BY vendor_name ASC`,
+    [user.tenant_id],
+  );
+
+  const products = await query<{ product_name: string }>(
+    `
+      SELECT DISTINCT pi.product_name
+      FROM purchase_items pi
+      JOIN purchases p ON p.id = pi.purchase_id
+      WHERE p.tenant_id = $1
+      ORDER BY pi.product_name ASC
+    `,
+    [user.tenant_id],
+  );
+
+  const categories = await query<{ category: string }>(
+    `
+      SELECT DISTINCT COALESCE(NULLIF(pi.category, ''), 'Uncategorized') AS category
+      FROM purchase_items pi
+      JOIN purchases p ON p.id = pi.purchase_id
+      WHERE p.tenant_id = $1
+      ORDER BY category ASC
+    `,
+    [user.tenant_id],
+  );
+
+  return {
+    rows: reportRows.rows,
+    filterMeta: {
+      vendors: vendors.rows,
+      products: products.rows.map((row) => row.product_name),
+      categories: categories.rows.map((row) => row.category),
+      paymentStatuses: ["PENDING", "PAID", "PARTIAL"],
+      paymentMethods: ["CASH", "UPI", "CARD", "BANK"],
+    },
   };
 }
