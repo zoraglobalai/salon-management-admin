@@ -293,9 +293,9 @@ export function AttendanceReportPage() {
           <h1 className={cn("text-2xl font-bold tracking-[-0.03em] md:text-[2rem]", isDark ? "text-[#F0EBE3]" : "text-[#111827]")}>
             Attendance Report
           </h1>
-          <p className={cn("text-sm md:text-[15px]", isDark ? "text-[#7A7572]" : "text-[#6B7280]")}>
+          {/* <p className={cn("text-sm md:text-[15px]", isDark ? "text-[#7A7572]" : "text-[#6B7280]")}>
             Staff attendance insights, payroll deductions, and leave visibility.
-          </p>
+          </p> */}
         </div>
         {/* Live badge */}
         <div className={cn(

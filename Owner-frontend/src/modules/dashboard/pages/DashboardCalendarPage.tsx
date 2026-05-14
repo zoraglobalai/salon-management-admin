@@ -511,10 +511,10 @@ export function DashboardCalendarPage() {
 
           <button 
             onClick={() => handleAddAppointment()}
-            className={`flex shrink-0 items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-black uppercase tracking-widest text-white shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] ${
+            className={`flex items-center justify-center gap-2 whitespace-nowrap rounded-full px-5 py-2 text-sm font-semibold text-white shadow-md transition-all hover:-translate-y-0.5 ${
               isDark 
                 ? "bg-[linear-gradient(135deg,#C9A96E_0%,#A67C3D_100%)] shadow-[0_8px_20px_rgba(201,169,110,0.15)]" 
-                : "bg-[#8B5E3C] shadow-[0_8px_20px_rgba(139,94,60,0.15)]"
+                : "bg-[#8B5E3C] hover:bg-[#744A2E]"
             }`}
           >
             <Plus size={18} />
