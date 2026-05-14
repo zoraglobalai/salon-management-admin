@@ -1,7 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { isAuthUserPayload } from "../../middleware/authMiddleware";
 import {
-  createInventoryItem,
   deleteInventoryItem,
   listInventory,
   updateInventoryItem,
@@ -28,8 +27,10 @@ export async function createInventory(req: Request, res: Response, next: NextFun
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const item = await createInventoryItem(req.user, req.body);
-    return res.status(201).json({ item });
+    return res.status(403).json({
+      success: false,
+      message: "Manual product creation is disabled. Add products through Purchase instead.",
+    });
   } catch (error) {
     return next(error);
   }

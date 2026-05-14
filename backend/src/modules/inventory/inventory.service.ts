@@ -15,6 +15,10 @@ export type InventoryRecord = {
   benefits: string;
   locationId: string;
   locationName: string;
+  vendorId: string | null;
+  vendorName: string | null;
+  lastPurchaseId: string | null;
+  lastPurchaseDate: string | null;
   createdAt: string;
 };
 
@@ -30,6 +34,10 @@ type InventoryRow = {
   benefits: string;
   location_id: string;
   location_name: string;
+  vendor_id: string | null;
+  vendor_name: string | null;
+  last_purchase_id: string | null;
+  last_purchase_date: string | null;
   created_at: string;
 };
 
@@ -63,6 +71,10 @@ function mapInventoryRow(row: InventoryRow): InventoryRecord {
     benefits: row.benefits,
     locationId: row.location_id,
     locationName: row.location_name,
+    vendorId: row.vendor_id,
+    vendorName: row.vendor_name,
+    lastPurchaseId: row.last_purchase_id,
+    lastPurchaseDate: row.last_purchase_date,
     createdAt: row.created_at,
   };
 }
@@ -217,6 +229,10 @@ async function getInventoryItemById(columns: Set<string>, inventoryId: string) {
           FROM branches
           WHERE id = ${sql.locationExpr}
         ) AS location_name,
+        inventory.vendor_id,
+        (SELECT vendor_name FROM vendors WHERE id = inventory.vendor_id) AS vendor_name,
+        inventory.last_purchase_id,
+        inventory.last_purchase_date,
         inventory.created_at
       FROM inventory
       WHERE inventory.id = $1
@@ -267,9 +283,14 @@ export async function listInventory(user: AuthUserPayload, locationId?: string) 
         ${sql.benefitsExpr} AS benefits,
         ${sql.locationExpr} AS location_id,
         b.name AS location_name,
+        i.vendor_id,
+        v.vendor_name,
+        i.last_purchase_id,
+        i.last_purchase_date,
         i.created_at
       FROM inventory i
       INNER JOIN branches b ON b.id = ${sql.locationExpr}
+      LEFT JOIN vendors v ON v.id = i.vendor_id
       WHERE ${filters.join(" AND ")}
       ORDER BY i.created_at DESC
     `,

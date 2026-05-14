@@ -1,4 +1,3 @@
-import React from 'react';
 import { Rocket, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDashboardTheme } from '../theme/ThemeProvider';

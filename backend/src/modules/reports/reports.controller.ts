@@ -81,3 +81,22 @@ export async function handleGetReportsSummary(req: Request, res: Response, next:
     return res.status(200).json({ success: true, data });
   } catch (err) { next(err); }
 }
+
+export async function handleGetPurchaseReport(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!isAuthUserPayload(req.user)) return res.status(401).json({ message: "Unauthorized" });
+    const filters = {
+      startDate: req.query.startDate as string,
+      endDate: req.query.endDate as string,
+      locationId: req.query.locationId as string,
+      vendorId: req.query.vendorId as string,
+      product: req.query.product as string,
+      category: req.query.category as string,
+      paymentStatus: req.query.paymentStatus as string,
+      paymentMethod: req.query.paymentMethod as string,
+      createdBy: req.query.createdBy as string,
+    };
+    const data = await reportsService.getPurchaseReport(req.user, filters);
+    return res.status(200).json({ success: true, data });
+  } catch (err) { next(err); }
+}
