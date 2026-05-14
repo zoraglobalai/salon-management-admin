@@ -64,6 +64,13 @@ export const subscriptionsApi = {
     toDate?: string;
     period?: 'today' | 'yesterday' | 'last7days' | 'last30days';
   }) => api.get('/subscriptions/stats', { params }),
+  adminChangePlan: (payload: {
+    tenantId: string;
+    plan: 'STANDARD' | 'PRO';
+    paymentMethod?: 'CARD' | 'UPI' | 'CASH';
+  }) => api.post('/subscriptions/admin/change-plan', payload),
+  adminGetPricing: (params: { tenantId: string; plan: 'STANDARD' | 'PRO' }) =>
+    api.get('/subscriptions/admin/pricing', { params }),
 };
 
 // ── Revenue ───────────────────────────────────────────────────

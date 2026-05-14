@@ -70,9 +70,7 @@ export const createOwnerCredentials = async (
     }
 
     const normalizedBranchAddresses = Array.isArray(branchAddresses)
-      ? branchAddresses
-          .map((address) => (typeof address === 'string' ? collapseSpaces(address) : ''))
-          .filter(Boolean)
+      ? branchAddresses.map((address) => (typeof address === 'string' ? collapseSpaces(address) : ''))
       : [];
     const normalizedMainBranchLocation =
       typeof mainBranchLocation === 'string' ? collapseSpaces(mainBranchLocation) : '';
@@ -134,16 +132,10 @@ export const createOwnerCredentials = async (
       return;
     }
 
-    if (
-      parsedNumberOfBranches > 1 &&
-      normalizedBranchAddresses.length !== parsedNumberOfBranches - 1
-    ) {
-      res.status(400).json({
-        success: false,
-        message: `Please provide addresses for branch 2 to branch ${parsedNumberOfBranches}.`,
-      });
-      return;
-    }
+    const normalizedExtraBranchAddresses = Array.from(
+      { length: Math.max(parsedNumberOfBranches - 1, 0) },
+      (_, index) => normalizedBranchAddresses[index] || ''
+    );
 
     const result = await createOwner({
       name: normalizedName,
@@ -153,7 +145,7 @@ export const createOwnerCredentials = async (
       alternativePhone: normalizedAlternativePhoneValue || undefined,
       mainBranchLocation: normalizedMainBranchLocation,
       numberOfBranches: parsedNumberOfBranches,
-      branchAddresses: normalizedBranchAddresses,
+      branchAddresses: normalizedExtraBranchAddresses,
       password: normalizedPassword,
       performedBy: req.user!.email,
     });

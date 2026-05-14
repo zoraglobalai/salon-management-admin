@@ -304,7 +304,7 @@ export function ReportsLandingPage() {
 
       <div className="grid gap-3 sm:gap-5 grid-cols-2 lg:grid-cols-3">
         <ReportCard
-          title="Sales Report"
+          title="Billing Report"
           description="Track daily revenue, payment methods, and transaction history across all branches."
           icon={<BarChart3 />}
           to="/dashboard/reports/sales"
