@@ -81,9 +81,10 @@ export function DashboardSalesPOSEditPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedServices, setSelectedServices] = useState<DraftLineService[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<DraftLineProduct[]>([]);
-  const [fieldErrors, setFieldErrors] = useState<{ phone?: string; clientName?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<{ phone?: string; clientName?: string; staffAssignment?: string }>({});
   const phoneInputRef = useRef<HTMLInputElement | null>(null);
   const clientNameInputRef = useRef<HTMLInputElement | null>(null);
+  const selectedServicesRef = useRef<HTMLDivElement | null>(null);
 
   const serviceMap = useMemo(() => new Map(services.map((item) => [item.id, item])), [services]);
   const productMap = useMemo(() => new Map(products.map((item) => [item.id, item])), [products]);
@@ -284,7 +285,7 @@ export function DashboardSalesPOSEditPage() {
   }
 
   function validateClient() {
-    const nextErrors: { phone?: string; clientName?: string } = {};
+    const nextErrors: { phone?: string; clientName?: string; staffAssignment?: string } = {};
 
     if (!phone || phone.length < 10) {
       nextErrors.phone = "Contact number is mandatory and must be 10 digits.";
@@ -294,9 +295,20 @@ export function DashboardSalesPOSEditPage() {
       nextErrors.clientName = "Client name is mandatory.";
     }
 
-    if (nextErrors.phone || nextErrors.clientName) {
+    const hasUnassignedStaff = selectedServices.some((item) =>
+      item.kind === "combo" ? item.services.some((service) => !service.staffId) : !item.staffId,
+    );
+    if (hasUnassignedStaff) {
+      nextErrors.staffAssignment = "Assign staff is mandatory for every selected service.";
+    }
+
+    if (nextErrors.phone || nextErrors.clientName || nextErrors.staffAssignment) {
       setFieldErrors(nextErrors);
-      focusInvalidField(nextErrors.phone ? "phone" : "clientName");
+      if (nextErrors.phone || nextErrors.clientName) {
+        focusInvalidField(nextErrors.phone ? "phone" : "clientName");
+      } else {
+        selectedServicesRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
       return false;
     }
 
@@ -662,7 +674,7 @@ export function DashboardSalesPOSEditPage() {
           </div>
 
           <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <div className={`rounded-[24px] border p-4 ${isDark ? "border-[rgba(255,255,255,0.06)] bg-[#1C2030]" : "border-[#F2EDE7] bg-[#FCFAF8]"}`}>
+            <div ref={selectedServicesRef} className={`rounded-[24px] border p-4 ${isDark ? "border-[rgba(255,255,255,0.06)] bg-[#1C2030]" : "border-[#F2EDE7] bg-[#FCFAF8]"}`}>
               <div className="mb-3 flex items-center justify-between">
                 <h4 className={`text-sm font-black ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>Selected Services</h4>
                 <span className={`text-[10px] font-black uppercase tracking-widest ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>{selectedServices.length}</span>
@@ -705,6 +717,18 @@ export function DashboardSalesPOSEditPage() {
                                           ),
                                         )
                                       }
+                                      onBlur={() => {
+                                        if (fieldErrors.staffAssignment) {
+                                          const hasUnassignedStaff = selectedServices.some((entry) =>
+                                            entry.kind === "combo"
+                                              ? entry.services.some((serviceRow) => !serviceRow.staffId)
+                                              : !entry.staffId,
+                                          );
+                                          if (!hasUnassignedStaff) {
+                                            setFieldErrors((current) => ({ ...current, staffAssignment: undefined }));
+                                          }
+                                        }
+                                      }}
                                       className={`appearance-none rounded-xl border px-3 py-1.5 pr-8 text-xs font-bold outline-none min-w-[120px] ${
                                         isDark ? "border-[rgba(255,255,255,0.08)] bg-[#1C2030] text-[#F0EBE3] [color-scheme:dark]" : "border-[#E8E1D8] bg-transparent text-gray-900 [color-scheme:light]"
                                       }`}
@@ -735,6 +759,18 @@ export function DashboardSalesPOSEditPage() {
                                     ),
                                   )
                                 }
+                                onBlur={() => {
+                                  if (fieldErrors.staffAssignment) {
+                                    const hasUnassignedStaff = selectedServices.some((entry) =>
+                                      entry.kind === "combo"
+                                        ? entry.services.some((serviceRow) => !serviceRow.staffId)
+                                        : !entry.staffId,
+                                    );
+                                    if (!hasUnassignedStaff) {
+                                      setFieldErrors((current) => ({ ...current, staffAssignment: undefined }));
+                                    }
+                                  }
+                                }}
                                 className={`appearance-none rounded-xl border px-3 py-1.5 pr-8 text-xs font-bold outline-none min-w-[120px] ${
                                   isDark ? "border-[rgba(255,255,255,0.08)] bg-[#1C2030] text-[#F0EBE3] [color-scheme:dark]" : "border-[#E8E1D8] bg-transparent text-gray-900 [color-scheme:light]"
                                 }`}
@@ -762,6 +798,9 @@ export function DashboardSalesPOSEditPage() {
                   </div>
                 ))}
               </div>
+              {fieldErrors.staffAssignment && (
+                <p className="mt-2 text-xs font-semibold text-red-500">{fieldErrors.staffAssignment}</p>
+              )}
             </div>
 
             <div className={`rounded-[24px] border p-4 ${isDark ? "border-[rgba(255,255,255,0.06)] bg-[#1C2030]" : "border-[#F2EDE7] bg-[#FCFAF8]"}`}>

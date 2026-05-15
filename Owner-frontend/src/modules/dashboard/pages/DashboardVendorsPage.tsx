@@ -43,6 +43,7 @@ export function DashboardVendorsPage() {
   const [editingVendor, setEditingVendor] = useState<VendorRecord | null>(null);
   const [form, setForm] = useState<VendorInput>(EMPTY_FORM);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof VendorInput, string>>>({});
 
   const loadVendors = () => {
     setIsLoading(true);
@@ -70,6 +71,7 @@ export function DashboardVendorsPage() {
   const openCreate = () => {
     setEditingVendor(null);
     setForm(EMPTY_FORM);
+    setFieldErrors({});
     setIsModalOpen(true);
   };
 
@@ -83,6 +85,7 @@ export function DashboardVendorsPage() {
       address: vendor.address,
       gstNumber: vendor.gstNumber,
     });
+    setFieldErrors({});
     setIsModalOpen(true);
   };
 
@@ -91,10 +94,12 @@ export function DashboardVendorsPage() {
     setIsModalOpen(false);
     setEditingVendor(null);
     setForm(EMPTY_FORM);
+    setFieldErrors({});
   };
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    const nextErrors: Partial<Record<keyof VendorInput, string>> = {};
     const normalizedForm: VendorInput = {
       vendorName: (form.vendorName || "").trim(),
       category: (form.category || "").trim(),
@@ -105,41 +110,39 @@ export function DashboardVendorsPage() {
     };
 
     if (!normalizedForm.vendorName) {
-      toast("Vendor name is required.", "error");
-      return;
+      nextErrors.vendorName = "Vendor name is mandatory.";
     }
-    if (normalizedForm.vendorName.length > 40) {
-      toast("Vendor name cannot exceed 40 characters.", "error");
-      return;
+    if (!nextErrors.vendorName && normalizedForm.vendorName.length > 40) {
+      nextErrors.vendorName = "Vendor name cannot exceed 40 characters.";
     }
-    if (!VENDOR_NAME_REGEX.test(normalizedForm.vendorName)) {
-      toast("Vendor name should contain letters only (no numbers).", "error");
-      return;
+    if (!nextErrors.vendorName && !VENDOR_NAME_REGEX.test(normalizedForm.vendorName)) {
+      nextErrors.vendorName = "Vendor name should contain letters only (no numbers).";
     }
 
     if ((normalizedForm.category || "").length > 30) {
-      toast("Category cannot exceed 30 characters.", "error");
-      return;
+      nextErrors.category = "Category cannot exceed 30 characters.";
     }
 
     if (!normalizedForm.phone || normalizedForm.phone.length !== 10) {
-      toast("Phone number must be exactly 10 digits.", "error");
-      return;
+      nextErrors.phone = "Phone number is mandatory and must be 10 digits.";
     }
 
     if (!normalizedForm.email) {
-      toast("Email is required.", "error");
-      return;
+      nextErrors.email = "Email is mandatory.";
     }
-    if (!GMAIL_REGEX.test(normalizedForm.email)) {
-      toast("Email must be a valid @gmail.com address.", "error");
-      return;
+    if (!nextErrors.email && !GMAIL_REGEX.test(normalizedForm.email)) {
+      nextErrors.email = "Email must be a valid @gmail.com address.";
     }
 
     if ((normalizedForm.gstNumber || "").length !== 15) {
-      toast("GST number must be exactly 15 characters.", "error");
+      nextErrors.gstNumber = "GST number is mandatory and must be exactly 15 characters.";
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors(nextErrors);
       return;
     }
+    setFieldErrors({});
 
     setIsSubmitting(true);
     try {
@@ -265,24 +268,29 @@ export function DashboardVendorsPage() {
             </div>
             <form onSubmit={submit} className="grid gap-4 p-6 md:grid-cols-2">
               <div>
-                <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>Vendor Name</label>
-                <input required maxLength={40} value={form.vendorName || ""} onChange={(event) => setForm((s) => ({ ...s, vendorName: event.target.value.replace(/[^A-Za-z ]/g, "").slice(0, 40) }))} placeholder="Enter Vendor Name" className={`w-full rounded-xl border px-4 py-3 text-sm outline-none ${isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3]" : "bg-gray-50/50 border-[#E8E1D8]"}`} />
+                <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>Vendor Name <span className="text-red-500">*</span></label>
+                <input required maxLength={40} value={form.vendorName || ""} onChange={(event) => { setForm((s) => ({ ...s, vendorName: event.target.value.replace(/[^A-Za-z ]/g, "").slice(0, 40) })); if (fieldErrors.vendorName) setFieldErrors((current) => ({ ...current, vendorName: undefined })); }} placeholder="Enter Vendor Name" className={`w-full rounded-xl border px-4 py-3 text-sm outline-none ${isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3]" : "bg-gray-50/50 border-[#E8E1D8]"}`} />
+                {fieldErrors.vendorName && <p className="mt-1 text-xs font-semibold text-red-500">{fieldErrors.vendorName}</p>}
               </div>
               <div>
                 <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>Category</label>
-                <input maxLength={30} value={form.category || ""} onChange={(event) => setForm((s) => ({ ...s, category: event.target.value.slice(0, 30) }))} placeholder="Enter Category" className={`w-full rounded-xl border px-4 py-3 text-sm outline-none ${isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3]" : "bg-gray-50/50 border-[#E8E1D8]"}`} />
+                <input maxLength={30} value={form.category || ""} onChange={(event) => { setForm((s) => ({ ...s, category: event.target.value.slice(0, 30) })); if (fieldErrors.category) setFieldErrors((current) => ({ ...current, category: undefined })); }} placeholder="Enter Category" className={`w-full rounded-xl border px-4 py-3 text-sm outline-none ${isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3]" : "bg-gray-50/50 border-[#E8E1D8]"}`} />
+                {fieldErrors.category && <p className="mt-1 text-xs font-semibold text-red-500">{fieldErrors.category}</p>}
               </div>
               <div>
-                <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>Phone Number</label>
-                <input required inputMode="numeric" maxLength={10} value={form.phone || ""} onChange={(event) => setForm((s) => ({ ...s, phone: event.target.value.replace(/\D/g, "").slice(0, 10) }))} placeholder="Enter Phone Number" className={`w-full rounded-xl border px-4 py-3 text-sm outline-none ${isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3]" : "bg-gray-50/50 border-[#E8E1D8]"}`} />
+                <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>Phone Number <span className="text-red-500">*</span></label>
+                <input required inputMode="numeric" maxLength={10} value={form.phone || ""} onChange={(event) => { setForm((s) => ({ ...s, phone: event.target.value.replace(/\D/g, "").slice(0, 10) })); if (fieldErrors.phone) setFieldErrors((current) => ({ ...current, phone: undefined })); }} placeholder="Enter Phone Number" className={`w-full rounded-xl border px-4 py-3 text-sm outline-none ${isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3]" : "bg-gray-50/50 border-[#E8E1D8]"}`} />
+                {fieldErrors.phone && <p className="mt-1 text-xs font-semibold text-red-500">{fieldErrors.phone}</p>}
               </div>
               <div>
-                <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>Email</label>
-                <input required type="email" value={form.email || ""} onChange={(event) => setForm((s) => ({ ...s, email: event.target.value.trim() }))} placeholder="Enter Email Addresss" className={`w-full rounded-xl border px-4 py-3 text-sm outline-none ${isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3]" : "bg-gray-50/50 border-[#E8E1D8]"}`} />
+                <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>Email <span className="text-red-500">*</span></label>
+                <input required type="email" value={form.email || ""} onChange={(event) => { setForm((s) => ({ ...s, email: event.target.value.trim() })); if (fieldErrors.email) setFieldErrors((current) => ({ ...current, email: undefined })); }} placeholder="Enter Email Addresss" className={`w-full rounded-xl border px-4 py-3 text-sm outline-none ${isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3]" : "bg-gray-50/50 border-[#E8E1D8]"}`} />
+                {fieldErrors.email && <p className="mt-1 text-xs font-semibold text-red-500">{fieldErrors.email}</p>}
               </div>
               <div>
-                <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>GST Number</label>
-                <input maxLength={15} value={form.gstNumber || ""} onChange={(event) => setForm((s) => ({ ...s, gstNumber: event.target.value.toUpperCase().slice(0, 15) }))} placeholder="Enter GST Number" className={`w-full rounded-xl border px-4 py-3 text-sm outline-none ${isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3]" : "bg-gray-50/50 border-[#E8E1D8]"}`} />
+                <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>GST Number <span className="text-red-500">*</span></label>
+                <input maxLength={15} value={form.gstNumber || ""} onChange={(event) => { setForm((s) => ({ ...s, gstNumber: event.target.value.toUpperCase().slice(0, 15) })); if (fieldErrors.gstNumber) setFieldErrors((current) => ({ ...current, gstNumber: undefined })); }} placeholder="Enter GST Number" className={`w-full rounded-xl border px-4 py-3 text-sm outline-none ${isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3]" : "bg-gray-50/50 border-[#E8E1D8]"}`} />
+                {fieldErrors.gstNumber && <p className="mt-1 text-xs font-semibold text-red-500">{fieldErrors.gstNumber}</p>}
               </div>
               <div className="md:col-span-2">
                 <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>Address</label>
