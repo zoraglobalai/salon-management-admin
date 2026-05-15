@@ -43,7 +43,7 @@ const EMPTY: FormState = {
   joiningDate: "", locationId: "",
 };
 
-const ROLE_OPTIONS = ["Hair Stylist", "Colorist", "Nail Technician", "Therapist", "Receptionist", "Trainee", "Other"];
+const BASE_ROLE_OPTIONS = ["Hair Stylist", "Colorist", "Nail Technician", "Therapist", "Receptionist", "Trainee", "Other"];
 const ID_TYPES = ["Aadhaar", "PAN", "Voter ID", "Passport", "Driving Licence"];
 
 export function DashboardStaffPage() {
@@ -65,6 +65,10 @@ export function DashboardStaffPage() {
 
   const { filters: globalFilters, setFilters } = useGlobalFilters();
   const isManager = user?.role === "MANAGER";
+  const roleOptions = useMemo(
+    () => (isManager ? BASE_ROLE_OPTIONS : ["Manager", ...BASE_ROLE_OPTIONS]),
+    [isManager]
+  );
   const locationOptions = ownerLocations || [];
   const indianStates = useMemo<IndiaStateOption[]>(
     () => State.getStatesOfCountry("IN").map((state) => ({ name: state.name, isoCode: state.isoCode })),
@@ -95,7 +99,13 @@ export function DashboardStaffPage() {
     setIsLoading(true);
     const apiLoc = isManager ? defaultLocationId : locId === "all" ? undefined : locId;
     fetchStaff(apiLoc)
-      .then((r) => { setStaff(r.staff || []); setError(null); })
+      .then((r) => {
+        const visibleStaff = (r.staff || []).filter(
+          (member) => member.role.trim().toLowerCase() !== "manager"
+        );
+        setStaff(visibleStaff);
+        setError(null);
+      })
       .catch((e: Error) => setError(e.message || "Failed to load staff."))
       .finally(() => setIsLoading(false));
   };
@@ -512,7 +522,7 @@ export function DashboardStaffPage() {
                             isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E] [color-scheme:dark]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-900 focus:border-[#8B5E3C] [color-scheme:light]"
                           }`}>
                           <option value="" disabled>Select Role</option>
-                          {ROLE_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+                          {roleOptions.map((r) => <option key={r} value={r}>{r}</option>)}
                         </select>
                         <ChevronDown size={16} className={`absolute right-4 top-3.5 pointer-events-none ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`} />
                       </div>

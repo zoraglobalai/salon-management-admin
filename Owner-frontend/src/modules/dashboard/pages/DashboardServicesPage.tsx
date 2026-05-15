@@ -464,7 +464,7 @@ export function DashboardServicesPage() {
       <section>
         <SectionHeader
           title="Services"
-          description="Standalone services with product usage tracking."
+          description=""
           isDark={isDark}
         />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -558,7 +558,7 @@ export function DashboardServicesPage() {
       <section>
         <SectionHeader
           title="Combo Services"
-          description="Packages built from your existing services."
+          description=""
           isDark={isDark}
         />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -664,7 +664,7 @@ export function DashboardServicesPage() {
             </div>
 
             <form onSubmit={handleSubmitService} className="flex flex-col overflow-hidden">
-              <div className="overflow-y-auto p-6 grid gap-5 md:grid-cols-2 scrollbar-elegant">
+              <div className="overflow-y-auto p-6 grid gap-5 md:grid-cols-2 scrollbar-elegant scrollbar-hide">
                 <div className="md:col-span-2">
                   <label className={`mb-1.5 block text-[10px] font-black uppercase tracking-[0.1em] ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>
                     Service Name
@@ -859,7 +859,7 @@ export function DashboardServicesPage() {
             </div>
 
             <form onSubmit={handleSubmitCombo} className="flex flex-col overflow-hidden">
-              <div className="overflow-y-auto p-6 grid gap-5 md:grid-cols-2 scrollbar-elegant">
+              <div className="overflow-y-auto p-6 grid gap-5 md:grid-cols-2 scrollbar-elegant scrollbar-hide">
                 <div className="md:col-span-2">
                   <label className={`mb-1.5 block text-[10px] font-black uppercase tracking-[0.1em] ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>
                     Combo Service Name

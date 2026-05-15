@@ -71,5 +71,24 @@ export const authApi = {
     }
     
     return response.json();
-  }
+  },
+
+  createNewPassword: async (payload: { newPassword: string }): Promise<{ success: boolean; message: string }> => {
+    const token = sessionStorage.getItem('owner_token');
+    const response = await fetch(`${API_BASE_URL}/auth/create-new-password`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to set new password');
+    }
+
+    return response.json();
+  },
 };

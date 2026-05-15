@@ -1,7 +1,7 @@
 import { AppDataSource } from '../../database/config';
 import { Branch } from '../../entities/platform/Branch';
 import { Tenant } from '../../entities/platform/Tenant';
-import { User } from '../../entities/platform/User';
+import { CreatorRole, User } from '../../entities/platform/User';
 import { createError } from '../../middleware/errorHandler';
 import bcrypt from 'bcryptjs';
 import { Log } from '../../entities/platform/Log';
@@ -241,6 +241,9 @@ export const createOwnerManagerService = async (userId: string, input: CreateMan
     shopName: owner.tenant?.businessName || branch.name.split('-')[0].trim(),
     isActive: true,
     isDefaultPassword: true,
+    isTemporaryPassword: false,
+    passwordResetRequired: false,
+    createdByRole: CreatorRole.OWNER,
   });
 
   const savedManager = await userRepo().save(manager);

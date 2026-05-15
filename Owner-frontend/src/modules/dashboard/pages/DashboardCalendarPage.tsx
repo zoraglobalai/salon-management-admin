@@ -1324,7 +1324,7 @@ function AppointmentFormModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-6 overflow-y-auto max-h-[70vh]">
+        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-6 overflow-y-auto max-h-[70vh] scrollbar-hide">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Customer Select */}
             <div className="md:col-span-2">
@@ -1431,7 +1431,7 @@ function AppointmentFormModal({
                   Please select staff and service to see available slots
                 </div>
               ) : (
-                <div className="flex flex-wrap gap-2 max-h-[160px] overflow-y-auto pr-2 custom-scrollbar">
+                <div className="flex flex-wrap gap-2 max-h-[160px] overflow-y-auto pr-2 custom-scrollbar scrollbar-hide">
                   {availableSlots.length > 0 ? (
                     availableSlots.map(time => (
                       <button

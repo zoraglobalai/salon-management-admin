@@ -1,6 +1,6 @@
 import { AppDataSource } from '../../database/config';
 import { Tenant, TenantStatus } from '../../entities/platform/Tenant';
-import { User, UserRole } from '../../entities/platform/User';
+import { CreatorRole, User, UserRole } from '../../entities/platform/User';
 import { Branch } from '../../entities/platform/Branch';
 import { Log } from '../../entities/platform/Log';
 import { Trial, TrialStatus } from '../../entities/platform/Trial';
@@ -120,6 +120,8 @@ export const createOwner = async (input: CreateOwnerInput) => {
 
   // Create User record (for client app login)
   const role = ownerType === 'INDEPENDENT' ? UserRole.INDEPENDENT_OWNER : UserRole.OWNER;
+  const shouldApplyTempResetFlow =
+    role === UserRole.OWNER || role === UserRole.INDEPENDENT_OWNER;
   const user = userRepo().create({
     name: input.name,
     email: input.email,
@@ -129,6 +131,9 @@ export const createOwner = async (input: CreateOwnerInput) => {
     shopName: input.businessName,
     tenantId: savedTenant.id,
     isActive: true,
+    isTemporaryPassword: shouldApplyTempResetFlow,
+    passwordResetRequired: shouldApplyTempResetFlow,
+    createdByRole: CreatorRole.ADMIN,
   });
   await userRepo().save(user);
 
@@ -218,6 +223,11 @@ export const resetOwnerPassword = async (tenantId: string, performedBy: string) 
 
   const newPassword = generateStrongPassword();
   user.password = await bcrypt.hash(newPassword, 12);
+  const shouldApplyTempResetFlow =
+    user.role === UserRole.OWNER || user.role === UserRole.INDEPENDENT_OWNER;
+  user.isTemporaryPassword = shouldApplyTempResetFlow;
+  user.passwordResetRequired = shouldApplyTempResetFlow;
+  user.createdByRole = CreatorRole.ADMIN;
   await userRepo().save(user);
 
   await logRepo().save(

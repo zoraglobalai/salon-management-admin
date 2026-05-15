@@ -184,7 +184,7 @@ export function ReportsLandingPage() {
     <div className="mx-auto max-w-7xl space-y-6">
       <div className="flex flex-col gap-1">
         <h1 className={`text-2xl font-bold font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>Reports & Analytics</h1>
-        <p className={`text-sm ${isDark ? "text-[#7A7572]" : "text-[#6B7280]"}`}>Analyze your business performance and track growth.</p>
+        
       </div>
 
       <FiltersBar />

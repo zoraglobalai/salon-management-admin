@@ -297,7 +297,7 @@ export function ServiceReportPage() {
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div>
             <h3 className={cn("font-semibold", isDark ? "text-[#F0EBE3]" : "text-[#111827]")}>Service Performance Table</h3>
-            <p className={cn("text-sm", isDark ? "text-[#7A7572]" : "text-[#6B7280]")}>Compare different services based on volume, value, and resource usage.</p>
+          
           </div>
           <div className={cn(
             "rounded-full px-3 py-1 text-sm font-medium",

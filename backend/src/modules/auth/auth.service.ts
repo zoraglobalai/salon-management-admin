@@ -1,5 +1,5 @@
 import { AppDataSource } from '../../database/config';
-import { User, UserRole } from '../../entities/platform/User';
+import { CreatorRole, User, UserRole } from '../../entities/platform/User';
 import { Log } from '../../entities/platform/Log';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -34,6 +34,14 @@ const resolveOwnerMode = async (user: User) => {
 
   return 'OPERATOR' as const;
 };
+
+const PASSWORD_STRENGTH_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
+
+const shouldForceOwnerPasswordReset = (user: User) =>
+  (user.role === UserRole.OWNER || user.role === UserRole.INDEPENDENT_OWNER) &&
+  user.createdByRole === CreatorRole.ADMIN &&
+  user.isTemporaryPassword === true &&
+  user.passwordResetRequired === true;
 
 export const loginService = async (
   email: string,
@@ -122,7 +130,10 @@ export const loginService = async (
         id: b.id,
         name: b.name,
         city: b.name.split('-')[0].trim()
-      })) || []
+      })) || [],
+      isTemporaryPassword: user.isTemporaryPassword || false,
+      passwordResetRequired: shouldForceOwnerPasswordReset(user),
+      createdByRole: user.createdByRole || null,
     },
     isDefaultPassword: user.isDefaultPassword || false,
   };
@@ -229,6 +240,41 @@ export const changePasswordService = async (userId: string, oldPassword: string,
       action: 'PASSWORD_CHANGE',
       performedBy: user.email,
       details: 'User changed their password via self-service',
+    })
+  );
+
+  return true;
+};
+
+export const completeTemporaryOwnerPasswordResetService = async (userId: string, newPassword: string) => {
+  const user = await userRepo().findOne({ where: { id: userId } });
+  if (!user) {
+    throw createError('User not found.', 404);
+  }
+
+  if (!shouldForceOwnerPasswordReset(user)) {
+    throw createError('This account is not eligible for temporary password reset.', 400);
+  }
+
+  if (!PASSWORD_STRENGTH_REGEX.test(newPassword)) {
+    throw createError(
+      'Password must be at least 8 characters and include uppercase, lowercase, number, and special character.',
+      400
+    );
+  }
+
+  user.password = await bcrypt.hash(newPassword, 10);
+  user.isTemporaryPassword = false;
+  user.passwordResetRequired = false;
+  user.isDefaultPassword = false;
+
+  await userRepo().save(user);
+
+  await logRepo().save(
+    logRepo().create({
+      action: 'OWNER_TEMP_PASSWORD_RESET',
+      performedBy: user.email,
+      details: 'Owner completed first-time temporary password reset',
     })
   );
 
