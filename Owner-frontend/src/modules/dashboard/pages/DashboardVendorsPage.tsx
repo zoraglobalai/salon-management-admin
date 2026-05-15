@@ -130,7 +130,7 @@ export function DashboardVendorsPage() {
     if (!normalizedForm.email) {
       nextErrors.email = "Email is mandatory.";
     }
-    if (!nextErrors.email && !GMAIL_REGEX.test(normalizedForm.email)) {
+    if (!nextErrors.email && !GMAIL_REGEX.test(normalizedForm.email || "")) {
       nextErrors.email = "Email must be a valid @gmail.com address.";
     }
 
