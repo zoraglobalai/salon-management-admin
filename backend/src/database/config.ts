@@ -45,6 +45,7 @@ import { CreateExpenseCategories1716600000000 } from './migrations/1716600000000
 import { CreateExpenses1716610000000 } from './migrations/1716610000000-CreateExpenses';
 import { UpdatePurchaseExpenseRelation1716620000000 } from './migrations/1716620000000-UpdatePurchaseExpenseRelation';
 import { UpdateSalaryExpenseRelation1716630000000 } from './migrations/1716630000000-UpdateSalaryExpenseRelation';
+import { AddOwnerTempPasswordFlags1716700000000 } from './migrations/1716700000000-AddOwnerTempPasswordFlags';
 
 export const databaseConfig = {
   host: ENV.DB_HOST,
@@ -94,5 +95,6 @@ export const AppDataSource = new DataSource({
     CreateExpenses1716610000000,
     UpdatePurchaseExpenseRelation1716620000000,
     UpdateSalaryExpenseRelation1716630000000,
+    AddOwnerTempPasswordFlags1716700000000,
   ],
 });

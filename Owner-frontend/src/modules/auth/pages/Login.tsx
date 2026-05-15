@@ -102,35 +102,35 @@ export const Login: React.FC = () => {
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-[400px] rounded-[28px] border border-[rgba(139,94,60,0.14)] bg-[linear-gradient(180deg,rgba(255,253,250,0.98)_0%,rgba(248,241,233,0.98)_100%)] p-5 shadow-[0_26px_60px_rgba(88,56,32,0.24)] sm:p-6">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[linear-gradient(135deg,#f5e3cf_0%,#edd1b3_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]">
-              <ShieldAlert size={24} className="text-[#8B5E3C]" />
+          <div className="w-full max-w-[360px] rounded-[24px] border border-[rgba(139,94,60,0.14)] bg-[linear-gradient(180deg,rgba(255,253,250,0.98)_0%,rgba(248,241,233,0.98)_100%)] p-4 shadow-[0_22px_52px_rgba(88,56,32,0.22)] sm:p-5">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[linear-gradient(135deg,#f5e3cf_0%,#edd1b3_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]">
+              <ShieldAlert size={20} className="text-[#8B5E3C]" />
             </div>
 
-            <div className="mt-4 text-center">
-              <h3 className="mx-auto max-w-[260px] font-['Outfit'] text-[1.7rem] font-semibold leading-tight tracking-[-0.03em] text-[#17181F]" id="modal-title">
+            <div className="mt-3 text-center">
+              <h3 className="mx-auto max-w-[240px] font-['Outfit'] text-[1.4rem] font-semibold leading-tight tracking-[-0.03em] text-[#17181F]" id="modal-title">
                 Update Password Recommended
               </h3>
-              <p className="mx-auto mt-3 max-w-[300px] text-sm leading-7 text-[#8a6b58]">
+              <p className="mx-auto mt-2.5 max-w-[280px] text-[13px] leading-6 text-[#8a6b58]">
                 You are using the default password for this account. For better security, we recommend changing it before continuing into the owner dashboard.
               </p>
             </div>
 
-            <div className="mx-auto mt-5 max-w-[320px] rounded-[18px] border border-[rgba(139,94,60,0.1)] bg-white/70 px-4 py-3 text-center text-xs font-medium leading-6 text-[#7a6657]">
+            <div className="mx-auto mt-4 max-w-[300px] rounded-[16px] border border-[rgba(139,94,60,0.1)] bg-white/70 px-3.5 py-2.5 text-center text-[11px] font-medium leading-5 text-[#7a6657]">
               Changing it now helps protect client data, sales activity, and branch access.
             </div>
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row-reverse">
+            <div className="mt-5 flex flex-col gap-2.5 sm:flex-row-reverse">
               <Link
                 to="/change-password"
-                className="inline-flex w-full items-center justify-center rounded-[16px] border border-transparent bg-[linear-gradient(135deg,#8B5E3C_0%,#5a3422_100%)] px-4 py-3 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(88,56,32,0.18)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_34px_rgba(88,56,32,0.2)] focus:outline-none focus:ring-2 focus:ring-[#d9b48a] focus:ring-offset-2"
+                className="inline-flex w-full items-center justify-center rounded-[14px] border border-transparent bg-[linear-gradient(135deg,#8B5E3C_0%,#5a3422_100%)] px-4 py-2.5 text-sm font-semibold text-white shadow-[0_12px_24px_rgba(88,56,32,0.18)] transition-all hover:-translate-y-0.5 hover:shadow-[0_16px_30px_rgba(88,56,32,0.2)] focus:outline-none focus:ring-2 focus:ring-[#d9b48a] focus:ring-offset-2"
               >
                 Change Password
               </Link>
               <button
                 type="button"
                 onClick={closeDefaultPasswordModal}
-                className="inline-flex w-full items-center justify-center rounded-[16px] border border-[rgba(139,94,60,0.16)] bg-white px-4 py-3 text-sm font-semibold text-[#5a3422] shadow-sm transition-all hover:bg-[#faf4ee] focus:outline-none focus:ring-2 focus:ring-[#d9b48a] focus:ring-offset-2"
+                className="inline-flex w-full items-center justify-center rounded-[14px] border border-[rgba(139,94,60,0.16)] bg-white px-4 py-2.5 text-sm font-semibold text-[#5a3422] shadow-sm transition-all hover:bg-[#faf4ee] focus:outline-none focus:ring-2 focus:ring-[#d9b48a] focus:ring-offset-2"
               >
                 Continue to App
               </button>

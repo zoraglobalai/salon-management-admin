@@ -224,7 +224,6 @@ export function DashboardInventoryPage() {
       }`}>
         <div>
           <h2 className={`text-2xl font-bold font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>Inventory Management</h2>
-          <p className={`mt-1 text-sm ${isDark ? "text-[#7A7572]" : "text-[#6B7280]"}`}>Track stock by location with strict branch-level access control.</p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           {!isManager && (

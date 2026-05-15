@@ -84,7 +84,12 @@ export const useAuth = () => {
       setToken(jwt);
       storeOwnerSession(userData, jwt);
 
-      if (isDefaultPassword) {
+      if (
+        (userData.role === 'OWNER' || userData.role === 'INDEPENDENT_OWNER') &&
+        userData.passwordResetRequired
+      ) {
+        navigate('/create-new-password');
+      } else if (isDefaultPassword) {
         setShowDefaultPasswordModal(true);
       } else {
         navigate('/dashboard');

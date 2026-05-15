@@ -1,5 +1,12 @@
 import { Router } from 'express';
-import { login, getProfile, forgotPassword, resetPassword, changePassword } from './auth.controller';
+import {
+  login,
+  getProfile,
+  forgotPassword,
+  resetPassword,
+  changePassword,
+  completeTemporaryOwnerPasswordReset,
+} from './auth.controller';
 import { authMiddleware, requireSuperAdmin } from '../../middleware/authMiddleware';
 
 const router = Router();
@@ -21,5 +28,6 @@ router.post('/reset-password', resetPassword);
 
 // PUT /api/auth/change-password
 router.put('/change-password', authMiddleware, changePassword);
+router.put('/create-new-password', authMiddleware, completeTemporaryOwnerPasswordReset);
 
 export default router;

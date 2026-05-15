@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router-dom";
 import {
   type ComboServiceItem,
@@ -81,6 +81,9 @@ export function DashboardSalesPOSEditPage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedServices, setSelectedServices] = useState<DraftLineService[]>([]);
   const [selectedProducts, setSelectedProducts] = useState<DraftLineProduct[]>([]);
+  const [fieldErrors, setFieldErrors] = useState<{ phone?: string; clientName?: string }>({});
+  const phoneInputRef = useRef<HTMLInputElement | null>(null);
+  const clientNameInputRef = useRef<HTMLInputElement | null>(null);
 
   const serviceMap = useMemo(() => new Map(services.map((item) => [item.id, item])), [services]);
   const productMap = useMemo(() => new Map(products.map((item) => [item.id, item])), [products]);
@@ -274,16 +277,30 @@ export function DashboardSalesPOSEditPage() {
       .finally(() => setIsLoading(false));
   }, [defaultLocationId, draftId, navigate, toast]);
 
+  function focusInvalidField(field: "phone" | "clientName") {
+    const target = field === "phone" ? phoneInputRef.current : clientNameInputRef.current;
+    target?.scrollIntoView({ behavior: "smooth", block: "center" });
+    target?.focus();
+  }
+
   function validateClient() {
+    const nextErrors: { phone?: string; clientName?: string } = {};
+
     if (!phone || phone.length < 10) {
-      toast("Enter a valid client contact number", "error");
-      return false;
+      nextErrors.phone = "Contact number is mandatory and must be 10 digits.";
     }
 
     if (!clientName.trim()) {
-      toast("Enter the client name", "error");
+      nextErrors.clientName = "Client name is mandatory.";
+    }
+
+    if (nextErrors.phone || nextErrors.clientName) {
+      setFieldErrors(nextErrors);
+      focusInvalidField(nextErrors.phone ? "phone" : "clientName");
       return false;
     }
+
+    setFieldErrors({});
 
     if (selectedServices.length === 0 && selectedProducts.length === 0) {
       toast("Add at least one service or inventory item", "error");
@@ -294,6 +311,7 @@ export function DashboardSalesPOSEditPage() {
   }
 
   function selectClient(client: ClientRecord) {
+    setFieldErrors({});
     setFoundClient(client);
     setPhone((client.phoneNumber || "").replace(/\D/g, "").slice(0, 10));
     setClientName(client.name);
@@ -392,7 +410,8 @@ export function DashboardSalesPOSEditPage() {
     setIsSaving(true);
 
     try {
-      await persistDraft();
+      const savedDraftId = await persistDraft();
+      if (!savedDraftId) return;
       toast(activeDraftId ? "Sale draft updated" : "Sale draft saved");
       navigate("/dashboard/sales/pos");
     } catch (error) {
@@ -492,22 +511,31 @@ export function DashboardSalesPOSEditPage() {
             <div className="relative">
               <Search size={16} className={`absolute left-4 top-4 ${isDark ? "text-[#7A7572]" : "text-gray-400"}`} />
               <input
+                ref={phoneInputRef}
                 type="text"
                 value={phone}
                 maxLength={10}
                 onChange={(event) => {
                   setPhone(event.target.value.replace(/\D/g, "").slice(0, 10));
                   setFoundClient(null);
+                  if (fieldErrors.phone) {
+                    setFieldErrors((current) => ({ ...current, phone: undefined }));
+                  }
                 }}
                 onBlur={() => window.setTimeout(() => setShowSuggestions(false), 150)}
                 onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
                 placeholder="Enter phone number"
                 className={`w-full rounded-2xl border py-3 pl-11 pr-4 text-sm font-bold outline-none ${
+                  fieldErrors.phone ? "border-red-400 focus:border-red-500" : ""
+                } ${
                   isDark
                     ? "border-[rgba(255,255,255,0.08)] bg-[#1C2030] text-[#F0EBE3] placeholder:text-[#4A4744]"
                     : "border-[#E8E1D8] bg-gray-50 text-gray-900"
                 }`}
               />
+              {fieldErrors.phone && (
+                <p className="mt-1 text-xs font-semibold text-red-500">{fieldErrors.phone}</p>
+              )}
               {showSuggestions && suggestions.length > 0 && (
                 <div
                   className={`absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border shadow-2xl ${
@@ -538,16 +566,22 @@ export function DashboardSalesPOSEditPage() {
             <label className={`text-[10px] font-black uppercase tracking-widest ${isDark ? "text-[#4A4744]" : "text-gray-400"}`}>Client Name</label>
             <div className="relative">
               <input
+                ref={clientNameInputRef}
                 type="text"
                 value={clientName}
                 onChange={(event) => {
                   setClientName(event.target.value.replace(/[^a-zA-Z\s]/g, "").slice(0, 35));
                   setFoundClient(null);
+                  if (fieldErrors.clientName) {
+                    setFieldErrors((current) => ({ ...current, clientName: undefined }));
+                  }
                 }}
                 onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
                 disabled={!!foundClient}
                 placeholder="Enter client name"
                 className={`w-full rounded-2xl border px-4 py-3 pr-10 text-sm font-bold outline-none ${
+                  fieldErrors.clientName ? "border-red-400 focus:border-red-500" : ""
+                } ${
                   isDark
                     ? "border-[rgba(255,255,255,0.08)] bg-[#1C2030] text-[#F0EBE3] disabled:opacity-60"
                     : "border-[#E8E1D8] bg-gray-50 text-gray-900 disabled:bg-gray-100"
@@ -555,6 +589,9 @@ export function DashboardSalesPOSEditPage() {
               />
               <User size={16} className={`pointer-events-none absolute right-4 top-4 ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`} />
             </div>
+            {fieldErrors.clientName && (
+              <p className="mt-1 text-xs font-semibold text-red-500">{fieldErrors.clientName}</p>
+            )}
           </div>
         </div>
       </section>
@@ -784,12 +821,7 @@ export function DashboardSalesPOSEditPage() {
           </div>
 
           <div className={`mt-6 border-t pt-6 ${isDark ? "border-[rgba(255,255,255,0.06)]" : "border-[#F2EDE7]"}`}>
-            <div className={`rounded-[24px] border p-4 ${isDark ? "border-[rgba(255,255,255,0.06)] bg-[#1C2030]" : "border-[#F2EDE7] bg-[#FCFAF8]"}`}>
-              <div className={`text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Pricing</div>
-              <div className={`mt-2 text-sm font-bold ${isDark ? "text-[#C8BFB4]" : "text-gray-600"}`}>
-                Combo package price is shown on its card. Final bill is shown at checkout.
-              </div>
-            </div>
+            
           </div>
 
           <div className="mt-6 flex flex-col gap-3 md:flex-row">

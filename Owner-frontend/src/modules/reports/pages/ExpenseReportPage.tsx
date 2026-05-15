@@ -238,7 +238,6 @@ export function ExpenseReportPage() {
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <h3 className={cn("font-semibold", isDark ? "text-[#F0EBE3]" : "text-[#111827]")}>Expense Ledger</h3>
-            <p className={cn("text-sm", isDark ? "text-[#7A7572]" : "text-[#6B7280]")}>Derived expense view across salary, purchase, GST, and sales discount transactions.</p>
           </div>
           <div className={cn("rounded-full px-3 py-1 text-sm font-medium", isDark ? "bg-white/5 text-[#7A7572]" : "bg-[#FAF7F3] text-[#6B7280]")}>
             {loading ? "Loading..." : `${data?.pagination?.totalCount || rows.length} record${(data?.pagination?.totalCount || rows.length) === 1 ? "" : "s"}`}

@@ -452,8 +452,8 @@ export function ProfitReportPage() {
         </div>
 
         <div className={cn("overflow-hidden rounded-[20px] border", isDark ? "border-white/7" : "border-[#E8E1D8]")}>
-          <div className="max-h-[620px] overflow-auto">
-            <table className="w-full min-w-[860px] text-left text-sm">
+          <div className="overflow-visible">
+            <table className="w-full text-left text-sm">
               <thead className={cn("sticky top-0 z-10 text-xs uppercase tracking-wider", isDark ? "bg-[#1C2030] text-[#7A7572]" : "bg-[#FAF7F3] text-[#6B7280]")}>
                 <tr>
                   {tableHeaders.map((header) => {

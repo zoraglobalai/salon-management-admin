@@ -234,7 +234,6 @@ export function DashboardPurchasePage() {
       <div className={`flex flex-col gap-4 rounded-2xl border p-5 shadow-sm md:flex-row md:items-center md:justify-between ${isDark ? "bg-[#151821] border-[rgba(255,255,255,0.07)]" : "bg-white border-[#E8E1D8]"}`}>
         <div>
           <h2 className={`text-2xl font-bold font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>Purchase Management</h2>
-          <p className={`mt-1 text-sm ${isDark ? "text-[#7A7572]" : "text-[#6B7280]"}`}>Add purchases from vendors and auto-update inventory stock.</p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           {!isManager && (
@@ -358,7 +357,7 @@ export function DashboardPurchasePage() {
                   <select value={form.paymentStatus} onChange={(event) => setForm((current) => ({ ...current, paymentStatus: event.target.value }))} className={`w-full rounded-xl border px-4 py-3 text-sm outline-none ${isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3]" : "bg-gray-50/50 border-[#E8E1D8]"}`}>
                     <option value="PENDING">PENDING</option>
                     <option value="PAID">PAID</option>
-                    <option value="PARTIAL">PARTIAL</option>
+                    
                   </select>
                 </div>
                 <div>

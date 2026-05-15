@@ -110,9 +110,7 @@ export function ManagerList() {
       }`}>
         <div>
           <h2 className={`text-2xl font-black font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>Personnel Oversight</h2>
-          <p className={`text-xs font-bold uppercase tracking-widest mt-1 ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>
-            Manage branch supervisors and access controls
-          </p>
+          
         </div>
         <div className="mt-4 md:mt-0 flex flex-col items-end gap-2">
           <button

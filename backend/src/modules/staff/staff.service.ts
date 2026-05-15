@@ -255,7 +255,10 @@ export async function listStaff(user: AuthUserPayload, locationId?: string) {
   const normalizedLocationId = normalizeLocationId(locationId);
 
   const values: unknown[] = [user.tenant_id];
-  const filters = ["sm.tenant_id = $1"];
+  const filters = [
+    "sm.tenant_id = $1",
+    "COALESCE(LOWER(TRIM(sm.role)), '') <> 'manager'",
+  ];
 
   if (user.type === "manager") {
     if (!user.branch_id) throw createError("Manager location not configured.", 400);

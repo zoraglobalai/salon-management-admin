@@ -5,6 +5,7 @@ import { useNotifications } from "../../../shared/components/NotificationProvide
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
 import { useGlobalFilters } from "../../../shared/context/FilterContext";
 import { useOutletContext } from "react-router-dom";
+import { useAuth } from "../../auth/hooks/useAuth";
 
 type LocationOption = { id: string; name: string; city?: string };
 type OutletContext = { ownerLocations?: LocationOption[] };
@@ -26,7 +27,13 @@ export function DashboardVendorsPage() {
   const { toast, confirm } = useNotifications();
   const { filters, setFilters } = useGlobalFilters();
   const { ownerLocations } = useOutletContext<OutletContext>() || {};
+  const { user } = useAuth();
   const isDark = theme === "dark";
+  const isManager = user?.role === "MANAGER";
+  const managerLocationLabel =
+    (ownerLocations || []).find((location) => location.id === (user?.branchId || filters.locationId))?.city ||
+    (ownerLocations || []).find((location) => location.id === (user?.branchId || filters.locationId))?.name ||
+    "Assigned Branch";
 
   const [vendors, setVendors] = useState<VendorRecord[]>([]);
   const [search, setSearch] = useState("");
@@ -176,22 +183,30 @@ export function DashboardVendorsPage() {
       <div className={`flex flex-col gap-4 rounded-2xl border p-5 shadow-sm md:flex-row md:items-center md:justify-between transition-all ${isDark ? "bg-[#151821] border-[rgba(255,255,255,0.07)]" : "bg-white border-[#E8E1D8]"}`}>
         <div>
           <h2 className={`text-2xl font-bold font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>Vendor Management</h2>
-          <p className={`mt-1 text-sm ${isDark ? "text-[#7A7572]" : "text-[#6B7280]"}`}>Create and manage product vendors for your purchases.</p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="relative">
-            <MapPin size={15} className={`absolute left-3 top-3 ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`} />
-            <select
-              value={filters.locationId}
-              onChange={(event) => setFilters({ locationId: event.target.value })}
-              className={`appearance-none rounded-xl border pl-9 pr-3 py-2.5 text-sm font-semibold outline-none ${isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#C8BFB4]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-700"}`}
-            >
-              <option value="all">All Locations</option>
-              {(ownerLocations || []).map((location) => (
-                <option key={location.id} value={location.id}>{location.city || location.name}</option>
-              ))}
-            </select>
-          </div>
+          {isManager ? (
+            <div className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold ${
+              isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#C8BFB4]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-700"
+            }`}>
+              <MapPin size={15} className={isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"} />
+              <span>{managerLocationLabel}</span>
+            </div>
+          ) : (
+            <div className="relative">
+              <MapPin size={15} className={`absolute left-3 top-3 ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`} />
+              <select
+                value={filters.locationId}
+                onChange={(event) => setFilters({ locationId: event.target.value })}
+                className={`appearance-none rounded-xl border pl-9 pr-3 py-2.5 text-sm font-semibold outline-none ${isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#C8BFB4]" : "bg-gray-50/50 border-[#E8E1D8] text-gray-700"}`}
+              >
+                <option value="all">All Locations</option>
+                {(ownerLocations || []).map((location) => (
+                  <option key={location.id} value={location.id}>{location.city || location.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <button type="button" onClick={openCreate} className={`flex items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-semibold text-white shadow-md transition-all hover:-translate-y-0.5 ${isDark ? "bg-[linear-gradient(135deg,#C9A96E_0%,#A67C3D_100%)]" : "bg-[#8B5E3C] hover:bg-[#744A2E]"}`}>
             <Plus size={16} />
             Add Vendor

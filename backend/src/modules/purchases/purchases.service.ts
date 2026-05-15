@@ -187,6 +187,9 @@ function normalizeItem(item: PurchaseItemInput) {
   if (Object.values(numericValues).some((value) => Number.isNaN(value) || value < 0)) {
     throw createError("Purchase item numeric fields must be non-negative numbers.", 400);
   }
+  if (numericValues.serviceStock > numericValues.initialStock) {
+    throw createError("Service stock cannot be greater than initial stock.", 400);
+  }
 
   return {
     productName,
@@ -251,6 +254,8 @@ async function upsertInventoryFromPurchase(
   purchaseDate: string,
   item: ReturnType<typeof normalizeItem>,
 ) {
+  const mainStockDelta = Math.max(item.initialStock - item.serviceStock, 0);
+
   const existing = await client.query<{ id: string }>(
     `
       SELECT id
@@ -284,7 +289,7 @@ async function upsertInventoryFromPurchase(
       [
         existing.rows[0].id,
         user.tenant_id,
-        item.initialStock,
+        mainStockDelta,
         item.initialQuantity,
         item.costPrice,
         item.lowStockAlert,
@@ -337,7 +342,7 @@ async function upsertInventoryFromPurchase(
       item.lowStockAlert,
       item.costPrice,
       item.unit,
-      item.initialStock,
+      mainStockDelta,
       item.serviceStock,
       vendorId,
       purchaseId,
@@ -353,6 +358,8 @@ async function rollbackInventoryFromPurchaseItem(
   locationId: string,
   item: PurchaseItemRecord,
 ) {
+  const mainStockDelta = Math.max(Number(item.initialStock) - Number(item.serviceStock), 0);
+
   await client.query(
     `
       UPDATE inventory
@@ -364,7 +371,7 @@ async function rollbackInventoryFromPurchaseItem(
         AND LOWER(name) = LOWER($5)
         AND LOWER(unit) = LOWER($6)
     `,
-    [tenantId, locationId, item.initialStock, item.serviceStock, item.productName, item.unit],
+    [tenantId, locationId, mainStockDelta, item.serviceStock, item.productName, item.unit],
   );
 }
 

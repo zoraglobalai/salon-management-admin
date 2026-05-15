@@ -416,7 +416,6 @@ export function InventoryReportPage() {
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div>
             <h3 className={cn("text-lg font-bold", isDark ? "text-[#F0EBE3]" : "text-[#111827]")}>Inventory Ledger</h3>
-            <p className={cn("text-sm", isDark ? "text-[#7A7572]" : "text-[#6B7280]")}>Complete breakdown of stock levels and turnover across branches.</p>
           </div>
           <div className="flex gap-2">
             <div className={cn(
