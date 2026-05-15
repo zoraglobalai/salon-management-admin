@@ -192,7 +192,7 @@ export function DashboardClientsPage() {
       }`}>
         <div>
           <h2 className={`text-2xl font-bold font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>Customer Records</h2>
-          <p className={`mt-1 text-sm ${isDark ? "text-[#7A7572]" : "text-[#6B7280]"}`}>{clients.length} customers · manage profiles, visits & follow-ups.</p>
+          <p className={`mt-1 text-sm ${isDark ? "text-[#7A7572]" : "text-[#6B7280]"}`}>{clients.length} customers</p>
         </div>
         <div className="flex gap-3 flex-wrap items-center">
           {!isManager && (

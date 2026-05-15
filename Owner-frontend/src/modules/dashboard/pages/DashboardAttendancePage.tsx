@@ -16,14 +16,14 @@ import {
   ChevronRight, 
   LayoutList, 
   X,
-  Trash2,
   MapPin,
   ChevronDown
 } from "lucide-react";
 import { 
   fetchMonthlyAttendance, 
+  fetchHolidays,
   upsertAttendance, 
-  deleteAttendance,
+  type Holiday,
   type AttendanceStatus, 
   type MonthlyAttendanceData 
 } from "../../../core/api";
@@ -32,6 +32,11 @@ import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
 import { useNotifications } from "../../../shared/components/NotificationProvider";
 import { useGlobalFilters } from "../../../shared/context/FilterContext";
 import { StaffAttendanceCalendar } from "../components/StaffAttendanceCalendar";
+import {
+  APPOINTMENT_SETTINGS_UPDATED_EVENT,
+  getHolidayDateSet,
+  readAppointmentSettings,
+} from "../../../shared/utils/appointmentSettings";
 
 type LocationOption = { id: string; name: string; city?: string };
 type OutletContext = { ownerLocations?: LocationOption[] };
@@ -45,6 +50,8 @@ const STATUS_CONFIG: Record<AttendanceStatus, { label: string; short: string; co
   holiday: { label: "Holiday", short: "H", color: "text-purple-600", bg: "bg-purple-50", darkBg: "bg-purple-500/10", border: "border-purple-200", dot: "bg-purple-500" },
 };
 
+const ATTENDANCE_ACTIONS: AttendanceStatus[] = ["present", "half_day", "paid_leave", "lop", "holiday"];
+
 export function DashboardAttendancePage() {
   const { user } = useAuth();
   const { theme } = useDashboardTheme();
@@ -56,6 +63,8 @@ export function DashboardAttendancePage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [search, setSearch] = useState("");
   const [data, setData] = useState<MonthlyAttendanceData | null>(null);
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [weeklyHolidayDays, setWeeklyHolidayDays] = useState(() => readAppointmentSettings("").weeklyHolidayDays);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
   const [selectedStaffName, setSelectedStaffName] = useState("");
@@ -85,6 +94,58 @@ export function DashboardAttendancePage() {
     loadAttendance();
   }, [currentDate, activeBranchId]);
 
+  useEffect(() => {
+    if (!activeBranchId) {
+      setHolidays([]);
+      return;
+    }
+
+    fetchHolidays(activeBranchId)
+      .then(setHolidays)
+      .catch((error) => console.error("Failed to load holidays", error));
+  }, [activeBranchId]);
+
+  useEffect(() => {
+    const syncHolidayRules = () => {
+      setWeeklyHolidayDays(readAppointmentSettings(activeBranchId).weeklyHolidayDays);
+    };
+
+    syncHolidayRules();
+    window.addEventListener(APPOINTMENT_SETTINGS_UPDATED_EVENT, syncHolidayRules as EventListener);
+    return () => window.removeEventListener(APPOINTMENT_SETTINGS_UPDATED_EVENT, syncHolidayRules as EventListener);
+  }, [activeBranchId]);
+
+  const attendanceHolidayDates = useMemo(() => {
+    if (!data || data.staff.length === 0) return [];
+
+    const monthPrefix = format(currentDate, "yyyy-MM");
+    const dateKeys = new Set<string>();
+
+    for (const staff of data.staff) {
+      const records = data.attendance[staff.id] || {};
+      for (const [dateKey, status] of Object.entries(records)) {
+        if (dateKey.startsWith(monthPrefix) && status === "holiday") {
+          dateKeys.add(dateKey);
+        }
+      }
+    }
+
+    return [...dateKeys].filter((dateKey) =>
+      data.staff.every((staff) => data.attendance[staff.id]?.[dateKey] === "holiday")
+    );
+  }, [currentDate, data]);
+
+  const holidayDateSet = useMemo(
+    () => getHolidayDateSet(
+      holidays,
+      attendanceHolidayDates,
+      currentDate.getFullYear(),
+      currentDate.getMonth() + 1,
+      weeklyHolidayDays
+    ),
+    [attendanceHolidayDates, currentDate, holidays, weeklyHolidayDays]
+  );
+
   const filteredStaff = useMemo(() => {
     if (!data) return [];
     return data.staff.filter(s => 
@@ -95,6 +156,11 @@ export function DashboardAttendancePage() {
 
   const handleCellClick = (e: React.MouseEvent, staffId: string, dateKey: string, staffName: string) => {
     e.stopPropagation();
+
+    if (holidayDateSet.has(dateKey)) {
+      toast("This day is a holiday by default, so attendance cannot be marked.", "error");
+      return;
+    }
     
     // Logic: Prevent marking for future dates
     const today = format(startOfToday(), "yyyy-MM-dd");
@@ -141,38 +207,22 @@ export function DashboardAttendancePage() {
       
       setData(prev => {
         if (!prev) return prev;
-        const newAttendance = { ...prev.attendance };
+      const newAttendance = { ...prev.attendance };
         if (!newAttendance[activeCell.staffId]) newAttendance[activeCell.staffId] = {};
         newAttendance[activeCell.staffId][activeCell.dateKey] = status;
         return { ...prev, attendance: newAttendance };
       });
+      setActiveCell(null);
     } catch (e: any) {
       toast(e.message || "Failed to update attendance.", "error");
     }
   };
 
-  const handleDeleteAttendance = async () => {
-    if (!activeCell) return;
-    try {
-      await deleteAttendance(activeCell.staffId, activeCell.dateKey);
-      
-      setData(prev => {
-        if (!prev) return prev;
-        const newAttendance = { ...prev.attendance };
-        if (newAttendance[activeCell.staffId]) {
-          // Deep clone the nested object for this staff to ensure React detects the change
-          newAttendance[activeCell.staffId] = { ...newAttendance[activeCell.staffId] };
-          delete newAttendance[activeCell.staffId][activeCell.dateKey];
-        }
-        return { ...prev, attendance: newAttendance };
-      });
+  useEffect(() => {
+    if (activeCell && holidayDateSet.has(activeCell.dateKey)) {
       setActiveCell(null);
-      toast("Attendance record removed.", "success");
-    } catch (e: any) {
-      toast(e.message || "Failed to remove attendance.", "error");
     }
-  };
-
+  }, [activeCell, holidayDateSet]);
 
   const nextMonth = () => setCurrentDate(addMonths(currentDate, 1));
   const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
@@ -311,31 +361,96 @@ export function DashboardAttendancePage() {
                         </button>
                       </div>
                     </td>
-                    {daysInMonth.map((day) => {
+                    {daysInMonth.map((day, dayIndex) => {
                       const dateKey = format(day, "yyyy-MM-dd");
-                      const status = data?.attendance[staff.id]?.[dateKey];
+                      const isHoliday = holidayDateSet.has(dateKey);
+                      const status = isHoliday ? "holiday" : data?.attendance[staff.id]?.[dateKey];
                       const config = status ? STATUS_CONFIG[status as AttendanceStatus] : null;
                       const isActive = activeCell?.staffId === staff.id && activeCell?.dateKey === dateKey;
                       const isFuture = dateKey > format(startOfToday(), "yyyy-MM-dd");
+                      const isDisabled = isFuture || isHoliday;
+                      const openToLeft = dayIndex >= daysInMonth.length - 2;
 
                       return (
-                        <td key={dateKey} className={`p-2 text-center align-middle ${isToday(day) ? (isDark ? "bg-[#C9A96E]/5" : "bg-[#8B5E3C]/5") : ""}`}>
+                        <td
+                          key={dateKey}
+                          className={`relative p-2 text-center align-middle ${
+                            isActive ? "z-[90]" : "z-0"
+                          } ${isToday(day) ? (isDark ? "bg-[#C9A96E]/5" : "bg-[#8B5E3C]/5") : ""}`}
+                        >
                           <div className="relative flex justify-center items-center h-12 w-12 mx-auto">
                             <button 
                               onClick={(e) => handleCellClick(e, staff.id, dateKey, staff.name)}
-                              disabled={isFuture}
+                              disabled={isDisabled}
                               className={`h-11 w-11 rounded-[14px] flex items-center justify-center text-[11px] font-black uppercase transition-all border-2
                                 ${status 
                                   ? `${isDark ? config?.darkBg : config?.bg} ${config?.color} ${config?.border}` 
-                                  : `${isDark ? "bg-[#0F1115] border-[rgba(255,255,255,0.03)]" : "bg-white border-[#F2EDE7]"} text-gray-300 ${!isFuture && "hover:border-[#C9A96E]/50"}`
+                                  : `${isDark ? "bg-[#0F1115] border-[rgba(255,255,255,0.03)]" : "bg-white border-[#F2EDE7]"} text-gray-300 ${!isDisabled && "hover:border-[#C9A96E]/50"}`
                                 }
                                 ${isActive ? "ring-4 ring-[#C9A96E]/40 scale-110 z-20 shadow-lg border-[#C9A96E]" : "shadow-sm"}
-                                ${!isFuture && !isActive && "hover:scale-105"}
-                                ${isFuture ? "opacity-20 cursor-not-allowed" : "cursor-pointer"}
+                                ${!isDisabled && !isActive && "hover:scale-105"}
+                                ${isDisabled ? "cursor-not-allowed" : "cursor-pointer"}
+                                ${isFuture ? "opacity-20" : ""}
                               `}
+                              title={isHoliday ? "Holiday" : isFuture ? "Future date" : "Mark attendance"}
                             >
                               {status ? config?.short : "-"}
                             </button>
+
+                            {isActive && !isDisabled ? (
+                              <div
+                                onClick={(e) => e.stopPropagation()}
+                                className={`absolute top-0 z-[80] w-[138px] rounded-[20px] border p-2 shadow-[0_18px_45px_rgba(0,0,0,0.24)] ${
+                                  openToLeft ? "right-[calc(100%+12px)]" : "left-[calc(100%+12px)]"
+                                } ${
+                                  isDark
+                                    ? "border-[rgba(255,255,255,0.12)] bg-[#1C2030]/95 backdrop-blur-xl"
+                                    : "border-[#E8E1D8] bg-white/95 backdrop-blur-xl"
+                                }`}
+                              >
+                                <div className="mb-2 flex items-start justify-between gap-2 px-1">
+                                  <div>
+                                    <p className={`text-[10px] font-black uppercase tracking-[0.16em] ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`}>
+                                      {format(day, "dd MMM")}
+                                    </p>
+                                    <p className={`max-w-[88px] truncate text-[10px] font-semibold leading-tight ${isDark ? "text-[#C8BFB4]" : "text-[#5B6472]"}`}>
+                                      {staff.name}
+                                    </p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => setActiveCell(null)}
+                                    className={`rounded-full p-1 transition-all ${isDark ? "text-[#7A7572] hover:bg-white/5" : "text-gray-400 hover:bg-gray-100"}`}
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                  {ATTENDANCE_ACTIONS.map((key) => {
+                                    const cfg = STATUS_CONFIG[key];
+                                    const isSelected = data?.attendance[staff.id]?.[dateKey] === key;
+
+                                    return (
+                                      <button
+                                        key={key}
+                                        type="button"
+                                        onClick={() => handleStatusChange(key)}
+                                        className={`flex w-full items-center justify-center rounded-[13px] border px-2.5 py-2 text-center transition-all ${
+                                          isSelected
+                                            ? `${isDark ? "border-[#C9A96E] bg-[#C9A96E] text-[#0F1115]" : "border-[#8B5E3C] bg-[#8B5E3C] text-white"} shadow-sm`
+                                            : `${isDark ? "border-[rgba(255,255,255,0.06)] bg-[#151821] text-[#C8BFB4] hover:border-[#C9A96E]/45" : "border-[#F2EDE7] bg-[#FFFCF8] text-[#5B6472] hover:border-[#D3B08A]"}`
+                                        }`}
+                                      >
+                                        <span className="text-[10px] font-bold leading-tight">
+                                          {cfg.label}
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ) : null}
                           </div>
                         </td>
                       );
@@ -361,73 +476,6 @@ export function DashboardAttendancePage() {
           ))}
         </div>
       </div>
-
-      {/* MINIMAL TOP SELECTION RIBBON */}
-      {activeCell && (
-        <div 
-          onClick={(e) => e.stopPropagation()}
-          className="fixed top-8 left-1/2 -translate-x-1/2 z-[1000] w-full max-w-3xl px-4 animate-in slide-in-from-top-8 duration-300"
-        >
-          <div className={`p-1.5 rounded-full border shadow-[0_15px_50px_rgba(0,0,0,0.3)] backdrop-blur-2xl flex items-center justify-between gap-1 ${
-            isDark ? "bg-[#1C2030]/90 border-[rgba(255,255,255,0.15)]" : "bg-white/90 border-[#E8E1D8]"
-          }`}>
-            {/* Close */}
-            <button 
-              onClick={() => setActiveCell(null)}
-              className={`p-2.5 rounded-full transition-all ${isDark ? "hover:bg-white/5 text-[#7A7572]" : "hover:bg-gray-100 text-gray-400"}`}
-            >
-              <X size={18} />
-            </button>
-
-            {/* Staff Info Badge */}
-            <div className="flex items-center gap-3 pl-2 pr-6 border-l border-[rgba(0,0,0,0.05)]">
-              <div className={`h-10 w-10 rounded-full flex items-center justify-center text-xs font-black ${isDark ? "bg-[#C9A96E]/10 text-[#C9A96E]" : "bg-[#8B5E3C]/10 text-[#8B5E3C]"}`}>
-                {activeCell.staffName.charAt(0).toUpperCase()}
-              </div>
-              <div className="flex flex-col">
-                <span className={`text-[11px] font-black tracking-tight ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>
-                  {activeCell.staffName}
-                </span>
-                <span className={`text-[9px] font-bold uppercase tracking-widest ${isDark ? "text-[#7A7572]" : "text-[#8B5E3C]"}`}>
-                  {format(new Date(activeCell.dateKey), "dd MMM yyyy")}
-                </span>
-              </div>
-            </div>
-
-            {/* Status Grid */}
-            <div className="flex-1 flex items-center justify-center gap-2 px-6 border-x border-[rgba(0,0,0,0.05)]">
-              {Object.entries(STATUS_CONFIG).map(([key, cfg]) => {
-                const isSelected = data?.attendance[activeCell.staffId]?.[activeCell.dateKey] === key;
-                return (
-                  <button
-                    key={key}
-                    onClick={() => handleStatusChange(key as AttendanceStatus)}
-                    className={`group/item h-12 min-w-[50px] px-3 rounded-[20px] flex flex-col items-center justify-center gap-0.5 transition-all ${
-                      isSelected 
-                        ? `${isDark ? "bg-[#C9A96E] text-[#0F1115]" : "bg-[#8B5E3C] text-white"} shadow-lg scale-105` 
-                        : `${isDark ? "hover:bg-white/5 text-[#7A7572]" : "hover:bg-gray-50 text-gray-500"}`
-                    }`}
-                  >
-                    <span className="text-[10px] font-black uppercase leading-none">{cfg.short}</span>
-                    <span className={`text-[7px] font-bold uppercase tracking-tighter transition-opacity ${isSelected ? "opacity-100" : "opacity-40 group-hover/item:opacity-100"}`}>
-                      {cfg.label}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Delete Option */}
-            <button 
-              onClick={handleDeleteAttendance}
-              className={`p-3.5 rounded-full transition-all group/del ${isDark ? "text-red-400 hover:bg-red-500/10" : "text-red-500 hover:bg-red-50"}`}
-              title="Remove Attendance Record"
-            >
-              <Trash2 size={20} className="transition-transform group-hover/del:scale-110" />
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Staff Calendar Modal */}
       {selectedStaffId && (

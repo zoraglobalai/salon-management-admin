@@ -311,7 +311,7 @@ export function DashboardStaffPage() {
       }`}>
         <div>
           <h2 className={`text-2xl font-bold font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>Staff Management</h2>
-          <p className={`mt-1 text-sm ${isDark ? "text-[#7A7572]" : "text-[#6B7280]"}`}>Manage your team across all locations.</p>
+          {/* <p className={`mt-1 text-sm ${isDark ? "text-[#7A7572]" : "text-[#6B7280]"}`}>Manage your team across all locations.</p> */}
         </div>
         <div className="flex gap-3 flex-wrap items-center">
           {!isManager && (

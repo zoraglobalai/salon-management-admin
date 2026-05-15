@@ -454,9 +454,9 @@ export function DashboardSalesPOSEditPage() {
               <h2 className={`text-xl font-black font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>
                 {isEditing ? "Edit Sale Draft" : "New Sale"}
               </h2>
-              <p className={`text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>
+              {/* <p className={`text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>
                 Choose saved services and inventory here. Prices stay hidden until the checkout page.
-              </p>
+              </p> */}
             </div>
           </div>
         </div>
@@ -571,7 +571,7 @@ export function DashboardSalesPOSEditPage() {
             </div>
             <div>
               <h3 className={`text-lg font-black font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>Build Sale</h3>
-              <p className={`text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Add service lines and inventory lines from saved master data.</p>
+              {/* <p className={`text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Add service lines and inventory lines from saved master data.</p> */}
             </div>
           </div>
 
@@ -829,7 +829,7 @@ export function DashboardSalesPOSEditPage() {
             </div>
             <div>
               <h3 className={`text-lg font-black font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>Workflow Summary</h3>
-              <p className={`text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Keep selection simple here, then review money and payment later.</p>
+              {/* <p className={`text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Keep selection simple here, then review money and payment later.</p> */}
             </div>
           </div>
 

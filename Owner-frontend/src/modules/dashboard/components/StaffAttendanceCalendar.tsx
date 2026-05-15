@@ -51,9 +51,9 @@ export const StaffAttendanceCalendar: React.FC<Props> = ({ staffId, staffName, o
             <h2 className={`text-xl font-black font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>
               {staffName}'s Attendance
             </h2>
-            <p className={`text-xs font-medium ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>
+            {/* <p className={`text-xs font-medium ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>
               View and manage monthly attendance history
-            </p>
+            </p> */}
           </div>
           <button onClick={onClose} className={`p-2 rounded-xl transition-all ${
             isDark ? "hover:bg-white/5 text-[#7A7572]" : "hover:bg-gray-100 text-gray-400"

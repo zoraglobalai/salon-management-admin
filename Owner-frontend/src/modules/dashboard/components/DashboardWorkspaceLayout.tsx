@@ -79,6 +79,7 @@ export function DashboardWorkspaceLayout() {
       subtitle={workspace.subtitle}
       navigation={workspace.navigation}
       lowStockCount={lowStockCount}
+      ownerLocations={profile?.locations}
       profileDetails={profile?.profile}
       onRefreshProfile={fetchProfile}
     >

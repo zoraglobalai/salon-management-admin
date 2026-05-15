@@ -407,9 +407,9 @@ export function DashboardServicesPage() {
       }`}>
         <div>
           <h2 className={`text-2xl font-bold font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>Services Management</h2>
-          <p className={`mt-1 text-sm ${isDark ? "text-[#7A7572]" : "text-[#6B7280]"}`}>
+          {/* <p className={`mt-1 text-sm ${isDark ? "text-[#7A7572]" : "text-[#6B7280]"}`}>
             Manage standalone services and curated combo packages.
-          </p>
+          </p> */}
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           {!isManager && (
