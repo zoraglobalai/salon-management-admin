@@ -11,6 +11,8 @@ import {
 type SubscriptionPlansModalProps = {
   isOpen: boolean;
   onClose: () => void;
+  branchCount?: number;
+  ownerRole?: "OWNER" | "INDEPENDENT_OWNER" | "MANAGER" | "SUPER_ADMIN" | null;
 };
 
 type PaymentMethod = "CARD" | "UPI" | "NETBANKING" | "CASH";
@@ -116,7 +118,7 @@ function PlanCard({
   );
 }
 
-export function SubscriptionPlansModal({ isOpen, onClose }: SubscriptionPlansModalProps) {
+export function SubscriptionPlansModal({ isOpen, onClose, branchCount = 1, ownerRole = null }: SubscriptionPlansModalProps) {
   const [overview, setOverview] = useState<OwnerSubscriptionOverview | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlanOption | null>(null);
@@ -159,11 +161,13 @@ export function SubscriptionPlansModal({ isOpen, onClose }: SubscriptionPlansMod
   useEffect(() => {
     if (!selectedPlan) return;
 
-    const stillAvailable = (overview?.plans || []).some((plan) => plan.id === selectedPlan.id);
+    const canSeeStandard = ownerRole === "INDEPENDENT_OWNER" || branchCount <= 1;
+    const visiblePlans = (overview?.plans || []).filter((plan) => canSeeStandard || plan.id !== "STANDARD");
+    const stillAvailable = visiblePlans.some((plan) => plan.id === selectedPlan.id);
     if (!stillAvailable) {
       setSelectedPlan(null);
     }
-  }, [overview, selectedPlan]);
+  }, [branchCount, overview, ownerRole, selectedPlan]);
 
   if (!isOpen) return null;
 
@@ -176,6 +180,11 @@ export function SubscriptionPlansModal({ isOpen, onClose }: SubscriptionPlansMod
     : overview?.currentTrial
       ? `Expires ${new Date(overview.currentTrial.endDate).toLocaleDateString("en-IN")}`
       : "No active plan";
+  const canSeeStandard = ownerRole === "INDEPENDENT_OWNER" || branchCount <= 1;
+  const visiblePlans = (overview?.plans || []).filter((plan) => canSeeStandard || plan.id !== "STANDARD");
+  const planGridClass = visiblePlans.length <= 2
+    ? "xl:grid-cols-[1.05fr_320px_320px]"
+    : "xl:grid-cols-[1.05fr_1fr_1fr_1fr]";
 
   const handlePlanChoose = (plan: SubscriptionPlanOption) => {
     if (plan.price !== null) {
@@ -297,7 +306,7 @@ export function SubscriptionPlansModal({ isOpen, onClose }: SubscriptionPlansMod
 
   return (
     <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-      <div className="relative max-h-[calc(100vh-2rem)] w-full max-w-6xl overflow-y-auto rounded-[30px] border border-[var(--theme-border-strong)] bg-[var(--theme-surface-elevated)] p-6 shadow-[var(--theme-shadow-strong)]">
+      <div className="relative max-h-[calc(100vh-2rem)] w-full max-w-5xl overflow-y-auto rounded-[30px] border border-[var(--theme-border-strong)] bg-[var(--theme-surface-elevated)] p-6 shadow-[var(--theme-shadow-strong)]">
 
         <button
           type="button"
@@ -320,7 +329,7 @@ export function SubscriptionPlansModal({ isOpen, onClose }: SubscriptionPlansMod
           </div>
         ) : (
           <>
-            <div className="mt-6 grid gap-5 xl:grid-cols-[1.05fr_1fr_1fr_1fr]">
+            <div className={`mt-6 grid gap-5 ${planGridClass}`}>
               <div className="rounded-[24px] border border-[var(--theme-border-soft)] bg-[var(--theme-card)] p-5">
                 <h3 className="text-[1.3rem] font-semibold text-[var(--theme-heading)]">Your Current Subscription</h3>
                 <div className="mt-4 space-y-2">
@@ -369,8 +378,8 @@ export function SubscriptionPlansModal({ isOpen, onClose }: SubscriptionPlansMod
                 </div>
               </div>
 
-              {(overview?.plans || []).length ? (
-                (overview?.plans || []).map((plan) => (
+              {visiblePlans.length ? (
+                visiblePlans.map((plan) => (
                   <PlanCard
                     key={plan.id}
                     plan={plan}
@@ -379,7 +388,7 @@ export function SubscriptionPlansModal({ isOpen, onClose }: SubscriptionPlansMod
                   />
                 ))
               ) : (
-                <div className="rounded-[24px] border border-[var(--theme-border-soft)] bg-[var(--theme-card)] p-5 xl:col-span-3">
+                <div className="rounded-[24px] border border-[var(--theme-border-soft)] bg-[var(--theme-card)] p-5 xl:col-span-2">
                   <h3 className="text-[1.2rem] font-semibold text-[var(--theme-heading)]">No upgrades available right now</h3>
                   <p className="mt-3 text-sm text-[var(--theme-muted)]">
                     Your highest eligible plan is already active. More plan options will appear again after this subscription expires.

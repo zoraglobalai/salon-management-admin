@@ -109,7 +109,7 @@ export function ManagerList() {
         isDark ? "bg-[#151821] border-[rgba(255,255,255,0.07)]" : "bg-white border-[#E8E1D8]"
       }`}>
         <div>
-          <h2 className={`text-2xl font-black font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>Personnel Oversight</h2>
+          <h2 className={`text-2xl font-black font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>Manager Oversight</h2>
           
         </div>
         <div className="mt-4 md:mt-0 flex flex-col items-end gap-2">

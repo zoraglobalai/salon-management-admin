@@ -206,6 +206,8 @@ export function AppShell({
       <SubscriptionPlansModal
         isOpen={isSubscriptionModalOpen}
         onClose={() => setIsSubscriptionModalOpen(false)}
+        branchCount={ownerLocations.length || (isManager ? 1 : 0)}
+        ownerRole={profileDetails?.role || user?.role || null}
       />
 
       {isSidebarOpen ? (
