@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { HeadphonesIcon, RefreshCw } from 'lucide-react';
+import { CalendarDays, HeadphonesIcon, RefreshCw, Store, TriangleAlert, X, FileText } from 'lucide-react';
 import DataTable from '../../components/ui/DataTable';
 import { StatusBadge } from '../../components/ui/Badge';
 import StatCard from '../../components/ui/StatCard';
@@ -42,6 +42,7 @@ const SupportPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('');
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
 
   const fetch = async () => {
     setIsLoading(true);
@@ -90,7 +91,7 @@ const SupportPage: React.FC = () => {
       key: 'tenant',
       header: 'Business',
       render: (row: Ticket) => (
-        <div>
+        <div className="min-w-[150px]">
           <p className="font-medium">{row.tenant?.businessName}</p>
           <p className="text-xs text-[var(--color-text-muted)]">{row.tenant?.email}</p>
         </div>
@@ -99,14 +100,23 @@ const SupportPage: React.FC = () => {
     {
       key: 'issue',
       header: 'Ticket Issue',
-      render: (row: Ticket) => <p className="text-sm text-[var(--color-text-primary)]">{row.issue}</p>,
+      render: (row: Ticket) => (
+        <button
+          type="button"
+          onClick={() => setSelectedTicket(row)}
+          className="max-w-[130px] cursor-pointer text-left text-sm text-[var(--color-text-primary)]"
+          title="View full issue details"
+        >
+          {row.issue}
+        </button>
+      ),
     },
     {
       key: 'description',
       header: 'Description',
       render: (row: Ticket) => (
-        <div className="max-w-md">
-          <p className="line-clamp-2 text-sm text-[var(--color-text-secondary)]" title={row.description}>
+        <div className="w-[260px]">
+          <p className="truncate text-sm text-[var(--color-text-secondary)]">
             {row.description}
           </p>
           {row.resolution ? (
@@ -115,28 +125,32 @@ const SupportPage: React.FC = () => {
         </div>
       ),
     },
-    { key: 'status', header: 'Status', render: (row: Ticket) => <StatusBadge status={row.status} /> },
+    { key: 'status', header: 'Status', render: (row: Ticket) => <div className="w-[92px]"><StatusBadge status={row.status} /></div> },
     {
       key: 'createdAt',
       header: 'Date',
-      render: (row: Ticket) => new Date(row.createdAt).toLocaleDateString(),
+      render: (row: Ticket) => <div className="w-[96px] whitespace-nowrap">{new Date(row.createdAt).toLocaleDateString()}</div>,
     },
     {
       key: 'action',
       header: 'Action',
       render: (row: Ticket) =>
         row.status === 'CLOSED' ? (
-          <span className="text-xs text-[var(--color-text-muted)]">Issue Closed</span>
+          <div className="flex w-[110px] justify-center">
+            <span className="whitespace-nowrap text-xs text-[var(--color-text-muted)]">Issue Closed</span>
+          </div>
         ) : (
-          <button
-            onClick={() => void handleAdvance(row)}
-            disabled={updatingId === row.id}
-            className={`min-w-[92px] rounded-full px-3 py-1.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-              actionButtonStyles[row.status]
-            }`}
-          >
-            {updatingId === row.id ? 'Updating...' : actionLabelMap[row.status]}
-          </button>
+          <div className="flex w-[110px] justify-center">
+            <button
+              onClick={() => void handleAdvance(row)}
+              disabled={updatingId === row.id}
+              className={`min-w-[96px] whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                actionButtonStyles[row.status]
+              }`}
+            >
+              {updatingId === row.id ? 'Updating...' : actionLabelMap[row.status]}
+            </button>
+          </div>
         ),
     },
   ];
@@ -185,6 +199,79 @@ const SupportPage: React.FC = () => {
           keyExtractor={(row) => row.id}
         />
       </div>
+
+      {selectedTicket ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-3">
+          <div className="font-inherit w-full max-w-2xl rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-xl">
+            <div className="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-4">
+              <h2 className="text-xl font-semibold text-[var(--color-text-primary)]">Support Ticket Details</h2>
+              <button
+                type="button"
+                onClick={() => setSelectedTicket(null)}
+                className="rounded-md p-1 text-[var(--color-text-muted)] transition hover:bg-[var(--color-surface-raised)] hover:text-[var(--color-text-primary)]"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="grid gap-0 px-6 py-5 text-sm">
+              <div className="grid grid-cols-[44px_1fr] items-start gap-4 border-b border-[var(--color-border)] py-3.5">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+                  <Store size={16} />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Business</p>
+                  <p className="mt-1 text-1xl font-medium leading-tight text-[var(--color-text-primary)]">{selectedTicket.tenant?.businessName || '-'}</p>
+                  <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">{selectedTicket.tenant?.email || '-'}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-[44px_1fr] items-start gap-4 border-b border-[var(--color-border)] py-3.5">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                  <TriangleAlert size={16} />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Issue</p>
+                  <p className="mt-1 text-1xl font-medium leading-tight text-[var(--color-text-primary)]">{selectedTicket.issue || '-'}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-[44px_1fr] items-start gap-4 border-b border-[var(--color-border)] py-3.5">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                  <FileText size={16} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Description</p>
+                  <div className="mt-1.5 max-h-24 overflow-y-auto rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-raised)] px-3 py-2">
+                    <p className="whitespace-pre-wrap break-words text-sm leading-6 text-[var(--color-text-primary)]">
+                    {selectedTicket.description || '-'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-0 pt-3 sm:grid-cols-2">
+                <div className="border-b border-[var(--color-border)] pb-3 sm:border-b-0 sm:border-r sm:pb-0 sm:pr-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Status</p>
+                  <div className="mt-2 inline-flex items-center rounded-lg bg-green-100 px-3 py-1 text-sm font-semibold text-green-700">
+                    {selectedTicket.status.charAt(0) + selectedTicket.status.slice(1).toLowerCase()}
+                  </div>
+                </div>
+                <div className="pt-3 sm:pl-4 sm:pt-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Date</p>
+                  <div className="mt-2 flex items-center gap-2 text-[var(--color-text-primary)]">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-md bg-indigo-50 text-indigo-600">
+                      <CalendarDays size={14} />
+                    </span>
+                    <span className="text-sm font-medium">{new Date(selectedTicket.createdAt).toLocaleDateString()}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };
