@@ -75,6 +75,7 @@ export function DashboardSalesPOSCheckoutPage() {
   const [discountInputType, setDiscountInputType] = useState<"flat" | "percent">("flat");
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "UPI" | "CARD">("CASH");
   const [referenceNumber, setReferenceNumber] = useState("");
+  const [staffAssignmentError, setStaffAssignmentError] = useState(false);
 
   const serviceMap = useMemo(() => new Map(services.map((item) => [item.id, item])), [services]);
   const productMap = useMemo(() => new Map(products.map((item) => [item.id, item])), [products]);
@@ -226,6 +227,15 @@ export function DashboardSalesPOSCheckoutPage() {
       .finally(() => setIsLoading(false));
   }, [draftId, navigate, toast]);
 
+  useEffect(() => {
+    const hasMissingStaff = selectedServices.some((item) =>
+      item.kind === "combo" ? item.services.some((service) => !service.staffId) : !item.staffId,
+    );
+    if (!hasMissingStaff && staffAssignmentError) {
+      setStaffAssignmentError(false);
+    }
+  }, [selectedServices, staffAssignmentError]);
+
   async function handleGenerateSettlement() {
     if (!draftId) return;
 
@@ -234,9 +244,10 @@ export function DashboardSalesPOSCheckoutPage() {
     );
 
     if (hasMissingStaff) {
-      toast("Assign staff for every selected service", "error");
+      setStaffAssignmentError(true);
       return;
     }
+    setStaffAssignmentError(false);
 
     setIsSaving(true);
 
@@ -378,6 +389,11 @@ export function DashboardSalesPOSCheckoutPage() {
                   </div>
                 ))}
               </div>
+              {staffAssignmentError && (
+                <p className="mt-3 text-xs font-semibold text-red-500">
+                  Assign staff for every selected service before checkout.
+                </p>
+              )}
             </div>
 
             <div className={`rounded-[24px] border p-4 ${isDark ? "border-[rgba(255,255,255,0.06)] bg-[#1C2030]" : "border-[#F2EDE7] bg-[#FCFAF8]"}`}>
