@@ -12,6 +12,9 @@ export interface User {
   location?: string;
   numberOfBranches?: number;
   branches?: { id: string; name: string; city: string }[];
+  passwordResetRequired?: boolean;
+  isTemporaryPassword?: boolean;
+  createdByRole?: 'ADMIN' | 'OWNER' | 'SYSTEM' | null;
 }
 
 export interface AuthResponse {

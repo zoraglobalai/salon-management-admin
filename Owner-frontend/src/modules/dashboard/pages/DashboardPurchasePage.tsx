@@ -52,6 +52,12 @@ export function DashboardPurchasePage() {
   const [selectedPurchase, setSelectedPurchase] = useState<PurchaseRecord | null>(null);
   const [editingPurchaseId, setEditingPurchaseId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{
+    vendorId?: string;
+    locationId?: string;
+    purchaseDate?: string;
+    items?: Record<number, { productName?: string }>;
+  }>({});
 
   const [form, setForm] = useState({
     vendorId: "",
@@ -115,6 +121,7 @@ export function DashboardPurchasePage() {
       notes: "",
       items: [{ ...EMPTY_ITEM }],
     });
+    setFieldErrors({});
     setIsModalOpen(true);
   };
 
@@ -130,6 +137,12 @@ export function DashboardPurchasePage() {
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    const nextErrors: {
+      vendorId?: string;
+      locationId?: string;
+      purchaseDate?: string;
+      items?: Record<number, { productName?: string }>;
+    } = {};
     const normalizedInvoiceNumber = sanitizeDigitInput(form.invoiceNumber, 15);
     const normalizedItems = form.items.map((item) => ({
       ...item,
@@ -144,6 +157,26 @@ export function DashboardPurchasePage() {
       toast("Invoice number must contain numbers only and can be up to 15 digits.", "error");
       return;
     }
+    if (!form.vendorId) {
+      nextErrors.vendorId = "Vendor is mandatory.";
+    }
+    if (!isManager && !form.locationId) {
+      nextErrors.locationId = "Location is mandatory.";
+    }
+    if (!form.purchaseDate) {
+      nextErrors.purchaseDate = "Purchase date is mandatory.";
+    }
+    form.items.forEach((item, index) => {
+      if (!item.productName?.trim()) {
+        if (!nextErrors.items) nextErrors.items = {};
+        nextErrors.items[index] = { productName: "Product name is mandatory." };
+      }
+    });
+    if (nextErrors.vendorId || nextErrors.locationId || nextErrors.purchaseDate || nextErrors.items) {
+      setFieldErrors(nextErrors);
+      return;
+    }
+    setFieldErrors({});
 
     setForm((current) => ({
       ...current,
@@ -234,7 +267,6 @@ export function DashboardPurchasePage() {
       <div className={`flex flex-col gap-4 rounded-2xl border p-5 shadow-sm md:flex-row md:items-center md:justify-between ${isDark ? "bg-[#151821] border-[rgba(255,255,255,0.07)]" : "bg-white border-[#E8E1D8]"}`}>
         <div>
           <h2 className={`text-2xl font-bold font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>Purchase Management</h2>
-          <p className={`mt-1 text-sm ${isDark ? "text-[#7A7572]" : "text-[#6B7280]"}`}>Add purchases from vendors and auto-update inventory stock.</p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           {!isManager && (
@@ -262,7 +294,7 @@ export function DashboardPurchasePage() {
       {error && <div className={`rounded-2xl border px-4 py-3 text-sm ${isDark ? "bg-[rgba(248,113,113,0.1)] border-[rgba(248,113,113,0.2)] text-[#F87171]" : "border-red-200 bg-red-50 text-red-700"}`}>{error}</div>}
 
       <div className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border ${isDark ? "bg-[#151821] border-[rgba(255,255,255,0.07)]" : "bg-white border-[#E8E1D8]"}`}>
-        <div className="overflow-auto">
+        <div className="overflow-auto ">
           <table className="w-full text-left">
             <thead>
               <tr className={isDark ? "bg-[#1C2030]" : "bg-gray-50/60"}>
@@ -315,12 +347,15 @@ export function DashboardPurchasePage() {
             <form onSubmit={submit} className="grid gap-4 p-6">
               <div className="grid gap-4 md:grid-cols-3">
                 <div>
-                  <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>Vendor</label>
+                  <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>Vendor <span className="text-red-500">*</span></label>
                   <select
                     required
                     value={form.vendorId}
                     onChange={(event) => {
                       const nextVendorId = event.target.value;
+                      if (fieldErrors.vendorId) {
+                        setFieldErrors((current) => ({ ...current, vendorId: undefined }));
+                      }
                       setForm((current) => ({
                         ...current,
                         vendorId: nextVendorId,
@@ -335,19 +370,22 @@ export function DashboardPurchasePage() {
                     <option value="">Select Vendor</option>
                     {vendors.map((vendor) => <option key={vendor.id} value={vendor.id}>{vendor.vendorName}</option>)}
                   </select>
+                  {fieldErrors.vendorId && <p className="mt-1 text-xs font-semibold text-red-500">{fieldErrors.vendorId}</p>}
                 </div>
                 {!isManager && (
                   <div>
-                    <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>Location</label>
-                    <select required value={form.locationId} onChange={(event) => setForm((current) => ({ ...current, locationId: event.target.value }))} className={`w-full rounded-xl border px-4 py-3 text-sm outline-none ${isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3]" : "bg-gray-50/50 border-[#E8E1D8]"}`}>
+                    <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>Location <span className="text-red-500">*</span></label>
+                    <select required value={form.locationId} onChange={(event) => { setForm((current) => ({ ...current, locationId: event.target.value })); if (fieldErrors.locationId) { setFieldErrors((current) => ({ ...current, locationId: undefined })); } }} className={`w-full rounded-xl border px-4 py-3 text-sm outline-none ${isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3]" : "bg-gray-50/50 border-[#E8E1D8]"}`}>
                       <option value="">Select Location</option>
                       {(ownerLocations || []).map((location) => <option key={location.id} value={location.id}>{location.city || location.name}</option>)}
                     </select>
+                    {fieldErrors.locationId && <p className="mt-1 text-xs font-semibold text-red-500">{fieldErrors.locationId}</p>}
                   </div>
                 )}
                 <div>
-                  <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>Purchase Date</label>
-                  <input required type="date" value={form.purchaseDate} onChange={(event) => setForm((current) => ({ ...current, purchaseDate: event.target.value }))} className={`w-full rounded-xl border px-4 py-3 text-sm outline-none ${isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3]" : "bg-gray-50/50 border-[#E8E1D8]"}`} />
+                  <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>Purchase Date <span className="text-red-500">*</span></label>
+                  <input required type="date" value={form.purchaseDate} onChange={(event) => { setForm((current) => ({ ...current, purchaseDate: event.target.value })); if (fieldErrors.purchaseDate) { setFieldErrors((current) => ({ ...current, purchaseDate: undefined })); } }} className={`w-full rounded-xl border px-4 py-3 text-sm outline-none ${isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3]" : "bg-gray-50/50 border-[#E8E1D8]"}`} />
+                  {fieldErrors.purchaseDate && <p className="mt-1 text-xs font-semibold text-red-500">{fieldErrors.purchaseDate}</p>}
                 </div>
                 <div>
                   <label className={`mb-1.5 block text-xs font-bold ${isDark ? "text-[#7A7572]" : "text-gray-600"}`}>Invoice Number</label>
@@ -358,7 +396,7 @@ export function DashboardPurchasePage() {
                   <select value={form.paymentStatus} onChange={(event) => setForm((current) => ({ ...current, paymentStatus: event.target.value }))} className={`w-full rounded-xl border px-4 py-3 text-sm outline-none ${isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3]" : "bg-gray-50/50 border-[#E8E1D8]"}`}>
                     <option value="PENDING">PENDING</option>
                     <option value="PAID">PAID</option>
-                    <option value="PARTIAL">PARTIAL</option>
+                    
                   </select>
                 </div>
                 <div>
@@ -382,7 +420,7 @@ export function DashboardPurchasePage() {
                     <div key={index} className={`rounded-xl border p-3 ${isDark ? "border-[rgba(255,255,255,0.08)] bg-[#151821]" : "border-[#E8E1D8] bg-white"}`}>
                       <div className="grid gap-3 md:grid-cols-3">
                         <div>
-                          <label className={`mb-1 block text-[10px] font-bold uppercase tracking-wider ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Product Name</label>
+                          <label className={`mb-1 block text-[10px] font-bold uppercase tracking-wider ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Product Name <span className="text-red-500">*</span></label>
                           <input
                             required
                             list={`purchase-product-suggestions-${index}`}
@@ -394,10 +432,21 @@ export function DashboardPurchasePage() {
                                 productName: nextName,
                                 unit: matchedInventory ? matchedInventory.unit.toUpperCase() as PurchaseItemInput["unit"] : item.unit,
                               });
+                              if (fieldErrors.items?.[index]?.productName) {
+                                setFieldErrors((current) => {
+                                  const nextItemErrors = { ...(current.items || {}) };
+                                  if (nextItemErrors[index]) {
+                                    delete nextItemErrors[index].productName;
+                                    if (!nextItemErrors[index].productName) delete nextItemErrors[index];
+                                  }
+                                  return { ...current, items: Object.keys(nextItemErrors).length ? nextItemErrors : undefined };
+                                });
+                              }
                             }}
                             placeholder="Enter Product"
                             className={`w-full rounded-lg border px-3 py-2 text-xs ${isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.08)] text-[#F0EBE3]" : "bg-white border-[#E8E1D8]"}`}
                           />
+                          {fieldErrors.items?.[index]?.productName && <p className="mt-1 text-xs font-semibold text-red-500">{fieldErrors.items?.[index]?.productName}</p>}
                           <datalist id={`purchase-product-suggestions-${index}`}>
                             {productSuggestions.map((name) => (
                               <option key={name} value={name} />

@@ -116,28 +116,34 @@ export function InventoryReportPage() {
         const isOut = stock === 0;
         
         if (isOut) return (
-          <span className={cn(
-            "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border",
-            isDark ? "bg-rose-500/10 text-rose-400 border-rose-500/20" : "bg-rose-100 text-rose-800 border-rose-200"
-          )}>
-            Out of Stock
-          </span>
+          <div className="flex w-full justify-center">
+            <span className={cn(
+              "inline-flex min-w-[88px] items-center justify-center rounded-full px-2.5 py-1 text-center text-xs font-medium leading-tight border",
+              isDark ? "bg-rose-500/10 text-rose-400 border-rose-500/20" : "bg-rose-100 text-rose-800 border-rose-200"
+            )}>
+              Out of Stock
+            </span>
+          </div>
         );
         if (isLow) return (
-          <span className={cn(
-            "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold animate-pulse border",
-            isDark ? "bg-amber-500/10 text-amber-400 border-amber-500/20" : "bg-amber-100 text-amber-800 border-amber-200"
-          )}>
-            Restock Needed
-          </span>
+          <div className="flex w-full justify-center">
+            <span className={cn(
+              "inline-flex min-w-[88px] items-center justify-center rounded-full px-2.5 py-1 text-center text-xs font-bold leading-tight animate-pulse border",
+              isDark ? "bg-amber-500/10 text-amber-400 border-amber-500/20" : "bg-amber-100 text-amber-800 border-amber-200"
+            )}>
+              Restock Needed
+            </span>
+          </div>
         );
         return (
-          <span className={cn(
-            "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border",
-            isDark ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-emerald-100 text-emerald-800 border-emerald-200"
-          )}>
-            In Stock
-          </span>
+          <div className="flex w-full justify-center">
+            <span className={cn(
+              "inline-flex min-w-[88px] items-center justify-center rounded-full px-2.5 py-1 text-center text-xs font-medium leading-tight border",
+              isDark ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-emerald-100 text-emerald-800 border-emerald-200"
+            )}>
+              In Stock
+            </span>
+          </div>
         );
       }
     },
@@ -416,7 +422,6 @@ export function InventoryReportPage() {
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div>
             <h3 className={cn("text-lg font-bold", isDark ? "text-[#F0EBE3]" : "text-[#111827]")}>Inventory Ledger</h3>
-            <p className={cn("text-sm", isDark ? "text-[#7A7572]" : "text-[#6B7280]")}>Complete breakdown of stock levels and turnover across branches.</p>
           </div>
           <div className="flex gap-2">
             <div className={cn(

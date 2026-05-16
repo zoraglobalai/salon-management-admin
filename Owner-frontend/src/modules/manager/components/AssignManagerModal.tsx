@@ -82,7 +82,7 @@ export function AssignManagerModal({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-8 flex flex-col gap-6 overflow-y-auto max-h-[70vh]">
+        <form onSubmit={handleSubmit} className="p-8 flex flex-col gap-6 overflow-y-auto max-h-[70vh] scrollbar-hide">
           {/* Full Name */}
           <div className="space-y-2">
             <label className={`text-[10px] font-black uppercase tracking-widest ${isDark ? "text-[#4A4744]" : "text-gray-400"}`}>Legal Identity</label>

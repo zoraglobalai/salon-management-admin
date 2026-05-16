@@ -21,6 +21,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Pencil,
   Trash2,
   X,
   User,
@@ -34,6 +35,9 @@ import {
   fetchDailyAppointments, 
   fetchCalendarAppointments,
   createAppointment, 
+  fetchHolidays,
+  fetchMonthlyAttendance,
+  updateAppointment,
   updateAppointmentStatus, 
   deleteAppointment,
   fetchStaff,
@@ -45,12 +49,22 @@ import {
   type AppointmentCalendarEvent,
   type AppointmentInput,
   type AppointmentStatus,
+  type Holiday,
+  type MonthlyAttendanceData,
   type StaffMember
 } from "../../../core/api";
 import { useAuth } from "../../auth/hooks/useAuth";
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
 import { useNotifications } from "../../../shared/components/NotificationProvider";
 import { useGlobalFilters } from "../../../shared/context/FilterContext";
+import {
+  APPOINTMENT_SETTINGS_UPDATED_EVENT,
+  formatWorkingHoursLabel,
+  getAttendanceHolidayDates,
+  getHolidayDateSet,
+  getWorkingDayKey,
+  readAppointmentSettings,
+} from "../../../shared/utils/appointmentSettings";
 
 type LocationOption = { id: string; name: string; city?: string };
 type OutletContext = { ownerLocations?: LocationOption[] };
@@ -176,6 +190,9 @@ export function DashboardCalendarPage() {
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [services, setServices] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [attendanceData, setAttendanceData] = useState<MonthlyAttendanceData | null>(null);
+  const [workingHours, setWorkingHours] = useState(() => readAppointmentSettings("").workingHours);
 
   const isManager = user?.role === "MANAGER";
   const locationOptions = ownerLocations || [];
@@ -243,10 +260,48 @@ export function DashboardCalendarPage() {
     loadResources();
   }, [activeBranchId]);
 
+  useEffect(() => {
+    if (!activeBranchId) {
+      setHolidays([]);
+      return;
+    }
+
+    fetchHolidays(activeBranchId)
+      .then(setHolidays)
+      .catch((error) => console.error("Failed to load holidays", error));
+  }, [activeBranchId]);
+
+  useEffect(() => {
+    if (!activeBranchId) {
+      setAttendanceData(null);
+      return;
+    }
+
+    fetchMonthlyAttendance(currentDate.getMonth() + 1, currentDate.getFullYear(), activeBranchId)
+      .then(setAttendanceData)
+      .catch((error) => console.error("Failed to load attendance holidays", error));
+  }, [activeBranchId, currentDate]);
+
+  useEffect(() => {
+    const syncWorkingHours = () => {
+      setWorkingHours(readAppointmentSettings(activeBranchId).workingHours);
+    };
+
+    syncWorkingHours();
+    window.addEventListener(APPOINTMENT_SETTINGS_UPDATED_EVENT, syncWorkingHours as EventListener);
+    return () => window.removeEventListener(APPOINTMENT_SETTINGS_UPDATED_EVENT, syncWorkingHours as EventListener);
+  }, [activeBranchId]);
+
   // Handlers
   const handleAddAppointment = (date?: Date) => {
     if (date) setCurrentDate(date);
     setSelectedAppointment(null);
+    setIsModalOpen(true);
+  };
+
+  const handleEditAppointment = (appt: Appointment) => {
+    setSelectedAppointment(appt);
+    setIsDetailModalOpen(false);
     setIsModalOpen(true);
   };
 
@@ -369,6 +424,24 @@ export function DashboardCalendarPage() {
   }, [filteredCalendarEvents]);
 
   const selectedDateKey = format(currentDate, "yyyy-MM-dd");
+  const attendanceHolidayDates = useMemo(
+    () => getAttendanceHolidayDates(attendanceData, currentDate.getMonth() + 1, currentDate.getFullYear()),
+    [attendanceData, currentDate]
+  );
+  const holidayDateSet = useMemo(
+    () => getHolidayDateSet(
+      holidays,
+      attendanceHolidayDates,
+      currentDate.getFullYear(),
+      currentDate.getMonth() + 1,
+      readAppointmentSettings(activeBranchId).weeklyHolidayDays
+    ),
+    [activeBranchId, currentDate, holidays, attendanceHolidayDates]
+  );
+  const selectedDayWorkingHours = workingHours[getWorkingDayKey(selectedDateKey)];
+  const selectedDateAvailability = holidayDateSet.has(selectedDateKey)
+    ? "Holiday"
+    : formatWorkingHoursLabel(selectedDayWorkingHours);
   const selectedDateAppointments = useMemo(() => {
     return [...(calendarAppointmentsByDate[selectedDateKey] || [])].sort((a, b) =>
       `${normalizeDateOnly(a.appointment_date)}T${normalizeTimeOnly(a.start_time)}`.localeCompare(
@@ -633,8 +706,23 @@ export function DashboardCalendarPage() {
                             </select>
                           </td>
                           <td className="py-5 text-right">
-                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                              <button onClick={(e) => { e.stopPropagation(); handleDeleteAppointment(appt.id); }} className={`p-2 rounded-lg hover:bg-red-500/10 text-red-500 transition-all`}>
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleEditAppointment(appt); }}
+                                className={`p-2 rounded-lg transition-all ${
+                                  isDark
+                                    ? "text-[#C9A96E] hover:bg-[#C9A96E]/10"
+                                    : "text-[#8B5E3C] hover:bg-[#8B5E3C]/10"
+                                }`}
+                                aria-label="Edit appointment"
+                              >
+                                <Pencil size={16} />
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDeleteAppointment(appt.id); }}
+                                className="p-2 rounded-lg text-red-500 transition-all hover:bg-red-500/10"
+                                aria-label="Delete appointment"
+                              >
                                 <Trash2 size={16} />
                               </button>
                             </div>
@@ -841,6 +929,13 @@ export function DashboardCalendarPage() {
                           }`}>
                             {selectedDateAppointments.length} Appointment{selectedDateAppointments.length === 1 ? "" : "s"}
                           </p>
+                          <p className={`mt-1 text-xs font-semibold ${
+                            holidayDateSet.has(selectedDateKey)
+                              ? "text-[#C53030]"
+                              : (isDark ? "text-[#E8CC9B]" : "text-[#8B5E3C]")
+                          }`}>
+                            {holidayDateSet.has(selectedDateKey) ? "Holiday" : `Working hours: ${selectedDateAvailability}`}
+                          </p>
                         </div>
                         <button
                           type="button"
@@ -862,7 +957,11 @@ export function DashboardCalendarPage() {
                           }`}>
                             <div className="px-6">
                               <p className="text-sm font-semibold">No appointments on this day</p>
-                              <p className="mt-1 text-xs">Pick another date or create a new booking.</p>
+                              <p className="mt-1 text-xs">
+                                {holidayDateSet.has(selectedDateKey)
+                                  ? "This date is marked as a holiday."
+                                  : `Availability: ${selectedDateAvailability}. Pick another date or create a new booking.`}
+                              </p>
                             </div>
                           </div>
                         ) : (
@@ -949,11 +1048,12 @@ export function DashboardCalendarPage() {
       {isModalOpen && (
         <AppointmentFormModal 
           onClose={() => setIsModalOpen(false)}
-          appointment={null}
+          appointment={selectedAppointment}
           activeBranchId={activeBranchId}
           staffMembers={staffMembers}
           services={services}
           clients={clients}
+          holidays={holidays}
           onSuccess={() => {
             setIsModalOpen(false);
             loadAppointments();
@@ -1050,11 +1150,13 @@ export function DashboardCalendarPage() {
 
 // Separate component for the Modal to keep the main page clean
 function AppointmentFormModal({ 
-  onClose, appointment, activeBranchId, staffMembers, services, clients, onSuccess, isDark 
+  onClose, appointment, activeBranchId, staffMembers, services, clients, holidays, onSuccess, isDark 
 }: any) {
   const { toast } = useNotifications();
+  const isEditing = Boolean(appointment?.id);
   const [busySlots, setBusySlots] = useState<{start_time: string, end_time: string}[]>([]);
-  const [staffAttendanceStatus, setStaffAttendanceStatus] = useState<string | null>(null);
+  const [attendanceData, setAttendanceData] = useState<MonthlyAttendanceData | null>(null);
+  const [workingHours, setWorkingHours] = useState(() => readAppointmentSettings(activeBranchId).workingHours);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<AppointmentInput>({
     customerId: appointment?.customer_id || "",
@@ -1068,7 +1170,30 @@ function AppointmentFormModal({
     status: appointment?.status || "booked"
   });
 
-  // Fetch busy slots and attendance status
+  useEffect(() => {
+    setWorkingHours(readAppointmentSettings(activeBranchId).workingHours);
+
+    const syncWorkingHours = () => {
+      setWorkingHours(readAppointmentSettings(activeBranchId).workingHours);
+    };
+
+    window.addEventListener(APPOINTMENT_SETTINGS_UPDATED_EVENT, syncWorkingHours as EventListener);
+    return () => window.removeEventListener(APPOINTMENT_SETTINGS_UPDATED_EVENT, syncWorkingHours as EventListener);
+  }, [activeBranchId]);
+
+  useEffect(() => {
+    if (!activeBranchId || !formData.appointmentDate) {
+      setAttendanceData(null);
+      return;
+    }
+
+    const selectedDate = parse(formData.appointmentDate, "yyyy-MM-dd", new Date());
+    fetchMonthlyAttendance(selectedDate.getMonth() + 1, selectedDate.getFullYear(), activeBranchId)
+      .then(setAttendanceData)
+      .catch((error) => console.error("Failed to load attendance holidays", error));
+  }, [activeBranchId, formData.appointmentDate]);
+
+  // Fetch busy slots
   useEffect(() => {
     if (formData.staffId && formData.appointmentDate) {
       Promise.all([
@@ -1086,43 +1211,64 @@ function AppointmentFormModal({
     }
   }, [formData.staffId, formData.appointmentDate]);
 
-  // Generate available slots (9 AM to 9 PM, every 15 mins)
-  const availableSlots = useMemo(() => {
-    const blockingStatuses = ['absent', 'week_off', 'paid_leave', 'lop', 'leave'];
-    if (staffAttendanceStatus && blockingStatuses.includes(staffAttendanceStatus)) {
-      return [];
-    }
+  const selectedDate = useMemo(
+    () => parse(formData.appointmentDate, "yyyy-MM-dd", new Date()),
+    [formData.appointmentDate]
+  );
+  const attendanceHolidayDates = useMemo(
+    () => getAttendanceHolidayDates(attendanceData, selectedDate.getMonth() + 1, selectedDate.getFullYear()),
+    [attendanceData, selectedDate]
+  );
+  const holidayDateSet = useMemo(
+    () => getHolidayDateSet(
+      holidays || [],
+      attendanceHolidayDates,
+      selectedDate.getFullYear(),
+      selectedDate.getMonth() + 1,
+      readAppointmentSettings(activeBranchId).weeklyHolidayDays
+    ),
+    [activeBranchId, holidays, attendanceHolidayDates, selectedDate]
+  );
+  const selectedDayHours = workingHours[getWorkingDayKey(formData.appointmentDate)];
+  const isHolidayDate = holidayDateSet.has(formData.appointmentDate);
 
-    const slots = [];
-    let current = parse("09:00", "HH:mm", new Date());
-    const end = parse("21:00", "HH:mm", new Date());
+  // Generate available slots within saved working hours
+  const availableSlots = useMemo(() => {
+    if (!selectedDayHours?.enabled || isHolidayDate) return [];
+
+    const service = services.find((item: any) => item.id === formData.serviceId);
+    const serviceDuration = Number(service?.duration || 15);
+    const slots: string[] = [];
+    let current = parse(selectedDayHours.start, "HH:mm", new Date());
+    const dayEnd = parse(selectedDayHours.end, "HH:mm", new Date());
     const now = new Date();
     const isToday = formData.appointmentDate === format(now, "yyyy-MM-dd");
 
-    while (current <= end) {
+    while (current < dayEnd) {
+      const slotEnd = addMinutes(current, serviceDuration);
+      if (slotEnd > dayEnd) break;
+
       const timeStr = format(current, "HH:mm");
-      
-      // 1. Past check
       if (isToday && isBefore(current, now)) {
         current = addMinutes(current, 15);
         continue;
       }
 
-      // 2. Busy check
-      const isBusy = busySlots.some(busy => {
-        const bStart = busy.start_time.slice(0, 5);
-        const bEnd = busy.end_time.slice(0, 5);
-        return timeStr >= bStart && timeStr < bEnd;
+      const isBusy = busySlots.some((busy) => {
+        const busyStart = parse(busy.start_time.slice(0, 5), "HH:mm", new Date());
+        const busyEnd = parse(busy.end_time.slice(0, 5), "HH:mm", new Date());
+        return current < busyEnd && slotEnd > busyStart;
       });
 
       if (!isBusy) {
         slots.push(timeStr);
       }
-      
+
       current = addMinutes(current, 15);
     }
+
     return slots;
-  }, [busySlots, formData.appointmentDate, staffAttendanceStatus]);
+  }, [busySlots, formData.appointmentDate, formData.serviceId, isHolidayDate, selectedDayHours, services]);
 
   // Auto-calculate end time
   useEffect(() => {
@@ -1138,14 +1284,27 @@ function AppointmentFormModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isHolidayDate) {
+      toast("This date is marked as a holiday.", "error");
+      return;
+    }
+    if (!selectedDayHours?.enabled) {
+      toast("This day is closed in working hours settings.", "error");
+      return;
+    }
     if (!formData.startTime || !formData.endTime) {
       toast("Please select a time slot", "error");
       return;
     }
     setIsSubmitting(true);
     try {
-      await createAppointment(formData);
-      toast("Appointment booked successfully");
+      if (appointment?.id) {
+        await updateAppointment(appointment.id, formData);
+        toast("Appointment updated successfully");
+      } else {
+        await createAppointment(formData);
+        toast("Appointment booked successfully");
+      }
       onSuccess();
     } catch (err: any) {
       toast(err.message || "Something went wrong", "error");
@@ -1164,10 +1323,10 @@ function AppointmentFormModal({
         }`}>
           <div>
             <h2 className={`text-xl font-black font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>
-              New Booking
+              {isEditing ? "Edit Booking" : "New Booking"}
             </h2>
             <p className={`text-xs font-bold uppercase tracking-widest mt-0.5 ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>
-              Add customer to schedule
+              {isEditing ? "Update customer schedule" : "Add customer to schedule"}
             </p>
           </div>
           <button onClick={onClose} className={`p-2 rounded-xl transition-all hover:bg-white/5 ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>
@@ -1175,7 +1334,7 @@ function AppointmentFormModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-6 overflow-y-auto max-h-[70vh]">
+        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-6 overflow-y-auto max-h-[70vh] scrollbar-hide">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Customer Select */}
             <div className="md:col-span-2">
@@ -1262,6 +1421,20 @@ function AppointmentFormModal({
               <label className={`mb-3 block text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>
                 Available Start Times {formData.endTime && `(End: ${formatTime(formData.endTime)})`}
               </label>
+
+              <div className={`mb-3 rounded-xl px-4 py-3 text-xs font-semibold ${
+                isHolidayDate
+                  ? "bg-red-500/10 text-red-500"
+                  : selectedDayHours?.enabled
+                    ? (isDark ? "bg-white/5 text-[#C8BFB4]" : "bg-[#F8F3ED] text-[#5B6472]")
+                    : "bg-yellow-500/10 text-yellow-700"
+              }`}>
+                {isHolidayDate
+                  ? "Holiday: bookings are blocked for this date."
+                  : selectedDayHours?.enabled
+                    ? `Working hours: ${formatWorkingHoursLabel(selectedDayHours)}`
+                    : "This day is closed in settings."}
+              </div>
               
               {!formData.staffId || !formData.serviceId ? (
                 <div className={`p-4 rounded-xl text-center text-xs font-bold ${isDark ? "bg-white/5 text-[#7A7572]" : "bg-gray-50 text-gray-400"}`}>
@@ -1272,7 +1445,7 @@ function AppointmentFormModal({
                   Staff is not available: {staffAttendanceStatus.replace('_', ' ').toUpperCase()}
                 </div>
               ) : (
-                <div className="flex flex-wrap gap-2 max-h-[160px] overflow-y-auto pr-2 custom-scrollbar">
+                <div className="flex flex-wrap gap-2 max-h-[160px] overflow-y-auto pr-2 custom-scrollbar scrollbar-hide">
                   {availableSlots.length > 0 ? (
                     availableSlots.map(time => (
                       <button
@@ -1290,7 +1463,11 @@ function AppointmentFormModal({
                     ))
                   ) : (
                     <div className="w-full p-4 rounded-xl text-center text-xs font-bold text-red-400 bg-red-400/5">
-                      No available slots for this date/staff
+                      {isHolidayDate
+                        ? "This date is a holiday."
+                        : !selectedDayHours?.enabled
+                          ? "This day is closed in settings."
+                          : "No available slots for this date/staff"}
                     </div>
                   )}
                 </div>
@@ -1332,7 +1509,7 @@ function AppointmentFormModal({
                   : "bg-[#8B5E3C] shadow-[0_8px_20px_rgba(139,94,60,0.2)]"
               }`}
             >
-              {isSubmitting ? "Processing..." : "Confirm Booking"}
+              {isSubmitting ? "Processing..." : isEditing ? "Save Changes" : "Confirm Booking"}
             </button>
           </div>
         </form>

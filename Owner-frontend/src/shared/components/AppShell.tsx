@@ -12,6 +12,8 @@ import { SubscriptionPlansModal } from "./SubscriptionPlansModal";
 import { SupportTicketDrawer } from "./SupportTicketDrawer";
 import { ThemeModal } from "./ThemeModal";
 import { useDashboardTheme } from "../theme/ThemeProvider";
+import { useGlobalFilters } from "../context/FilterContext";
+import { AppointmentSettingsModal } from "./AppointmentSettingsModal";
 
 type NavigationItem = {
   label: string;
@@ -24,6 +26,7 @@ type AppShellProps = PropsWithChildren<{
   subtitle: string;
   navigation: NavigationItem[];
   lowStockCount?: number;
+  ownerLocations?: { id: string; name: string; city?: string }[];
   profileDetails?: {
     role: "OWNER" | "INDEPENDENT_OWNER" | "MANAGER" | "SUPER_ADMIN";
     fullName: string;
@@ -45,12 +48,14 @@ export function AppShell({
   subtitle: _subtitle,
   navigation,
   lowStockCount = 0,
+  ownerLocations = [],
   profileDetails = null,
   onRefreshProfile,
   children,
 }: AppShellProps) {
   const { user, logout, updateUser } = useAuth();
   const { theme } = useDashboardTheme();
+  const { filters: globalFilters } = useGlobalFilters();
   const isDark = theme === "dark";
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -58,10 +63,18 @@ export function AppShell({
   const [isSupportDrawerOpen, setIsSupportDrawerOpen] = useState(false);
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
   const isManager = user?.role === "MANAGER";
   const canOpenHelpdesk = user?.role === "OWNER" || user?.role === "INDEPENDENT_OWNER";
   const location = useLocation();
+  const activeBranchId = isManager
+    ? (user?.branchId || "")
+    : (globalFilters.locationId === "all" ? (ownerLocations[0]?.id || "") : globalFilters.locationId);
+  const branchLabel = ownerLocations.find((location) => location.id === activeBranchId)?.city
+    || ownerLocations.find((location) => location.id === activeBranchId)?.name
+    || user?.location
+    || "Current Branch";
 
   const activeModule = navigation.find(item => 
     location.pathname === item.to || (item.to !== "/dashboard" && location.pathname.startsWith(item.to))
@@ -127,7 +140,8 @@ export function AppShell({
 
   const menuItems = [
     { label: "Profile", icon: UserCircle2 },
-    { label: "Theme", icon: Moon },
+    { label: "Themes", icon: Moon },
+    { label: "Settings", icon: Settings2 },
     ...(!isManager ? [{ label: "Upgrade Plans", icon: Crown }] : []),
     ...(canOpenHelpdesk ? [{ label: "Helpdesk", icon: CircleHelp }] : []),
   ];
@@ -183,9 +197,17 @@ export function AppShell({
         shopName={profileDetails?.shopName}
       />
       <ThemeModal isOpen={isThemeModalOpen} onClose={() => setIsThemeModalOpen(false)} />
+      <AppointmentSettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        activeBranchId={activeBranchId}
+        branchLabel={branchLabel}
+      />
       <SubscriptionPlansModal
         isOpen={isSubscriptionModalOpen}
         onClose={() => setIsSubscriptionModalOpen(false)}
+        branchCount={ownerLocations.length || (isManager ? 1 : 0)}
+        ownerRole={profileDetails?.role || user?.role || null}
       />
 
       {isSidebarOpen ? (
@@ -290,8 +312,10 @@ export function AppShell({
                         onClick={
                           label === "Profile"
                             ? () => { setIsProfileMenuOpen(false); setIsProfileModalOpen(true); }
-                            : label === "Theme"
+                            : label === "Themes"
                               ? () => { setIsProfileMenuOpen(false); setIsThemeModalOpen(true); }
+                              : label === "Settings"
+                                ? () => { setIsProfileMenuOpen(false); setIsSettingsModalOpen(true); }
                               : label === "Upgrade Plans"
                                 ? () => { setIsProfileMenuOpen(false); setIsSubscriptionModalOpen(true); }
                                 : label === "Helpdesk"

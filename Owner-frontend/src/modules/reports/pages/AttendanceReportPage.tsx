@@ -422,9 +422,9 @@ export function AttendanceReportPage() {
                 Staff Attendance &amp; Payroll Breakdown
               </h3>
             </div>
-            <p className={cn("mt-0.5 text-sm", isDark ? "text-[#7A7572]" : "text-[#6B7280]")}>
+            {/* <p className={cn("mt-0.5 text-sm", isDark ? "text-[#7A7572]" : "text-[#6B7280]")}>
               Salary deductions calculated from LOP and Half Day records. All data sourced directly from attendance records.
-            </p>
+            </p> */}
           </div>
 
           <div className={cn(

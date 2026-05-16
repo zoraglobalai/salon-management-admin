@@ -433,7 +433,7 @@ export function ProfitReportPage() {
         <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <h3 className={cn("font-semibold", isDark ? "text-[#F0EBE3]" : "text-[#111827]")}>Profit Timeline</h3>
-            <p className={cn("text-sm", isDark ? "text-[#7A7572]" : "text-[#6B7280]")}>Revenue, expense impact, and profit health by period with expandable breakdown details.</p>
+            {/* <p className={cn("text-sm", isDark ? "text-[#7A7572]" : "text-[#6B7280]")}>Revenue, expense impact, and profit health by period with expandable breakdown details.</p> */}
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative min-w-[260px]">
@@ -452,8 +452,8 @@ export function ProfitReportPage() {
         </div>
 
         <div className={cn("overflow-hidden rounded-[20px] border", isDark ? "border-white/7" : "border-[#E8E1D8]")}>
-          <div className="max-h-[620px] overflow-auto">
-            <table className="w-full min-w-[860px] text-left text-sm">
+          <div className="overflow-visible">
+            <table className="w-full text-left text-sm">
               <thead className={cn("sticky top-0 z-10 text-xs uppercase tracking-wider", isDark ? "bg-[#1C2030] text-[#7A7572]" : "bg-[#FAF7F3] text-[#6B7280]")}>
                 <tr>
                   {tableHeaders.map((header) => {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
   ArrowUpRight,
+  AlertCircle,
   CalendarDays,
   ChevronDown,
   IndianRupee,
@@ -12,13 +13,22 @@ import {
   Users,
 } from "lucide-react";
 import { useNavigate, useOutletContext } from "react-router-dom";
-import { fetchDashboardSummary } from "../../../core/api";
+import {
+  fetchDashboardSummary,
+  fetchDailyAppointments,
+  fetchExpenses,
+  fetchHolidays,
+  fetchInventory,
+  fetchMonthlyAttendance,
+  fetchPurchases,
+} from "../../../core/api";
 import type { DashboardSummaryResponse } from "../../../core/types";
 import { CommunicationPanel } from "../../../shared/components/CommunicationPanel";
 import { useCommunications } from "../../../shared/hooks/useCommunications";
 import { useAuth } from "../../auth/hooks/useAuth";
 import { useDashboardTheme } from "../../../shared/theme/ThemeProvider";
 import { useGlobalFilters } from "../../../shared/context/FilterContext";
+import { getHolidayDateSet, readAppointmentSettings } from "../../../shared/utils/appointmentSettings";
 import {
   Area,
   AreaChart,
@@ -42,6 +52,18 @@ type SummaryPaymentMethod = {
 };
 
 type TrendRange = "7d" | "month" | "prev_month";
+type BranchSnapshot = {
+  branchId: string;
+  branchName: string;
+  presentStaff: number;
+  absentStaff: number;
+  totalPurchases: number;
+  lowStockProducts: number;
+  monthlyExpenses: number;
+  todayAppointments: number;
+  totalStaff: number;
+  holidayStaff: number;
+};
 
 function formatCurrency(value: number | undefined) {
   return `\u20B9${Number(value || 0).toLocaleString("en-IN", {
@@ -123,6 +145,58 @@ function getTodayDate() {
 function getLocationLabel(location?: { name: string; city?: string }) {
   if (!location) return "All Branches";
   return location.name || location.city || "Branch";
+}
+
+function getMonthRange(dateValue: string) {
+  const base = dateValue ? new Date(`${dateValue}T00:00:00`) : new Date();
+  const year = base.getFullYear();
+  const month = base.getMonth();
+  const startDate = new Date(year, month, 1).toISOString().slice(0, 10);
+  const endDate = new Date(year, month + 1, 0).toISOString().slice(0, 10);
+  return { startDate, endDate, month: month + 1, year };
+}
+
+function SnapshotCard({
+  title,
+  value,
+  subtext,
+  icon,
+  accent,
+  isDark,
+}: {
+  title: string;
+  value: string;
+  subtext: string;
+  icon: React.ReactNode;
+  accent: string;
+  isDark: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-[20px] border p-4 transition-all ${
+        isDark
+          ? "border-[rgba(255,255,255,0.06)] bg-[#10151D]"
+          : "border-[#EFE4D9] bg-[#FFFCF8]"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className={`text-[11px] font-black uppercase tracking-[0.18em] ${isDark ? "text-[#7A7572]" : "text-[#8A7E74]"}`}>
+            {title}
+          </p>
+          <p className={`mt-3 text-[1.8rem] font-black leading-none tracking-[-0.04em] ${isDark ? "text-[#F0EBE3]" : "text-[#17181F]"}`}>
+            {value}
+          </p>
+          <p className={`mt-2 text-xs ${isDark ? "text-[#8F8A84]" : "text-[#6B7280]"}`}>
+            {subtext}
+          </p>
+        </div>
+        <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-[14px] ${accent}`}>
+          {icon}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function DashboardCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
@@ -382,6 +456,9 @@ export function DashboardSummary() {
   const [trendRange, setTrendRange] = useState<TrendRange>("7d");
   const { unreadTotal } = useCommunications();
   const [summary, setSummary] = useState<DashboardSummaryResponse | null>(null);
+  const [branchSnapshots, setBranchSnapshots] = useState<BranchSnapshot[]>([]);
+  const [selectedSnapshotBranchId, setSelectedSnapshotBranchId] = useState("");
+  const [isSnapshotLoading, setIsSnapshotLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showCommunications, setShowCommunications] = useState(false);
@@ -415,6 +492,80 @@ export function DashboardSummary() {
     }
   }, [isManager, globalFilters.locationId, globalFilters.startDate, trendRange, user?.branchId]);
 
+  const loadBranchSnapshots = useCallback(async () => {
+    const targetBranches = isManager
+      ? [{ id: user?.branchId || "", name: user?.location || "Current Branch" }]
+      : globalFilters.locationId !== "all"
+        ? [{
+            id: globalFilters.locationId,
+            name: getLocationLabel(locations.find((location) => location.id === globalFilters.locationId)) || "Selected Branch",
+          }]
+        : (locations.length
+            ? locations.map((location) => ({ id: location.id, name: getLocationLabel(location) }))
+            : (summary?.branches || []).map((branch) => ({ id: branch.branchId, name: branch.branchName })));
+
+    const validBranches = targetBranches.filter((branch) => branch.id);
+    if (!validBranches.length) {
+      setBranchSnapshots([]);
+      setIsSnapshotLoading(false);
+      return;
+    }
+
+    const selectedDate = globalFilters.startDate || getTodayDate();
+    const { startDate, endDate, month, year } = getMonthRange(selectedDate);
+    setIsSnapshotLoading(true);
+
+    try {
+      const results = await Promise.all(
+        validBranches.map(async (branch) => {
+          const [attendanceRes, purchasesRes, inventoryRes, expensesRes, appointmentsRes, holidaysRes] = await Promise.all([
+            fetchMonthlyAttendance(month, year, branch.id),
+            fetchPurchases(branch.id),
+            fetchInventory(branch.id),
+            fetchExpenses({ startDate, endDate, locationId: branch.id, page: 1, limit: 1 }),
+            fetchDailyAppointments(selectedDate, branch.id),
+            fetchHolidays(branch.id),
+          ]);
+
+          const dateKey = selectedDate;
+          const weeklyHolidayDays = readAppointmentSettings(branch.id).weeklyHolidayDays;
+          const holidaySet = getHolidayDateSet(holidaysRes, [], year, month, weeklyHolidayDays);
+          const isHoliday = holidaySet.has(dateKey);
+          const todayStatuses = attendanceRes.staff.map((member) => attendanceRes.attendance[member.id]?.[dateKey] || null);
+          const presentStaff = isHoliday
+            ? 0
+            : todayStatuses.filter((status) => status === "present" || status === "half_day").length;
+          const holidayStaff = isHoliday
+            ? attendanceRes.staff.length
+            : todayStatuses.filter((status) => status === "holiday").length;
+          const totalStaff = attendanceRes.staff.length;
+          const absentStaff = isHoliday ? 0 : Math.max(totalStaff - presentStaff - holidayStaff, 0);
+          const lowStockProducts = (inventoryRes.items || []).filter((item) => item.stock <= item.lowStockThreshold).length;
+
+          return {
+            branchId: branch.id,
+            branchName: branch.name,
+            presentStaff,
+            absentStaff,
+            totalPurchases: purchasesRes.purchases?.length || 0,
+            lowStockProducts,
+            monthlyExpenses: expensesRes.data?.summary?.total_monthly_expense || 0,
+            todayAppointments: appointmentsRes.length || 0,
+            totalStaff,
+            holidayStaff,
+          } satisfies BranchSnapshot;
+        })
+      );
+
+      setBranchSnapshots(results);
+    } catch (snapshotError) {
+      console.error("Failed to load branch snapshots", snapshotError);
+      setBranchSnapshots([]);
+    } finally {
+      setIsSnapshotLoading(false);
+    }
+  }, [globalFilters.locationId, globalFilters.startDate, isManager, locations, summary?.branches, user?.branchId, user?.location]);
+
   useEffect(() => {
     loadSummary();
     const intervalId = window.setInterval(loadSummary, 30000);
@@ -423,11 +574,11 @@ export function DashboardSummary() {
   }, [loadSummary]);
 
   useEffect(() => {
-    loadSummary();
-    const intervalId = window.setInterval(loadSummary, 30000);
+    loadBranchSnapshots();
+    const intervalId = window.setInterval(loadBranchSnapshots, 30000);
 
     return () => window.clearInterval(intervalId);
-  }, [loadSummary]);
+  }, [loadBranchSnapshots]);
 
   const totals = summary?.totals;
   const yesterday = summary?.yesterday;
@@ -445,6 +596,7 @@ export function DashboardSummary() {
     getLocationLabel(locations[0]) ||
     "All Branches";
   const ownerHasMultipleBranches = !isManager && locations.length > 1;
+  const ownerAllBranchesSnapshotView = !isManager && globalFilters.locationId === "all" && branchSnapshots.length > 1;
   const subtitleBranchText = ownerHasMultipleBranches && globalFilters.locationId === "all" ? "all locations" : resolvedBranchName;
 
   const revenueGrowth = computeGrowth(totals?.revenue ?? 0, yesterday?.revenue ?? 0);
@@ -495,6 +647,24 @@ export function DashboardSummary() {
 
   const openServiceReport = () => navigate("/dashboard/reports/services");
   const openSalesReport = () => navigate("/dashboard/reports/sales");
+
+  useEffect(() => {
+    if (!branchSnapshots.length) {
+      setSelectedSnapshotBranchId("");
+      return;
+    }
+
+    setSelectedSnapshotBranchId((current) => {
+      if (current && branchSnapshots.some((snapshot) => snapshot.branchId === current)) {
+        return current;
+      }
+      return branchSnapshots[0].branchId;
+    });
+  }, [branchSnapshots]);
+
+  const visibleSnapshots = ownerAllBranchesSnapshotView
+    ? branchSnapshots.filter((snapshot) => snapshot.branchId === selectedSnapshotBranchId)
+    : branchSnapshots;
 
   if (isLoading) {
     return (
@@ -648,6 +818,139 @@ export function DashboardSummary() {
           iconBg={isDark ? "bg-[rgba(251,191,36,0.1)]" : "bg-[#FFF2C9]"}
           isDark={isDark}
         />
+      </div>
+
+      <div className="shrink-0">
+        <DashboardCard className="p-5">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h3 className={`text-[1.45rem] font-bold font-['Outfit'] tracking-[-0.04em] ${isDark ? "text-[#F0EBE3]" : "text-[#17181F]"}`}>
+                Branch Snapshot
+              </h3>
+              <p className={`text-sm ${isDark ? "text-[#7A7572]" : "text-[#6B7280]"}`}>
+                Live branch KPIs from attendance, purchases, inventory, expenses, and today&apos;s appointments.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              {ownerAllBranchesSnapshotView ? (
+                <label className="relative">
+                  <select
+                    value={selectedSnapshotBranchId}
+                    onChange={(event) => setSelectedSnapshotBranchId(event.target.value)}
+                    className={`appearance-none rounded-[12px] border px-3.5 py-2 pr-10 text-sm font-semibold outline-none transition-all ${
+                      isDark
+                        ? "border-[rgba(255,255,255,0.08)] bg-[#1C2030] text-[#F0EBE3] [color-scheme:dark]"
+                        : "border-[#E8DDD1] bg-white text-[#17181F] [color-scheme:light]"
+                    }`}
+                    aria-label="Select branch snapshot"
+                  >
+                    {branchSnapshots.map((snapshot) => (
+                      <option key={snapshot.branchId} value={snapshot.branchId}>
+                        {snapshot.branchName}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown size={16} className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`} />
+                </label>
+              ) : null}
+              <p className={`text-xs font-semibold uppercase tracking-[0.16em] ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`}>
+                {globalFilters.locationId === "all" && !isManager ? "All Branches View" : resolvedBranchName}
+              </p>
+            </div>
+          </div>
+
+          {isSnapshotLoading ? (
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div
+                  key={index}
+                  className={`h-[124px] animate-pulse rounded-[20px] border ${
+                    isDark ? "border-[rgba(255,255,255,0.06)] bg-[#10151D]" : "border-[#EFE4D9] bg-[#FFFCF8]"
+                  }`}
+                />
+              ))}
+            </div>
+          ) : visibleSnapshots.length ? (
+            <div className="space-y-4">
+              {visibleSnapshots.map((snapshot) => (
+                <div
+                  key={snapshot.branchId}
+                  className={`rounded-[22px] border p-4 ${
+                    isDark ? "border-[rgba(255,255,255,0.06)] bg-[#10151D]" : "border-[#F1E7DB] bg-[#FFFCF8]"
+                  }`}
+                >
+                  <div className="mb-4 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h4 className={`text-lg font-black ${isDark ? "text-[#F0EBE3]" : "text-[#17181F]"}`}>
+                        {snapshot.branchName}
+                      </h4>
+                      <p className={`text-xs ${isDark ? "text-[#8F8A84]" : "text-[#6B7280]"}`}>
+                        {snapshot.holidayStaff > 0
+                          ? `Holiday today for ${snapshot.holidayStaff} staff members`
+                          : `${snapshot.totalStaff} total staff tracked for today`}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 xl:grid-cols-3">
+                    <SnapshotCard
+                      title="Present Staff"
+                      value={`${snapshot.presentStaff}`}
+                      subtext={`${snapshot.totalStaff} total staff`}
+                      icon={<Users size={18} className={isDark ? "text-[#4ADE80]" : "text-[#23A55A]"} />}
+                      accent={isDark ? "bg-[rgba(74,222,128,0.12)]" : "bg-[#E8F8EC]"}
+                      isDark={isDark}
+                    />
+                    <SnapshotCard
+                      title="Absent Staff"
+                      value={`${snapshot.absentStaff}`}
+                      subtext={snapshot.holidayStaff > 0 ? "Holiday default applied" : "Not marked present today"}
+                      icon={<Users size={18} className={isDark ? "text-[#F87171]" : "text-[#D14343]"} />}
+                      accent={isDark ? "bg-[rgba(248,113,113,0.12)]" : "bg-[#FDECEC]"}
+                      isDark={isDark}
+                    />
+                    <SnapshotCard
+                      title="Total Purchases"
+                      value={`${snapshot.totalPurchases}`}
+                      subtext="Purchase records for this branch"
+                      icon={<ShoppingBag size={18} className={isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"} />}
+                      accent={isDark ? "bg-[rgba(201,169,110,0.12)]" : "bg-[#FCEBDD]"}
+                      isDark={isDark}
+                    />
+                    <SnapshotCard
+                      title="Low Stock Products"
+                      value={`${snapshot.lowStockProducts}`}
+                      subtext="Needs inventory attention"
+                      icon={<AlertCircle size={18} className={isDark ? "text-[#FBBF24]" : "text-[#D97706]"} />}
+                      accent={isDark ? "bg-[rgba(251,191,36,0.12)]" : "bg-[#FFF2C9]"}
+                      isDark={isDark}
+                    />
+                    <SnapshotCard
+                      title="Monthly Expenses"
+                      value={formatCurrency(snapshot.monthlyExpenses)}
+                      subtext="Current month expenses"
+                      icon={<IndianRupee size={18} className={isDark ? "text-[#818CF8]" : "text-[#4566FF]"} />}
+                      accent={isDark ? "bg-[rgba(129,140,248,0.12)]" : "bg-[#EEF2FF]"}
+                      isDark={isDark}
+                    />
+                    <SnapshotCard
+                      title="Today Appointments"
+                      value={`${snapshot.todayAppointments}`}
+                      subtext="Booked for selected date"
+                      icon={<CalendarDays size={18} className={isDark ? "text-[#60A5FA]" : "text-[#2563EB]"} />}
+                      accent={isDark ? "bg-[rgba(96,165,250,0.12)]" : "bg-[#EAF4FF]"}
+                      isDark={isDark}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className={`text-sm ${isDark ? "text-[#7A7572]" : "text-[#6B7280]"}`}>
+              No branch KPI data is available right now.
+            </p>
+          )}
+        </DashboardCard>
       </div>
 
       <div className="shrink-0">

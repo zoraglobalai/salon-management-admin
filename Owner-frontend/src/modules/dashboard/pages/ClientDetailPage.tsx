@@ -230,9 +230,9 @@ export function ClientDetailPage() {
         <div className="mb-5 flex items-center justify-between gap-4">
           <div>
             <h4 className={`text-sm font-black uppercase tracking-[0.24em] ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`}>Visit History</h4>
-            <p className={`mt-2 text-sm ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>
+            {/* <p className={`mt-2 text-sm ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>
               Recent services and products purchased by this customer.
-            </p>
+            </p> */}
           </div>
           <div className={`flex h-12 w-12 items-center justify-center rounded-full ${isDark ? "bg-[#1C2030] text-[#C9A96E]" : "bg-[#f6eee6] text-[#8B5E3C]"}`}>
             <History size={22} />

@@ -208,7 +208,6 @@ export function CustomerReportPage() {
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <div>
             <h3 className={cn("font-semibold", isDark ? "text-[#F0EBE3]" : "text-[#111827]")}>Customer List</h3>
-            <p className={cn("text-sm", isDark ? "text-[#7A7572]" : "text-[#6B7280]")}>Customer activity and retention details for the selected filters.</p>
           </div>
           <div className={cn(
             "rounded-full px-3 py-1 text-sm font-medium",

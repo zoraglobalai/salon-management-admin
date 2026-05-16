@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import { ENV } from '../config/env';
 import { AppDataSource } from '../database/config';
 import { User } from '../entities/platform/User';
-import { UserMode, UserRole, type OperatorUserType } from '../entities/platform/User';
+import { CreatorRole, UserMode, UserRole, type OperatorUserType } from '../entities/platform/User';
 import type { AuthUserPayload } from '../shared/types/auth';
 
 export interface AuthPayload {
@@ -86,6 +86,25 @@ export const authMiddleware: RequestHandler = async (req: AuthRequest, res: Resp
         decoded.session_version !== userExists.sessionVersion
       ) {
         res.status(401).json({ success: false, message: 'Session invalidated. A newer login is active.' });
+        return;
+      }
+
+      const isOwnerTempResetPending =
+        (userExists.role === UserRole.OWNER || userExists.role === UserRole.INDEPENDENT_OWNER) &&
+        userExists.createdByRole === CreatorRole.ADMIN &&
+        userExists.isTemporaryPassword === true &&
+        userExists.passwordResetRequired === true;
+      const isAllowedResetPath =
+        req.path === '/create-new-password' ||
+        req.path === '/me' ||
+        req.path === '/change-password';
+
+      if (isOwnerTempResetPending && !isAllowedResetPath) {
+        res.status(403).json({
+          success: false,
+          message: 'Password reset required before accessing the dashboard.',
+          code: 'PASSWORD_RESET_REQUIRED',
+        });
         return;
       }
     }

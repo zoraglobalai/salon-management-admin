@@ -3,6 +3,7 @@ import { Login } from "../modules/auth/pages/Login";
 import { ForgotPassword } from "../modules/auth/pages/ForgotPassword";
 import { ResetPassword } from "../modules/auth/pages/ResetPassword";
 import { ChangePassword } from "../modules/auth/pages/ChangePassword";
+import { CreateNewPassword } from "../modules/auth/pages/CreateNewPassword";
 import { ProtectedRoute } from "./ProtectedRoute";
 import { POSRouteGuard } from "../shared/components/POSRouteGuard";
 import { DashboardWorkspaceLayout } from "../modules/dashboard/components/DashboardWorkspaceLayout";
@@ -45,6 +46,7 @@ export function AppRouter() {
       <Route path="/change-password" element={<ChangePassword />} />
 
       <Route element={<ProtectedRoute />}>
+        <Route path="/create-new-password" element={<CreateNewPassword />} />
         <Route path="/dashboard" element={<DashboardWorkspaceLayout />}>
           <Route index element={<DashboardPage />} />
           <Route path="sales" element={<Navigate to="sales/pos" replace />} />

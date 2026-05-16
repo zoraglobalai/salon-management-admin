@@ -72,10 +72,10 @@ export function DashboardSalesPOSPage() {
       >
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className={`text-xl font-black font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>Sales Workflow</h2>
-            <p className={`mt-1 text-sm ${isDark ? "text-[#C8BFB4]" : "text-gray-600"}`}>
+            <h2 className={`text-2xl font-black font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-gray-900"}`}>Sales Workflow</h2>
+            {/* <p className={`mt-1 text-sm ${isDark ? "text-[#C8BFB4]" : "text-gray-600"}`}>
               Start a new sale on a dedicated page, save it as a draft, and finish payment only at checkout.
-            </p>
+            </p> */}
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">

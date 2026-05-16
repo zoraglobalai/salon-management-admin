@@ -224,7 +224,6 @@ export function DashboardInventoryPage() {
       }`}>
         <div>
           <h2 className={`text-2xl font-bold font-['Outfit'] ${isDark ? "text-[#F0EBE3]" : "text-[#111827]"}`}>Inventory Management</h2>
-          <p className={`mt-1 text-sm ${isDark ? "text-[#7A7572]" : "text-[#6B7280]"}`}>Track stock by location with strict branch-level access control.</p>
         </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           {!isManager && (
@@ -310,7 +309,7 @@ export function DashboardInventoryPage() {
       <div className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border shadow-sm transition-all ${
         isDark ? "bg-[#151821] border-[rgba(255,255,255,0.07)]" : "bg-white border-[#E8E1D8]"
       }`}>
-        <div className="hidden min-h-0 flex-1 overflow-auto md:block">
+        <div className="hidden min-h-0 flex-1 overflow-auto scrollbar-hide md:block">
           <table className="w-full border-collapse text-left">
             <thead>
               <tr className={`border-b transition-all ${
@@ -387,7 +386,7 @@ export function DashboardInventoryPage() {
         </div>
 
         {/* Mobile View */}
-        <div className="flex min-h-0 flex-col gap-3 overflow-y-auto p-4 md:hidden">
+        <div className="flex min-h-0 flex-col gap-3 overflow-y-auto scrollbar-hide p-4 md:hidden">
           {isLoading && <div className={`text-center py-8 text-sm ${isDark ? "text-[#7A7572]" : "text-gray-400"}`}>Loading…</div>}
           {!isLoading && items.map((item) => (
             <div key={item.id} className={`rounded-xl border p-4 shadow-sm transition-all ${

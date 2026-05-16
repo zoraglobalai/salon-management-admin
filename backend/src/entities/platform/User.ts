@@ -16,6 +16,12 @@ export enum UserRole {
   INDEPENDENT_OWNER = 'INDEPENDENT_OWNER',
 }
 
+export enum CreatorRole {
+  ADMIN = 'ADMIN',
+  OWNER = 'OWNER',
+  SYSTEM = 'SYSTEM',
+}
+
 export type BusinessRole = UserRole.OWNER | UserRole.MANAGER;
 
 export enum UserMode {
@@ -97,4 +103,17 @@ export class User {
 
   @Column({ type: 'int', default: 0 })
   sessionVersion!: number;
+
+  @Column({ type: 'boolean', default: false })
+  isTemporaryPassword!: boolean;
+
+  @Column({ type: 'boolean', default: false })
+  passwordResetRequired!: boolean;
+
+  @Column({
+    type: 'enum',
+    enum: CreatorRole,
+    nullable: true,
+  })
+  createdByRole!: CreatorRole | null;
 }

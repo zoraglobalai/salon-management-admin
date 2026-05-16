@@ -1,5 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
-import { loginService, forgotPasswordService, resetPasswordService, changePasswordService } from './auth.service';
+import {
+  loginService,
+  forgotPasswordService,
+  resetPasswordService,
+  changePasswordService,
+  completeTemporaryOwnerPasswordResetService,
+} from './auth.service';
 
 export const login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -87,6 +93,34 @@ export const changePassword = async (req: Request, res: Response, next: NextFunc
     res.status(200).json({
       success: true,
       message: 'Password changed successfully.',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const completeTemporaryOwnerPasswordReset = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
+    }
+
+    const { newPassword } = req.body;
+    if (!newPassword) {
+      res.status(400).json({ success: false, message: 'newPassword is required.' });
+      return;
+    }
+
+    await completeTemporaryOwnerPasswordResetService(userId, newPassword);
+    res.status(200).json({
+      success: true,
+      message: 'Password updated successfully.',
     });
   } catch (error) {
     next(error);
