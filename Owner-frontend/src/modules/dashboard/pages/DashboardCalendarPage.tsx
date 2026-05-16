@@ -40,6 +40,7 @@ import {
   fetchServices,
   fetchClients,
   fetchBusySlots,
+  fetchStaffAttendanceStatus,
   type Appointment,
   type AppointmentCalendarEvent,
   type AppointmentInput,
@@ -1053,6 +1054,7 @@ function AppointmentFormModal({
 }: any) {
   const { toast } = useNotifications();
   const [busySlots, setBusySlots] = useState<{start_time: string, end_time: string}[]>([]);
+  const [staffAttendanceStatus, setStaffAttendanceStatus] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<AppointmentInput>({
     customerId: appointment?.customer_id || "",
@@ -1066,17 +1068,31 @@ function AppointmentFormModal({
     status: appointment?.status || "booked"
   });
 
-  // Fetch busy slots
+  // Fetch busy slots and attendance status
   useEffect(() => {
     if (formData.staffId && formData.appointmentDate) {
-      fetchBusySlots(formData.staffId, formData.appointmentDate)
-        .then(res => setBusySlots(res))
+      Promise.all([
+        fetchBusySlots(formData.staffId, formData.appointmentDate),
+        fetchStaffAttendanceStatus(formData.staffId, formData.appointmentDate)
+      ])
+        .then(([busy, attendance]) => {
+          setBusySlots(busy);
+          setStaffAttendanceStatus(attendance.status);
+        })
         .catch(console.error);
+    } else {
+      setBusySlots([]);
+      setStaffAttendanceStatus(null);
     }
   }, [formData.staffId, formData.appointmentDate]);
 
   // Generate available slots (9 AM to 9 PM, every 15 mins)
   const availableSlots = useMemo(() => {
+    const blockingStatuses = ['absent', 'week_off', 'paid_leave', 'lop', 'leave'];
+    if (staffAttendanceStatus && blockingStatuses.includes(staffAttendanceStatus)) {
+      return [];
+    }
+
     const slots = [];
     let current = parse("09:00", "HH:mm", new Date());
     const end = parse("21:00", "HH:mm", new Date());
@@ -1106,7 +1122,7 @@ function AppointmentFormModal({
       current = addMinutes(current, 15);
     }
     return slots;
-  }, [busySlots, formData.appointmentDate]);
+  }, [busySlots, formData.appointmentDate, staffAttendanceStatus]);
 
   // Auto-calculate end time
   useEffect(() => {
@@ -1250,6 +1266,10 @@ function AppointmentFormModal({
               {!formData.staffId || !formData.serviceId ? (
                 <div className={`p-4 rounded-xl text-center text-xs font-bold ${isDark ? "bg-white/5 text-[#7A7572]" : "bg-gray-50 text-gray-400"}`}>
                   Please select staff and service to see available slots
+                </div>
+              ) : staffAttendanceStatus && ['absent', 'week_off', 'paid_leave', 'lop', 'leave'].includes(staffAttendanceStatus) ? (
+                <div className="w-full p-4 rounded-xl text-center text-xs font-bold text-rose-400 bg-rose-400/5 border border-rose-400/20">
+                  Staff is not available: {staffAttendanceStatus.replace('_', ' ').toUpperCase()}
                 </div>
               ) : (
                 <div className="flex flex-wrap gap-2 max-h-[160px] overflow-y-auto pr-2 custom-scrollbar">

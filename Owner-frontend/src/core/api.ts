@@ -1742,3 +1742,9 @@ export async function fetchBusySlots(staffId: string, date: string) {
     headers: getOwnerAuthHeaders(),
   });
 }
+
+export async function fetchStaffAttendanceStatus(staffId: string, date: string) {
+  return request<{ status: string | null }>(`/appointments/attendance-status?staffId=${staffId}&date=${date}`, {
+    headers: getOwnerAuthHeaders(),
+  });
+}

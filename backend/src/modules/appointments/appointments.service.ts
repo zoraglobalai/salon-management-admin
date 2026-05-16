@@ -74,7 +74,24 @@ export async function createAppointment(user: AuthUserPayload, input: Appointmen
     throw createError("Salon is closed on the selected date", 400);
   }
 
-  // 2. Staff Overlap Check
+  // 2. Attendance Availability Check
+  const attendanceCheck = await query(
+    `SELECT status FROM attendance 
+     WHERE employee_id = $1 
+     AND attendance_date = $2 
+     AND tenant_id = $3`,
+    [input.staffId, input.appointmentDate, user.tenant_id]
+  );
+  if (attendanceCheck.rows.length > 0) {
+    const status = attendanceCheck.rows[0].status;
+    const blockingStatuses = ['absent', 'week_off', 'paid_leave', 'lop', 'leave'];
+    if (blockingStatuses.includes(status)) {
+      const displayStatus = status.replace('_', ' ').toUpperCase();
+      throw createError(`Staff is not available on this date (Attendance Status: ${displayStatus})`, 400);
+    }
+  }
+
+  // 3. Staff Overlap Check
   const overlapCheck = await query(
     `SELECT id FROM appointments
      WHERE staff_id = $1
@@ -147,6 +164,23 @@ export async function updateAppointment(user: AuthUserPayload, id: string, input
   if (existing.rows.length === 0) throw createError("Appointment not found", 404);
   if (user.type === 'manager' && existing.rows[0].branch_id !== user.branch_id) {
     throw createError("Unauthorized", 403);
+  }
+
+  // Attendance Availability Check
+  const attendanceCheck = await query(
+    `SELECT status FROM attendance 
+     WHERE employee_id = $1 
+     AND attendance_date = $2 
+     AND tenant_id = $3`,
+    [input.staffId, input.appointmentDate, user.tenant_id]
+  );
+  if (attendanceCheck.rows.length > 0) {
+    const status = attendanceCheck.rows[0].status;
+    const blockingStatuses = ['absent', 'week_off', 'paid_leave', 'lop', 'leave'];
+    if (blockingStatuses.includes(status)) {
+      const displayStatus = status.replace('_', ' ').toUpperCase();
+      throw createError(`Staff is not available on this date (Attendance Status: ${displayStatus})`, 400);
+    }
   }
 
   // Overlap check (excluding self)
@@ -276,4 +310,15 @@ export async function autoExpireAppointments() {
   }
 
   return result.rows;
+}
+
+export async function getStaffAttendanceStatus(user: AuthUserPayload, staffId: string, date: string) {
+  const result = await query(
+    `SELECT status FROM attendance 
+     WHERE employee_id = $1 
+     AND attendance_date = $2 
+     AND tenant_id = $3`,
+    [staffId, date, user.tenant_id]
+  );
+  return result.rows[0]?.status || null;
 }

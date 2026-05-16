@@ -15,6 +15,7 @@ router.post("/holidays", controller.createHoliday);
 router.delete("/holidays/:id", controller.deleteHoliday);
 
 router.get("/busy-slots", controller.getBusySlots);
+router.get("/attendance-status", controller.getStaffAttendanceStatus);
 router.post("/auto-expire", controller.triggerAutoExpire);
 
 export default router;

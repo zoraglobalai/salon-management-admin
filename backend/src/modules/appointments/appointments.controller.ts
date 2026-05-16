@@ -130,3 +130,15 @@ export async function triggerAutoExpire(req: Request, res: Response) {
   }
 }
 
+export async function getStaffAttendanceStatus(req: Request, res: Response) {
+  try {
+    const user = getAuthUser(req);
+    const { staffId, date } = req.query;
+    if (!staffId || !date) throw createError("Staff ID and Date are required", 400);
+    const result = await appointmentService.getStaffAttendanceStatus(user, String(staffId), String(date));
+    res.json({ status: result });
+  } catch (error: any) {
+    res.status(error.status || 500).json({ message: error.message });
+  }
+}
+
