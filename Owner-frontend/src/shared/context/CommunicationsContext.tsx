@@ -3,7 +3,10 @@ import { io, Socket } from "socket.io-client";
 import { fetchConversations, fetchMessages, fetchUnreadCount } from "../../core/communications";
 import { clearOwnerSession } from "../../modules/auth/services/sessionSync";
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || "";
+const SOCKET_URL =
+  import.meta.env.VITE_SOCKET_URL ||
+  import.meta.env.VITE_PROXY_TARGET ||
+  "http://127.0.0.1:5002";
 
 export interface Message {
   id: string;
@@ -104,7 +107,11 @@ export function CommunicationsProvider({ children }: { children: React.ReactNode
 
     const socket = io(SOCKET_URL, {
       auth: { token, userId, role: userRole },
-      transports: ['websocket', 'polling']
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 800,
+      timeout: 10000,
     });
 
     socketRef.current = socket;

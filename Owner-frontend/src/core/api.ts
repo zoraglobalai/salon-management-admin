@@ -1748,3 +1748,12 @@ export async function fetchStaffAttendanceStatus(staffId: string, date: string) 
     headers: getOwnerAuthHeaders(),
   });
 }
+
+export async function fetchAvailableStaff(date: string, branchId?: string) {
+  const params = new URLSearchParams({ date });
+  if (branchId && branchId !== "all") params.append("branchId", branchId);
+  return request<{ staff: Array<{ id: string; name: string; role: string }> }>(
+    `/appointments/available-staff?${params.toString()}`,
+    { headers: getOwnerAuthHeaders() }
+  );
+}

@@ -38,15 +38,16 @@ export async function upsertAttendance(user: AuthUserPayload, input: {
   }
 
   const result = await query(
-    `INSERT INTO attendance (employee_id, branch_id, attendance_date, status, marked_by, remarks)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO attendance (tenant_id, employee_id, branch_id, attendance_date, status, marked_by, remarks)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      ON CONFLICT (employee_id, attendance_date) DO UPDATE SET
+       tenant_id = EXCLUDED.tenant_id,
        status = EXCLUDED.status,
        marked_by = EXCLUDED.marked_by,
        remarks = EXCLUDED.remarks,
        updated_at = NOW()
      RETURNING *`,
-    [input.employeeId, input.branchId, input.attendanceDate, input.status, user.id, input.remarks || ""]
+    [user.tenant_id, input.employeeId, input.branchId, input.attendanceDate, input.status, user.id, input.remarks || ""]
   );
 
   return result.rows[0];
@@ -74,6 +75,7 @@ export async function getMonthlyAttendance(user: AuthUserPayload, month: number,
   const attendanceResult = await query(
     `SELECT employee_id, attendance_date, status FROM attendance
      WHERE attendance_date BETWEEN $1 AND $2
+       AND tenant_id = $3
        AND branch_id IN (SELECT id FROM branches WHERE tenant_id = $3 AND ($4::uuid IS NULL OR id = $4))`,
     [startDate, endDate, user.tenant_id, targetBranchId]
   );
@@ -112,8 +114,9 @@ export async function getStaffCalendar(user: AuthUserPayload, employeeId: string
   const result = await query(
     `SELECT id, attendance_date as date, status FROM attendance
      WHERE employee_id = $1
+       AND tenant_id = $2
      ORDER BY attendance_date ASC`,
-    [employeeId]
+    [employeeId, user.tenant_id]
   );
 
   // Calculate summary
@@ -146,15 +149,16 @@ export async function bulkMarkPresent(user: AuthUserPayload, branchId: string, d
 
   const values: any[] = [];
   const placeholders = staff.rows.map((s, i) => {
-    const base = i * 5;
-    values.push(s.id, branchId, date, 'present', user.id);
-    return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`;
+    const base = i * 6;
+    values.push(user.tenant_id, s.id, branchId, date, 'present', user.id);
+    return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6})`;
   }).join(",");
 
   await query(
-    `INSERT INTO attendance (employee_id, branch_id, attendance_date, status, marked_by)
+    `INSERT INTO attendance (tenant_id, employee_id, branch_id, attendance_date, status, marked_by)
      VALUES ${placeholders}
      ON CONFLICT (employee_id, attendance_date) DO UPDATE SET
+       tenant_id = EXCLUDED.tenant_id,
        status = EXCLUDED.status,
        marked_by = EXCLUDED.marked_by,
        updated_at = NOW()`,
@@ -181,9 +185,9 @@ export async function deleteAttendance(user: AuthUserPayload, input: {
 
   const result = await query(
     `DELETE FROM attendance 
-     WHERE employee_id = $1 AND attendance_date = $2
+     WHERE employee_id = $1 AND attendance_date = $2 AND tenant_id = $3
      RETURNING *`,
-    [input.employeeId, input.attendanceDate]
+    [input.employeeId, input.attendanceDate, user.tenant_id]
   );
 
   return result.rows[0];

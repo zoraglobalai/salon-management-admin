@@ -142,3 +142,19 @@ export async function getStaffAttendanceStatus(req: Request, res: Response) {
   }
 }
 
+export async function getAvailableStaffForDate(req: Request, res: Response) {
+  try {
+    const user = getAuthUser(req);
+    const { date, branchId } = req.query;
+    if (!date) throw createError("Date is required", 400);
+    const result = await appointmentService.getAvailableStaffForDate(
+      user,
+      String(date),
+      branchId ? String(branchId) : undefined
+    );
+    res.json({ staff: result });
+  } catch (error: any) {
+    res.status(error.status || 500).json({ message: error.message });
+  }
+}
+

@@ -31,9 +31,7 @@ const listenOnPort = (port: number): http.Server => {
 
   server.on('error', (error: NodeJS.ErrnoException) => {
     if (error.code === 'EADDRINUSE') {
-      const nextPort = port + 1;
-      console.warn(`Port ${port} is already in use. Retrying on ${nextPort}...`);
-      listenOnPort(nextPort);
+      console.error(`Port ${port} is already in use. Stop the other process or set a different PORT.`);
       return;
     }
 

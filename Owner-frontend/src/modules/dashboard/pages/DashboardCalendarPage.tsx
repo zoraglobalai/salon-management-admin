@@ -45,6 +45,7 @@ import {
   fetchClients,
   fetchBusySlots,
   fetchStaffAttendanceStatus,
+  fetchAvailableStaff,
   type Appointment,
   type AppointmentCalendarEvent,
   type AppointmentInput,
@@ -1050,7 +1051,6 @@ export function DashboardCalendarPage() {
           onClose={() => setIsModalOpen(false)}
           appointment={selectedAppointment}
           activeBranchId={activeBranchId}
-          staffMembers={staffMembers}
           services={services}
           clients={clients}
           holidays={holidays}
@@ -1150,12 +1150,15 @@ export function DashboardCalendarPage() {
 
 // Separate component for the Modal to keep the main page clean
 function AppointmentFormModal({ 
-  onClose, appointment, activeBranchId, staffMembers, services, clients, holidays, onSuccess, isDark 
+  onClose, appointment, activeBranchId, services, clients, holidays, onSuccess, isDark 
 }: any) {
   const { toast } = useNotifications();
   const isEditing = Boolean(appointment?.id);
   const [busySlots, setBusySlots] = useState<{start_time: string, end_time: string}[]>([]);
   const [attendanceData, setAttendanceData] = useState<MonthlyAttendanceData | null>(null);
+  const [staffAttendanceStatus, setStaffAttendanceStatus] = useState<string | null>(null);
+  const [availableStaffMembers, setAvailableStaffMembers] = useState<StaffMember[]>([]);
+  const [isLoadingStaffAvailability, setIsLoadingStaffAvailability] = useState(false);
   const [workingHours, setWorkingHours] = useState(() => readAppointmentSettings(activeBranchId).workingHours);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState<AppointmentInput>({
@@ -1192,6 +1195,38 @@ function AppointmentFormModal({
       .then(setAttendanceData)
       .catch((error) => console.error("Failed to load attendance holidays", error));
   }, [activeBranchId, formData.appointmentDate]);
+
+  useEffect(() => {
+    if (!formData.appointmentDate || !activeBranchId) {
+      setAvailableStaffMembers([]);
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoadingStaffAvailability(true);
+
+    fetchAvailableStaff(formData.appointmentDate, activeBranchId)
+      .then((response) => {
+        if (cancelled) return;
+        const nextAvailable = (response?.staff || []) as StaffMember[];
+        setAvailableStaffMembers(nextAvailable);
+        setFormData((prev) => {
+          if (!prev.staffId) return prev;
+          const stillAvailable = nextAvailable.some((staff) => staff.id === prev.staffId);
+          if (stillAvailable) return prev;
+          return { ...prev, staffId: "", startTime: "", endTime: "" };
+        });
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingStaffAvailability(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [formData.appointmentDate, activeBranchId]);
 
   // Fetch busy slots
   useEffect(() => {
@@ -1378,27 +1413,6 @@ function AppointmentFormModal({
               </div>
             </div>
 
-            {/* Staff Select */}
-            <div className="md:col-span-2">
-              <label className={`mb-1.5 block text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Staff Member</label>
-              <div className="relative">
-                <select 
-                  required
-                  value={formData.staffId}
-                  onChange={(e) => setFormData(prev => ({ ...prev, staffId: e.target.value }))}
-                  className={`w-full appearance-none rounded-xl border px-10 py-3 text-sm outline-none transition-all ${
-                    isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50 border-[#F2EDE7] text-gray-900 focus:border-[#8B5E3C]"
-                  }`}
-                >
-                  <option value="">Select Staff</option>
-                  {staffMembers.map((s: any) => (
-                    <option key={s.id} value={s.id}>{s.name} - {s.role}</option>
-                  ))}
-                </select>
-                <User size={16} className={`absolute left-3.5 top-3.5 ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`} />
-              </div>
-            </div>
-
             {/* Date */}
             <div>
               <label className={`mb-1.5 block text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Date</label>
@@ -1414,6 +1428,37 @@ function AppointmentFormModal({
                 />
                 <CalendarIcon size={16} className={`absolute left-3.5 top-3.5 ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`} />
               </div>
+            </div>
+
+            {/* Staff Select */}
+            <div className="md:col-span-2">
+              <label className={`mb-1.5 block text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? "text-[#7A7572]" : "text-gray-500"}`}>Staff Member</label>
+              <div className="relative">
+                <select 
+                  required
+                  value={formData.staffId}
+                  onChange={(e) => setFormData(prev => ({ ...prev, staffId: e.target.value, startTime: "", endTime: "" }))}
+                  disabled={!formData.appointmentDate || isLoadingStaffAvailability || availableStaffMembers.length === 0}
+                  className={`w-full appearance-none rounded-xl border px-10 py-3 text-sm outline-none transition-all disabled:cursor-not-allowed disabled:opacity-70 ${
+                    isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.1)] text-[#F0EBE3] focus:border-[#C9A96E]" : "bg-gray-50 border-[#F2EDE7] text-gray-900 focus:border-[#8B5E3C]"
+                  }`}
+                >
+                  <option value="">
+                    {!formData.appointmentDate
+                      ? "Select Date First"
+                      : isLoadingStaffAvailability
+                        ? "Loading staff..."
+                        : "Select Staff"}
+                  </option>
+                  {availableStaffMembers.map((s: any) => (
+                    <option key={s.id} value={s.id}>{s.name} - {s.role}</option>
+                  ))}
+                </select>
+                <User size={16} className={`absolute left-3.5 top-3.5 ${isDark ? "text-[#C9A96E]" : "text-[#8B5E3C]"}`} />
+              </div>
+              {formData.appointmentDate && !isLoadingStaffAvailability && availableStaffMembers.length === 0 ? (
+                <p className="mt-2 text-xs font-semibold text-rose-500">No staff available for the selected date</p>
+              ) : null}
             </div>
 
             {/* Smart Time Slot Picker */}
@@ -1436,9 +1481,9 @@ function AppointmentFormModal({
                     : "This day is closed in settings."}
               </div>
               
-              {!formData.staffId || !formData.serviceId ? (
+              {!formData.appointmentDate || !formData.staffId || !formData.serviceId ? (
                 <div className={`p-4 rounded-xl text-center text-xs font-bold ${isDark ? "bg-white/5 text-[#7A7572]" : "bg-gray-50 text-gray-400"}`}>
-                  Please select staff and service to see available slots
+                  Please select date, staff and service to see available slots
                 </div>
               ) : staffAttendanceStatus && ['absent', 'week_off', 'paid_leave', 'lop', 'leave'].includes(staffAttendanceStatus) ? (
                 <div className="w-full p-4 rounded-xl text-center text-xs font-bold text-rose-400 bg-rose-400/5 border border-rose-400/20">

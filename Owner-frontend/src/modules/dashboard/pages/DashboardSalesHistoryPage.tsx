@@ -374,10 +374,10 @@ export function DashboardSalesHistoryPage() {
         )}
       </div>
 
-      <div className={`flex-1 rounded-[32px] border shadow-sm overflow-hidden flex flex-col transition-all ${
+      <div className={`flex-1 rounded-[32px] border shadow-sm overflow-hidden  flex flex-col transition-all ${
         isDark ? "bg-[#151821] border-[rgba(255,255,255,0.07)]" : "bg-white border-[#E8E1D8]"
       }`}>
-        <div className="overflow-x-auto h-full">
+        <div className="overflow-hidden h-full scrollbar-hide">
           <table className="w-full text-left border-collapse min-w-[800px]">
             <thead>
               <tr className={`border-b transition-all ${isDark ? "bg-[#1C2030] border-[rgba(255,255,255,0.05)]" : "bg-gray-50/50 border-[#F2EDE7]"}`}>

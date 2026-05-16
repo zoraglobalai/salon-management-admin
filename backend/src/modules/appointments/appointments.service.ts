@@ -313,12 +313,57 @@ export async function autoExpireAppointments() {
 }
 
 export async function getStaffAttendanceStatus(user: AuthUserPayload, staffId: string, date: string) {
+  const staffScope = await query(
+    `SELECT location_id FROM staff_members
+     WHERE id = $1
+       AND tenant_id = $2
+       AND ($3::uuid IS NULL OR location_id = $3)
+     LIMIT 1`,
+    [staffId, user.tenant_id, user.type === "manager" ? user.branch_id : null]
+  );
+
+  if (!staffScope.rows[0]) {
+    throw createError("Staff member not found or unauthorized", 404);
+  }
+
   const result = await query(
     `SELECT status FROM attendance 
      WHERE employee_id = $1 
      AND attendance_date = $2 
-     AND tenant_id = $3`,
-    [staffId, date, user.tenant_id]
+     AND tenant_id = $3
+     AND branch_id = $4
+     LIMIT 1`,
+    [staffId, date, user.tenant_id, staffScope.rows[0].location_id]
   );
   return result.rows[0]?.status || null;
+}
+
+export async function getAvailableStaffForDate(user: AuthUserPayload, date: string, branchId?: string) {
+  const targetBranchId = user.type === "manager" ? user.branch_id : (branchId === "all" ? null : branchId);
+
+  if (!targetBranchId) {
+    return [];
+  }
+
+  const result = await query<{ id: string; name: string; role: string }>(
+    `SELECT sm.id, sm.name, sm.role
+     FROM staff_members sm
+     LEFT JOIN attendance a
+       ON a.employee_id = sm.id
+      AND a.attendance_date = $2
+      AND a.branch_id = sm.location_id
+      AND a.tenant_id = sm.tenant_id
+     WHERE sm.tenant_id = $1
+       AND sm.location_id = $3
+       AND COALESCE(sm.is_active, TRUE) = TRUE
+       AND COALESCE(LOWER(TRIM(sm.role)), '') <> 'manager'
+       AND (
+         a.status IS NULL
+         OR LOWER(a.status) NOT IN ('absent', 'week_off', 'paid_leave', 'lop', 'leave', 'holiday')
+       )
+     ORDER BY sm.name ASC`,
+    [user.tenant_id, date, targetBranchId]
+  );
+
+  return result.rows;
 }

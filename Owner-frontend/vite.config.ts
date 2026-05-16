@@ -21,6 +21,9 @@ export default defineConfig({
               console.error('proxy error', err);
             }
           });
+          proxy.on('econnreset', (_err, _req, _res) => {
+            // Ignore transient websocket resets during backend restart/shutdown.
+          });
         },
       },
     },
